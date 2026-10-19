@@ -186,6 +186,7 @@ class StorageAccessViewModel @Inject constructor(
         onSetShowHidden = { on -> run { model.setShowHidden(on); null } },
         onSetDeleteEmptyFolders = { on -> run { model.setDeleteEmptyFolders(on); null } },
         onDismissUnhidePrompt = status::dismissPendingUnhide,
+        onKeepHidden = status::keepHidden,
         manageMediaIntent = { MediaManagementAccess.requestIntent(context) },
         permissionIntent = { advanced.permissionIntent() },
     )

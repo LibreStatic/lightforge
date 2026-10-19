@@ -156,8 +156,8 @@
     <string name="device_folders_refresh">Actualizar</string>
     <string name="device_folders_checked">Activado</string>
     <string name="folder_op_moved">Carpeta movida</string>
-    <plurals name="adv_transfer_moved"><item quantity="one">%1$d elemento movido</item><item quantity="other">%1$d elementos movidos</item></plurals>
-    <plurals name="adv_transfer_copied"><item quantity="one">%1$d elemento copiado</item><item quantity="other">%1$d elementos copiados</item></plurals>
+    <plurals name="adv_transfer_moved"><item quantity="one">%1$d elemento movido</item><item quantity="many">%1$d elementos movidos</item><item quantity="other">%1$d elementos movidos</item></plurals>
+    <plurals name="adv_transfer_copied"><item quantity="one">%1$d elemento copiado</item><item quantity="many">%1$d elementos copiados</item><item quantity="other">%1$d elementos copiados</item></plurals>
     <string name="adv_transfer_nothing">Todo ya está en esa carpeta.</string>
     <string name="adv_transfer_partial">%1$d listos, %2$d no se pudieron transferir</string>
     <string name="adv_transfer_failed">No se transfirió nada.</string>

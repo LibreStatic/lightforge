@@ -76,6 +76,22 @@ class AdvancedStorageStatusTest {
         assertEquals(0, env.status.pendingUnhide.value)
     }
 
+    @Test fun `keeping the folders hidden stops the launch prompt for them but not for a new hide`() {
+        val store = InMemoryKeptHiddenStore()
+        fun launch(hidden: Int) = AdvancedStorageStatus(
+            Fake(granted = false, hidden = hidden, isSupported = false),
+            MutableStateFlow(GallerySettings().with(false, false, false)),
+            CoroutineScope(Dispatchers.Unconfined),
+            store,
+        )
+        val first = launch(2)
+        assertEquals(2, first.pendingUnhide.value)
+        first.keepHidden()
+        assertEquals(0, first.pendingUnhide.value)
+        assertEquals(0, launch(2).pendingUnhide.value)
+        assertEquals(3, launch(3).pendingUnhide.value)
+    }
+
     @Test fun `a flag-off build with nothing hidden raises no prompt`() {
         val env = Env(Fake(granted = false, hidden = 0, isSupported = false), enabled = false)
         assertEquals(0, env.status.pendingUnhide.value)

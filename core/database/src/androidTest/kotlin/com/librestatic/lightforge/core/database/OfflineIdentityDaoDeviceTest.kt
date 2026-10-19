@@ -72,6 +72,18 @@ class OfflineIdentityDaoDeviceTest {
         assertEquals(7000L, dao.media("external_primary", 2)!!.durationMillis)
     }
 
+    @Test fun reconciliationBackfillsAnimatedFlagOfUnchangedRows() = runBlocking {
+        media(1); media(2)
+        val dao = db.libraryDao()
+        val checkpoint = MediaStoreCheckpointEntity("external_primary", "v1", 3, 2, 99, "Running", 123)
+        // Same generation, as after the index format bump: only the sniffed animated row is rewritten.
+        val sniffed = dao.media("external_primary", 1)!!.copy(isAnimated = true, lastSeenScanId = 99)
+        val unchanged = dao.media("external_primary", 2)!!.copy(lastSeenScanId = 99)
+        dao.reconcileMediaPage(listOf(sniffed, unchanged), checkpoint)
+        assertTrue(dao.media("external_primary", 1)!!.isAnimated)
+        assertFalse(dao.media("external_primary", 2)!!.isAnimated)
+    }
+
     @Test fun migration26To27PreservesMediaMemoriesAndRestoreReceipts() {
         val name="migration-v26-pet-peer.db"
         val helper=MigrationTestHelper(InstrumentationRegistry.getInstrumentation(),GalleryDatabase::class.java)

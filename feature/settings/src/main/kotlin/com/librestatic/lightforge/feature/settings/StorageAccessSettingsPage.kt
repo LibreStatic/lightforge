@@ -341,8 +341,8 @@ private fun LockedHiddenFoldersSection(onShow: () -> Unit) {
 }
 
 /**
- * Offers to unhide the folders left behind when an import or reset turned the mode off. Lives outside the
- * page so it appears wherever in Settings the change happened.
+ * Offers to unhide the folders left behind when an import or reset turned the mode off. Hosted at the app root so it
+ * appears on launch and wherever the change happened, not only inside Settings.
  */
 @Composable
 fun StorageAccessUnhidePrompt(state: StorageAccessUiState, actions: StorageAccessActions) {
@@ -358,7 +358,7 @@ fun StorageAccessUnhidePrompt(state: StorageAccessUiState, actions: StorageAcces
             ) { Text(stringResource(R.string.storage_access_unhide)) }
         },
         dismissButton = {
-            TextButton(onClick = actions.onDismissUnhidePrompt) { Text(stringResource(R.string.storage_access_keep_hidden)) }
+            TextButton(onClick = actions.onKeepHidden) { Text(stringResource(R.string.storage_access_keep_hidden)) }
         },
     )
 }

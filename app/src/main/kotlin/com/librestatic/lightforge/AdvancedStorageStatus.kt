@@ -1,8 +1,10 @@
 package com.librestatic.lightforge
 
+import android.content.Context
 import com.librestatic.lightforge.core.mediastore.AdvancedStorage
 import com.librestatic.lightforge.core.preferences.GallerySettings
 import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +35,25 @@ data class AdvancedStatus(
     val deleteEmptyFolders: Boolean = false,
 )
 
+/** Remembers the hidden folders the user chose to keep hidden, so the launch prompt does not repeat for them. */
+interface KeptHiddenStore {
+    fun load(): Set<String>
+    fun save(paths: Set<String>)
+}
+
+/** Process-only memory; the default for tests. */
+class InMemoryKeptHiddenStore : KeptHiddenStore {
+    private var paths: Set<String> = emptySet()
+    override fun load() = paths
+    override fun save(paths: Set<String>) { this.paths = paths }
+}
+
+private class PreferencesKeptHiddenStore(context: Context) : KeptHiddenStore {
+    private val preferences = context.getSharedPreferences("advanced_storage_prompt", Context.MODE_PRIVATE)
+    override fun load(): Set<String> = preferences.getStringSet("kept_hidden", emptySet()).orEmpty().toSet()
+    override fun save(paths: Set<String>) { preferences.edit().putStringSet("kept_hidden", paths).apply() }
+}
+
 /**
  * The single capability source for advanced storage. With the build flag off the injected
  * [AdvancedStorage] is recovery-only (unsupported), so [status] is always inactive and default behaviour is unchanged.
@@ -42,10 +63,11 @@ class AdvancedStorageStatus internal constructor(
     private val advanced: AdvancedStorage,
     settings: kotlinx.coroutines.flow.Flow<GallerySettings>,
     private val scope: CoroutineScope,
+    private val kept: KeptHiddenStore = InMemoryKeptHiddenStore(),
 ) {
     @Inject
-    constructor(advanced: AdvancedStorage, repository: GallerySettingsRepository) :
-        this(advanced, repository.settings, CoroutineScope(SupervisorJob() + Dispatchers.Default))
+    constructor(advanced: AdvancedStorage, repository: GallerySettingsRepository, @ApplicationContext context: Context) :
+        this(advanced, repository.settings, CoroutineScope(SupervisorJob() + Dispatchers.Default), PreferencesKeptHiddenStore(context))
 
     private data class Wish(val enabled: Boolean, val showHidden: Boolean, val deleteEmpty: Boolean)
 
@@ -53,6 +75,7 @@ class AdvancedStorageStatus internal constructor(
     private val hiddenCount = MutableStateFlow(0)
     private val temporary = MutableStateFlow(false)
     private val mutablePendingUnhide = MutableStateFlow(0)
+    @Volatile private var promptPaths: Set<String> = emptySet()
     @Volatile private var backgroundedAt: Long? = null
     @Volatile private var localChange: Boolean? = null
 
@@ -83,13 +106,15 @@ class AdvancedStorageStatus internal constructor(
         scope.launch {
             var previous: Boolean? = null
             settings.map { it.operations.advancedStorageEnabled }.distinctUntilChanged().collect { enabled ->
-                val count = advanced.hiddenByApp().size
+                val paths = advanced.hiddenByApp().map { it.absolutePath }.toSet()
+                val count = paths.size
                 hiddenCount.value = count
                 val own = localChange == enabled
                 if (own) localChange = null
-                if (previous == true && !enabled && !own && count > 0) mutablePendingUnhide.value = count
-                // A build without the feature (flag off) cannot see hidden folders any other way: offer it once per launch.
-                if (previous == null && !advanced.isSupported && count > 0) mutablePendingUnhide.value = count
+                if (previous == true && !enabled && !own && count > 0) raisePrompt(paths)
+                // A build without the feature (flag off) cannot see hidden folders any other way: offer it at
+                // launch, but only for folders the user has not already chosen to keep hidden.
+                if (previous == null && !advanced.isSupported && count > 0 && !kept.load().containsAll(paths)) raisePrompt(paths)
                 previous = enabled
             }
         }
@@ -111,8 +136,19 @@ class AdvancedStorageStatus internal constructor(
         localChange = enabled
     }
 
+    private fun raisePrompt(paths: Set<String>) {
+        promptPaths = paths
+        mutablePendingUnhide.value = paths.size
+    }
+
     fun dismissPendingUnhide() {
         mutablePendingUnhide.value = 0
+    }
+
+    /** The user chose "Keep hidden": the prompt closes and does not return for these folders on later launches. */
+    fun keepHidden() {
+        kept.save(kept.load() + promptPaths)
+        dismissPendingUnhide()
     }
 
     fun setTemporaryShowHidden(enabled: Boolean) {

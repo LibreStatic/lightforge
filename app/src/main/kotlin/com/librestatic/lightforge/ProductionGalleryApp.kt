@@ -406,6 +406,8 @@ internal fun ProductionGalleryApp(
     val resources = androidx.compose.ui.platform.LocalResources.current
     val appScope = rememberCoroutineScope()
     val density = LocalDensity.current
+    // Folders this app hid and could not be unhidden by a build without the permission are offered on launch.
+    rememberStorageAccessSettings()?.let { com.librestatic.lightforge.feature.settings.StorageAccessUnhidePrompt(it.state, it.actions) }
     val voiceSearchUnavailable = stringResource(com.librestatic.lightforge.feature.search.R.string.search_voice_unavailable)
     val privateBiometricUnavailable = stringResource(com.librestatic.lightforge.feature.privatealbum.R.string.private_key_auth_unavailable)
     val privateLockedTitle = stringResource(com.librestatic.lightforge.feature.privatealbum.R.string.private_locked)

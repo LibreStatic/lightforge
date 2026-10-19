@@ -69,6 +69,8 @@ data class StorageAccessActions(
     val onSetShowHidden: (Boolean) -> Unit = {},
     val onSetDeleteEmptyFolders: (Boolean) -> Unit = {},
     val onDismissUnhidePrompt: () -> Unit = {},
+    /** "Keep hidden" on the unhide prompt: also remembered so the launch prompt does not return for these folders. */
+    val onKeepHidden: () -> Unit = {},
     /** Runs [onSuccess] after the app lock check when [protectHiddenItems] is on; the host owns the biometric UI. */
     val requireUnlock: (onSuccess: () -> Unit) -> Unit = { it() },
     val manageMediaIntent: () -> Intent? = { null },

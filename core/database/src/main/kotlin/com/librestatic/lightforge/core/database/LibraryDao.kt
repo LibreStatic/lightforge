@@ -579,7 +579,7 @@ interface LibraryDao {
     }
 
     @Query(
-        "SELECT mediaStoreId, generationModified, durationMillis, width FROM media_items " +
+        "SELECT mediaStoreId, generationModified, durationMillis, width, isAnimated FROM media_items " +
             "WHERE volumeName=:volumeName AND mediaStoreId IN (:mediaStoreIds)",
     )
     suspend fun knownMediaGenerations(
@@ -608,9 +608,11 @@ interface LibraryDao {
             val newOrChanged = items.filter { item ->
                 val row = known[item.mediaStoreId]
                 // Also rewrite rows whose duration or size were missing and are now known (FLV and
-                // other files MediaProvider cannot parse, probed by the reader since index format +lf2).
+                // other files MediaProvider cannot parse, probed by the reader since index format +lf2), and
+                // rows of an upgraded library that the header sniff (index format +lf3) now finds animated.
                 row == null || row.generationModified != item.generationModified ||
-                    (row.durationMillis <= 0 && item.durationMillis > 0) || (row.width <= 0 && item.width > 0)
+                    (row.durationMillis <= 0 && item.durationMillis > 0) || (row.width <= 0 && item.width > 0) ||
+                    (!row.isAnimated && item.isAnimated)
             }
             if (newOrChanged.isNotEmpty()) upsertMedia(newOrChanged)
         }

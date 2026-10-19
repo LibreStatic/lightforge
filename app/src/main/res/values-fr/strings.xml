@@ -156,8 +156,8 @@
     <string name="device_folders_refresh">Actualiser</string>
     <string name="device_folders_checked">Coché</string>
     <string name="folder_op_moved">Dossier déplacé</string>
-    <plurals name="adv_transfer_moved"><item quantity="one">%1$d élément déplacé</item><item quantity="other">%1$d éléments déplacés</item></plurals>
-    <plurals name="adv_transfer_copied"><item quantity="one">%1$d élément copié</item><item quantity="other">%1$d éléments copiés</item></plurals>
+    <plurals name="adv_transfer_moved"><item quantity="one">%1$d élément déplacé</item><item quantity="many">%1$d éléments déplacés</item><item quantity="other">%1$d éléments déplacés</item></plurals>
+    <plurals name="adv_transfer_copied"><item quantity="one">%1$d élément copié</item><item quantity="many">%1$d éléments copiés</item><item quantity="other">%1$d éléments copiés</item></plurals>
     <string name="adv_transfer_nothing">Tout se trouve déjà dans ce dossier.</string>
     <string name="adv_transfer_partial">%1$d terminés, %2$d n’ont pas pu être transférés</string>
     <string name="adv_transfer_failed">Rien n’a été transféré.</string>

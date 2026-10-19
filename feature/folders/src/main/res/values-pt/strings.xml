@@ -10,10 +10,12 @@
     <string name="folders_loading">Carregando pastas</string>
     <plurals name="folders_item_count">
         <item quantity="one">%1$d item</item>
+        <item quantity="many">%1$d itens</item>
         <item quantity="other">%1$d itens</item>
     </plurals>
     <plurals name="folders_subfolder_count">
         <item quantity="one">%1$d pasta</item>
+        <item quantity="many">%1$d pastas</item>
         <item quantity="other">%1$d pastas</item>
     </plurals>
     <string name="folders_hidden_badge">Oculta</string>
@@ -57,6 +59,7 @@
     <string name="folders_revoked_action">Mostrar pastas</string>
     <plurals name="folders_revoked_notice">
         <item quantity="one">O acesso a todos os arquivos está desativado, mas %1$d pasta continua oculta pelo Lightforge. Mostre-a para ver as fotos novamente.</item>
+        <item quantity="many">O acesso a todos os arquivos está desativado, mas %1$d pastas continuam ocultas pelo Lightforge. Mostre-as para ver as fotos novamente.</item>
         <item quantity="other">O acesso a todos os arquivos está desativado, mas %1$d pastas continuam ocultas pelo Lightforge. Mostre-as para ver as fotos novamente.</item>
     </plurals>
     <string name="folders_new_title">Nova pasta</string>
@@ -116,34 +119,41 @@
     <string name="folders_menu_checked">Ativado</string>
     <plurals name="folders_delete_many_title">
         <item quantity="one">Excluir %d pasta e seu conteúdo?</item>
+        <item quantity="many">Excluir %d pastas e seu conteúdo?</item>
         <item quantity="other">Excluir %d pastas e seu conteúdo?</item>
     </plurals>
     <string name="folders_delete_intro">“%1$s” e tudo o que há dentro dela serão excluídos permanentemente do dispositivo.</string>
     <plurals name="folders_delete_intro_many">
         <item quantity="one">%1$d pasta e tudo o que há dentro dela serão excluídos permanentemente do dispositivo.</item>
+        <item quantity="many">%1$d pastas e tudo o que há dentro delas serão excluídos permanentemente do dispositivo.</item>
         <item quantity="other">%1$d pastas e tudo o que há dentro delas serão excluídos permanentemente do dispositivo.</item>
     </plurals>
     <string name="folders_delete_counting">Contando o que há dentro…</string>
     <string name="folders_delete_count_failed">Não foi possível ler o que há dentro, então nada será excluído.</string>
     <plurals name="folders_delete_files">
         <item quantity="one">%1$d arquivo</item>
+        <item quantity="many">%1$d arquivos</item>
         <item quantity="other">%1$d arquivos</item>
     </plurals>
     <plurals name="folders_delete_subfolders">
         <item quantity="one">%1$d subpasta</item>
+        <item quantity="many">%1$d subpastas</item>
         <item quantity="other">%1$d subpastas</item>
     </plurals>
     <plurals name="folders_delete_other">
         <item quantity="one">%1$d arquivo não é foto nem vídeo (um documento, áudio ou dados de app)</item>
+        <item quantity="many">%1$d arquivos não são fotos nem vídeos (documentos, áudio ou dados de apps)</item>
         <item quantity="other">%1$d arquivos não são fotos nem vídeos (documentos, áudio ou dados de apps)</item>
     </plurals>
     <plurals name="folders_delete_hidden">
         <item quantity="one">%1$d foto ou vídeo está oculto na galeria</item>
+        <item quantity="many">%1$d fotos ou vídeos estão ocultos na galeria</item>
         <item quantity="other">%1$d fotos ou vídeos estão ocultos na galeria</item>
     </plurals>
     <string name="folders_delete_irreversible">Não é possível desfazer. Nada vai para a lixeira.</string>
     <plurals name="folders_delete_has_trash">
         <item quantity="one">%1$d item da lixeira está guardado aqui. Restaure-o ou exclua-o da lixeira e depois exclua a pasta.</item>
+        <item quantity="many">%1$d itens da lixeira estão guardados aqui. Restaure-os ou exclua-os da lixeira e depois exclua a pasta.</item>
         <item quantity="other">%1$d itens da lixeira estão guardados aqui. Restaure-os ou exclua-os da lixeira e depois exclua a pasta.</item>
     </plurals>
 </resources>

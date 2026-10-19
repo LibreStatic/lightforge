@@ -104,8 +104,9 @@ or broken data.
   an earlier build hid (`hiddenByApp`), and unhides them with the owner delete of the app's own
   `.nomedia` or a per-folder SAF tree grant (`unhideWithTree`); neither needs
   `MANAGE_EXTERNAL_STORAGE`. The Storage access page shows the hidden-folders list whenever the
-  registry is not empty, and on every launch with a non-empty registry the Settings unhide
-  prompt is raised (`AdvancedStorageStatus.pendingUnhide`).
+  registry is not empty. The unhide prompt (`AdvancedStorageStatus.pendingUnhide`) is hosted at the
+  app root, so it appears on the first launch of such a build, not only inside Settings. "Keep
+  hidden" is remembered per folder, so the prompt returns only for folders hidden after that.
 
 **We delete it from the code (module).**
 
@@ -210,6 +211,11 @@ Moves and copies (Simple Gallery gap plan sections 7.8 and 7.10):
   `MediaAction.Delete` for the originals. Limits: a volume root is not a destination, and a request
   above 500 items is split into chunks whose counters are summed.
 
+Index: the Animated filter reads an `isAnimated` column set at index time from the file header (GIF
+by type; WebP, APNG, AVIF and HEIF sequences by their markers). Migration 32 to 33 marks existing GIFs
+and the MediaStore checkpoint's index format suffix (`+lf3`) forces one full reconciliation, which
+rewrites any unchanged row whose sniffed flag turned on, so an upgraded library is backfilled.
+
 Explorer (plan section 7), all built: breadcrumb long-press path entry (7.3), compaction of
 single-child chains (7.4, switchable), per-folder sort, view and filter (7.6), search inside a
 folder and below it plus the `in:<path>` token of the global search (7.7), selecting files, alone or
@@ -220,8 +226,7 @@ show-hidden toggle in its overflow, and hidden items merged into the timeline; a
 carry the "Show in Photos even if hidden" rule. Hidden items in Photos open in an external viewer and
 cannot be selected or edited, because they are not in the library.
 
-Not built: tree pane, drag and drop and keyboard navigation on large screens (7.11); an index-time
-Animated flag (Animated is still MIME-based); rewriting album covers, pins and other path-keyed
+Not built: tree pane, drag and drop and keyboard navigation on large screens (7.11); rewriting album covers, pins and other path-keyed
 settings on folder rename; the rename-against-verified-copy benchmark; included folders that
 MediaStore does not index. The old SAF tree launch stack (`VerifiedMoveController` and its tree
 launchers) is no longer started by the folder picker and remains only because device tests use it.

@@ -10,10 +10,12 @@
     <string name="folders_loading">Chargement des dossiers</string>
     <plurals name="folders_item_count">
         <item quantity="one">%1$d élément</item>
+        <item quantity="many">%1$d éléments</item>
         <item quantity="other">%1$d éléments</item>
     </plurals>
     <plurals name="folders_subfolder_count">
         <item quantity="one">%1$d dossier</item>
+        <item quantity="many">%1$d dossiers</item>
         <item quantity="other">%1$d dossiers</item>
     </plurals>
     <string name="folders_hidden_badge">Masqué</string>
@@ -57,6 +59,7 @@
     <string name="folders_revoked_action">Afficher les dossiers</string>
     <plurals name="folders_revoked_notice">
         <item quantity="one">L\'accès à tous les fichiers est désactivé, mais %1$d dossier est toujours masqué par Lightforge. Affichez-le pour revoir ses photos.</item>
+        <item quantity="many">L\'accès à tous les fichiers est désactivé, mais %1$d dossiers sont toujours masqués par Lightforge. Affichez-les pour revoir leurs photos.</item>
         <item quantity="other">L\'accès à tous les fichiers est désactivé, mais %1$d dossiers sont toujours masqués par Lightforge. Affichez-les pour revoir leurs photos.</item>
     </plurals>
     <string name="folders_new_title">Nouveau dossier</string>
@@ -116,34 +119,41 @@
     <string name="folders_menu_checked">Activé</string>
     <plurals name="folders_delete_many_title">
         <item quantity="one">Supprimer %d dossier et son contenu ?</item>
+        <item quantity="many">Supprimer %d dossiers et leur contenu ?</item>
         <item quantity="other">Supprimer %d dossiers et leur contenu ?</item>
     </plurals>
     <string name="folders_delete_intro">« %1$s » et tout ce qu\'il contient seront définitivement supprimés de votre appareil.</string>
     <plurals name="folders_delete_intro_many">
         <item quantity="one">%1$d dossier et tout ce qu\'il contient seront définitivement supprimés de votre appareil.</item>
+        <item quantity="many">%1$d dossiers et tout ce qu\'ils contiennent seront définitivement supprimés de votre appareil.</item>
         <item quantity="other">%1$d dossiers et tout ce qu\'ils contiennent seront définitivement supprimés de votre appareil.</item>
     </plurals>
     <string name="folders_delete_counting">Comptage du contenu…</string>
     <string name="folders_delete_count_failed">Impossible de lire le contenu, donc rien ne sera supprimé.</string>
     <plurals name="folders_delete_files">
         <item quantity="one">%1$d fichier</item>
+        <item quantity="many">%1$d fichiers</item>
         <item quantity="other">%1$d fichiers</item>
     </plurals>
     <plurals name="folders_delete_subfolders">
         <item quantity="one">%1$d sous-dossier</item>
+        <item quantity="many">%1$d sous-dossiers</item>
         <item quantity="other">%1$d sous-dossiers</item>
     </plurals>
     <plurals name="folders_delete_other">
         <item quantity="one">%1$d fichier n\'est ni une photo ni une vidéo (document, audio ou données d\'appli)</item>
+        <item quantity="many">%1$d fichiers ne sont ni des photos ni des vidéos (documents, audio ou données d\'applis)</item>
         <item quantity="other">%1$d fichiers ne sont ni des photos ni des vidéos (documents, audio ou données d\'applis)</item>
     </plurals>
     <plurals name="folders_delete_hidden">
         <item quantity="one">%1$d photo ou vidéo est masquée dans la galerie</item>
+        <item quantity="many">%1$d photos ou vidéos sont masquées dans la galerie</item>
         <item quantity="other">%1$d photos ou vidéos sont masquées dans la galerie</item>
     </plurals>
     <string name="folders_delete_irreversible">Cette action est irréversible. Rien ne passe par la corbeille.</string>
     <plurals name="folders_delete_has_trash">
         <item quantity="one">%1$d élément de la corbeille est stocké ici. Restaurez-le ou supprimez-le de la corbeille, puis supprimez le dossier.</item>
+        <item quantity="many">%1$d éléments de la corbeille sont stockés ici. Restaurez-les ou supprimez-les de la corbeille, puis supprimez le dossier.</item>
         <item quantity="other">%1$d éléments de la corbeille sont stockés ici. Restaurez-les ou supprimez-les de la corbeille, puis supprimez le dossier.</item>
     </plurals>
 </resources>

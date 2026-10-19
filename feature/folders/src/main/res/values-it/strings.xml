@@ -10,10 +10,12 @@
     <string name="folders_loading">Caricamento delle cartelle</string>
     <plurals name="folders_item_count">
         <item quantity="one">%1$d elemento</item>
+        <item quantity="many">%1$d elementi</item>
         <item quantity="other">%1$d elementi</item>
     </plurals>
     <plurals name="folders_subfolder_count">
         <item quantity="one">%1$d cartella</item>
+        <item quantity="many">%1$d cartelle</item>
         <item quantity="other">%1$d cartelle</item>
     </plurals>
     <string name="folders_hidden_badge">Nascosta</string>
@@ -57,6 +59,7 @@
     <string name="folders_revoked_action">Mostra cartelle</string>
     <plurals name="folders_revoked_notice">
         <item quantity="one">L\'accesso a tutti i file è disattivato, ma %1$d cartella è ancora nascosta da Lightforge. Mostrala per rivedere le sue foto.</item>
+        <item quantity="many">L\'accesso a tutti i file è disattivato, ma %1$d cartelle sono ancora nascoste da Lightforge. Mostrale per rivedere le loro foto.</item>
         <item quantity="other">L\'accesso a tutti i file è disattivato, ma %1$d cartelle sono ancora nascoste da Lightforge. Mostrale per rivedere le loro foto.</item>
     </plurals>
     <string name="folders_new_title">Nuova cartella</string>
@@ -116,34 +119,41 @@
     <string name="folders_menu_checked">Attivo</string>
     <plurals name="folders_delete_many_title">
         <item quantity="one">Eliminare %d cartella e il suo contenuto?</item>
+        <item quantity="many">Eliminare %d cartelle e il loro contenuto?</item>
         <item quantity="other">Eliminare %d cartelle e il loro contenuto?</item>
     </plurals>
     <string name="folders_delete_intro">«%1$s» e tutto ciò che contiene saranno eliminati definitivamente dal dispositivo.</string>
     <plurals name="folders_delete_intro_many">
         <item quantity="one">%1$d cartella e tutto ciò che contiene saranno eliminati definitivamente dal dispositivo.</item>
+        <item quantity="many">%1$d cartelle e tutto ciò che contengono saranno eliminati definitivamente dal dispositivo.</item>
         <item quantity="other">%1$d cartelle e tutto ciò che contengono saranno eliminati definitivamente dal dispositivo.</item>
     </plurals>
     <string name="folders_delete_counting">Conteggio del contenuto…</string>
     <string name="folders_delete_count_failed">Impossibile leggere il contenuto, quindi non verrà eliminato nulla.</string>
     <plurals name="folders_delete_files">
         <item quantity="one">%1$d file</item>
+        <item quantity="many">%1$d file</item>
         <item quantity="other">%1$d file</item>
     </plurals>
     <plurals name="folders_delete_subfolders">
         <item quantity="one">%1$d sottocartella</item>
+        <item quantity="many">%1$d sottocartelle</item>
         <item quantity="other">%1$d sottocartelle</item>
     </plurals>
     <plurals name="folders_delete_other">
         <item quantity="one">%1$d file non è una foto né un video (un documento, audio o dati di un\'app)</item>
+        <item quantity="many">%1$d file non sono foto né video (documenti, audio o dati di app)</item>
         <item quantity="other">%1$d file non sono foto né video (documenti, audio o dati di app)</item>
     </plurals>
     <plurals name="folders_delete_hidden">
         <item quantity="one">%1$d foto o video è nascosto nella galleria</item>
+        <item quantity="many">%1$d foto o video sono nascosti nella galleria</item>
         <item quantity="other">%1$d foto o video sono nascosti nella galleria</item>
     </plurals>
     <string name="folders_delete_irreversible">L\'azione non si può annullare. Nulla passa dal cestino.</string>
     <plurals name="folders_delete_has_trash">
         <item quantity="one">Qui è archiviato %1$d elemento del cestino. Ripristinalo o eliminalo dal cestino, poi elimina la cartella.</item>
+        <item quantity="many">Qui sono archiviati %1$d elementi del cestino. Ripristinali o eliminali dal cestino, poi elimina la cartella.</item>
         <item quantity="other">Qui sono archiviati %1$d elementi del cestino. Ripristinali o eliminali dal cestino, poi elimina la cartella.</item>
     </plurals>
 </resources>

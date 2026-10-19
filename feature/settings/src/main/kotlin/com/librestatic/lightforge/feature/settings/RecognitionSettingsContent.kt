@@ -272,8 +272,6 @@ fun RecognitionSettingsContent(
         }
     }
 
-    storageAccess?.let { StorageAccessUnhidePrompt(it.state, it.actions) }
-
     val detail: @Composable () -> Unit = {
         // Root is only reachable in single-pane mode, where it is rendered by the caller.
         when (visiblePage) {

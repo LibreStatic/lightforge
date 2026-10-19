@@ -67,6 +67,7 @@ data class KnownMediaGeneration(
     val generationModified: Long,
     val durationMillis: Long,
     val width: Int,
+    val isAnimated: Boolean,
 )
 
 @Entity(
