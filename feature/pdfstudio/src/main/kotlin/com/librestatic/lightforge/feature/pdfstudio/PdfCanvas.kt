@@ -55,6 +55,9 @@ import java.io.File
 import kotlin.math.max
 import kotlinx.coroutines.delay
 import com.librestatic.lightforge.core.designsystem.GalleryCircularProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuIcons
 
 @Composable
 internal fun PdfBitmap(
@@ -2124,7 +2127,7 @@ internal fun PdfTextContextualToolbar(
                 ) {
                     Icon(GalleryIcons.AlignHorizontalCenter, contentDescription = null)
                 }
-                DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+                GalleryDropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
                     listOf(
                             PdfGeometry.Align.Left to R.string.pdf_align_left,
                             PdfGeometry.Align.Center to R.string.pdf_align_center,
@@ -2134,8 +2137,8 @@ internal fun PdfTextContextualToolbar(
                             PdfGeometry.Align.Bottom to R.string.pdf_align_bottom,
                         )
                         .forEach { (align, label) ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(label)) },
+                            GalleryMenuItem(
+                                text = stringResource(label),
                                 onClick = {
                                     showAlign = false
                                     vm.alignSelectedText(align)
@@ -2152,30 +2155,34 @@ internal fun PdfTextContextualToolbar(
                 ) {
                     Icon(GalleryIcons.Layers, contentDescription = null)
                 }
-                DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_layer_forward)) },
+                GalleryDropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_layer_forward),
+                        icon = GalleryMenuIcons.MoveUp,
                         onClick = {
                             showLayer = false
                             vm.bringSelectedForward()
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_layer_backward)) },
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_layer_backward),
+                        icon = GalleryMenuIcons.MoveDown,
                         onClick = {
                             showLayer = false
                             vm.sendSelectedBackward()
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_front)) },
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_front),
+                        icon = GalleryIcons.FlipToFront,
                         onClick = {
                             showLayer = false
                             vm.bringSelectedToFront()
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_backlayer)) },
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_backlayer),
+                        icon = GalleryIcons.FlipToBack,
                         onClick = {
                             showLayer = false
                             vm.sendSelectedToBack()
@@ -2291,18 +2298,18 @@ internal fun PdfZoomBadge(
                 Text(label, style = MaterialTheme.typography.labelMedium)
             }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        GalleryDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             val fitLabel = stringResource(R.string.pdf_fit_view)
-            DropdownMenuItem(
-                text = { Text(fitLabel) },
+            GalleryMenuItem(
+                text = fitLabel,
                 onClick = {
                     expanded = false
                     onFit()
                 },
             )
             ZOOM_LEVELS.forEach { level ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_zoom_percent, (level * 100).toInt())) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_zoom_percent, (level * 100).toInt()),
                     onClick = {
                         expanded = false
                         onZoom(level)

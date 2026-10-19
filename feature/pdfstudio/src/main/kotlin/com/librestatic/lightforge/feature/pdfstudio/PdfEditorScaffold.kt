@@ -37,8 +37,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -80,6 +78,9 @@ import androidx.compose.ui.unit.sp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuIcons
 
 /**
  * Editor top bar: back, tappable project title (opens rename), an autosave subtitle, Undo/Redo,
@@ -200,41 +201,39 @@ internal fun PdfEditorTopBar(
                         ) {
                             Icon(GalleryIcons.More, contentDescription = null)
                         }
-                        DropdownMenu(
+                        GalleryDropdownMenu(
                             expanded = showActions,
                             onDismissRequest = { showActions = false },
                         ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.pdf_queue)) },
+                            GalleryMenuItem(
+                                text = stringResource(R.string.pdf_queue),
                                 onClick = {
                                     showActions = false
                                     onQueue()
                                 },
                             )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.pdf_project_details)) },
+                            GalleryMenuItem(
+                                text = stringResource(R.string.pdf_project_details),
                                 onClick = {
                                     showActions = false
                                     onDetails()
                                 },
                             )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.pdf_portable)) },
-                                enabled = !state.editorLocked,
+                            GalleryMenuItem(
+                                text = stringResource(R.string.pdf_portable),
                                 onClick = {
                                     showActions = false
                                     onPortable()
                                 },
+                                enabled = !state.editorLocked,
                             )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.pdf_shortcuts)) },
-                                leadingIcon = {
-                                    Icon(GalleryIcons.Keyboard, contentDescription = null)
-                                },
+                            GalleryMenuItem(
+                                text = stringResource(R.string.pdf_shortcuts),
                                 onClick = {
                                     showActions = false
                                     onShowShortcuts()
                                 },
+                                icon = GalleryIcons.Keyboard,
                             )
                         }
                     }
@@ -973,7 +972,7 @@ internal fun PdfImageContextualToolbar(
                 ) {
                     Icon(GalleryIcons.AlignHorizontalCenter, contentDescription = null)
                 }
-                DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+                GalleryDropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
                     val entries =
                         listOf(
                             PdfGeometry.Align.Left to R.string.pdf_align_left,
@@ -984,8 +983,8 @@ internal fun PdfImageContextualToolbar(
                             PdfGeometry.Align.Bottom to R.string.pdf_align_bottom,
                         )
                     entries.forEach { (align, label) ->
-                        DropdownMenuItem(
-                            text = { Text(stringResource(label)) },
+                        GalleryMenuItem(
+                            text = stringResource(label),
                             onClick = {
                                 showAlign = false
                                 vm.alignSelectedImage(align)
@@ -1002,30 +1001,34 @@ internal fun PdfImageContextualToolbar(
                 ) {
                     Icon(GalleryIcons.Layers, contentDescription = null)
                 }
-                DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_layer_forward)) },
+                GalleryDropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_layer_forward),
+                        icon = GalleryMenuIcons.MoveUp,
                         onClick = {
                             showLayer = false
                             vm.bringSelectedForward()
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_layer_backward)) },
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_layer_backward),
+                        icon = GalleryMenuIcons.MoveDown,
                         onClick = {
                             showLayer = false
                             vm.sendSelectedBackward()
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_front)) },
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_front),
+                        icon = GalleryIcons.FlipToFront,
                         onClick = {
                             showLayer = false
                             vm.bringSelectedToFront()
                         },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_backlayer)) },
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_backlayer),
+                        icon = GalleryIcons.FlipToBack,
                         onClick = {
                             showLayer = false
                             vm.sendSelectedToBack()
@@ -1096,10 +1099,10 @@ internal fun PdfMultiSelectBar(vm: PdfStudioViewModel, count: Int, modifier: Mod
                 ) {
                     Icon(GalleryIcons.AlignHorizontalCenter, contentDescription = null)
                 }
-                DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+                GalleryDropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
                     alignEntriesForGroup().forEach { (align, label) ->
-                        DropdownMenuItem(
-                            text = { Text(stringResource(label)) },
+                        GalleryMenuItem(
+                            text = stringResource(label),
                             onClick = {
                                 showAlign = false
                                 vm.alignGroupSelection(align)
@@ -1116,23 +1119,25 @@ internal fun PdfMultiSelectBar(vm: PdfStudioViewModel, count: Int, modifier: Mod
                 ) {
                     Icon(GalleryIcons.DistributeHorizontal, contentDescription = null)
                 }
-                DropdownMenu(expanded = showDistribute, onDismissRequest = { showDistribute = false }) {
+                GalleryDropdownMenu(expanded = showDistribute, onDismissRequest = { showDistribute = false }) {
                     val canDistribute = count >= 3
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_distribute_horizontal)) },
-                        enabled = canDistribute,
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_distribute_horizontal),
+                        icon = GalleryIcons.DistributeHorizontal,
                         onClick = {
                             showDistribute = false
                             vm.distributeGroupSelection(PdfSnapGuides.Orientation.Horizontal)
                         },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_distribute_vertical)) },
                         enabled = canDistribute,
+                    )
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_distribute_vertical),
+                        icon = GalleryIcons.DistributeVertical,
                         onClick = {
                             showDistribute = false
                             vm.distributeGroupSelection(PdfSnapGuides.Orientation.Vertical)
                         },
+                        enabled = canDistribute,
                     )
                     if (!canDistribute)
                         Text(

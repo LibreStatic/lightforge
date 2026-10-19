@@ -28,6 +28,8 @@ import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 
 private val FINISHED = setOf(PdfExportPhase.Published, PdfExportPhase.Cancelled, PdfExportPhase.Failed)
 
@@ -101,12 +103,12 @@ internal fun PdfExportHistoryDialog(
                                 ) {
                                     Icon(GalleryIcons.More, contentDescription = null)
                                 }
-                                DropdownMenu(
+                                GalleryDropdownMenu(
                                     expanded = showOverflow,
                                     onDismissRequest = { showOverflow = false },
                                 ) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.pdf_export_clear_finished)) },
+                                    GalleryMenuItem(
+                                        text = stringResource(R.string.pdf_export_clear_finished),
                                         onClick = {
                                             showOverflow = false
                                             jobs.filter { it.phase in FINISHED }.forEach { vm.removeExport(it.id) }

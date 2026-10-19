@@ -35,6 +35,10 @@ import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
 import com.librestatic.lightforge.core.designsystem.galleryWindowClass
 import com.librestatic.lightforge.core.designsystem.GalleryShapeIllustration
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
+import com.librestatic.lightforge.core.designsystem.GalleryMenuIcons
 
 internal enum class PdfLibrarySort {
     Recent,
@@ -264,14 +268,16 @@ private fun PdfLibrarySearchAndSort(
             IconButton(onClick = { menu = true }, modifier = Modifier.semantics { contentDescription = sortLabel }) {
                 Icon(GalleryIcons.Sort, contentDescription = null)
             }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_library_sort_recent)) },
+            GalleryDropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_library_sort_recent),
                     onClick = { onSort(PdfLibrarySort.Recent); menu = false },
+                    icon = GalleryIcons.History,
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_library_sort_name)) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_library_sort_name),
                     onClick = { onSort(PdfLibrarySort.Name); menu = false },
+                    icon = GalleryMenuIcons.SortName,
                 )
             }
         }
@@ -467,37 +473,28 @@ private fun PdfLibraryCard(
                 ) {
                     Icon(GalleryIcons.More, contentDescription = null)
                 }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_library_rename)) },
-                        leadingIcon = { Icon(GalleryIcons.Rename, contentDescription = null) },
+                GalleryDropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_library_rename),
                         onClick = { menu = false; onRename() },
+                        icon = GalleryIcons.Rename,
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_duplicateproject)) },
-                        leadingIcon = { Icon(GalleryIcons.ContentCopy, contentDescription = null) },
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_duplicateproject),
                         onClick = { menu = false; onDuplicate() },
+                        icon = GalleryIcons.ContentCopy,
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_library_export_project)) },
-                        leadingIcon = { Icon(GalleryIcons.OpenInNew, contentDescription = null) },
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_library_export_project),
                         onClick = { menu = false; onExport() },
+                        icon = GalleryIcons.OpenInNew,
                     )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                stringResource(R.string.pdf_deleteproject_action),
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                GalleryIcons.Trash,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                            )
-                        },
+                    GalleryMenuDivider()
+                    GalleryMenuItem(
+                        text = stringResource(R.string.pdf_deleteproject_action),
                         onClick = { menu = false; onDelete() },
+                        icon = GalleryIcons.Trash,
+                        destructive = true,
                     )
                 }
             }

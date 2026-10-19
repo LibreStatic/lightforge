@@ -34,6 +34,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
+import com.librestatic.lightforge.core.designsystem.GalleryMenuIcons
 
 private val UNIT_LABELS = listOf("mm", "cm", "in", "px")
 
@@ -241,27 +245,27 @@ internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_toolbar_align))
             }
-            DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+            GalleryDropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
                 Text(
                     stringResource(R.string.pdf_align_relative_margins),
                     style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
                 alignEntries().forEach { (align, label) ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(label)) },
+                    GalleryMenuItem(
+                        text = stringResource(label),
                         onClick = { showAlign = false; vm.alignSelectedImage(align, relativeToMargins = true) },
                     )
                 }
-                HorizontalDivider()
+                GalleryMenuDivider()
                 Text(
                     stringResource(R.string.pdf_align_relative_page),
                     style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
                 alignEntries().forEach { (align, label) ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(label)) },
+                    GalleryMenuItem(
+                        text = stringResource(label),
                         onClick = { showAlign = false; vm.alignSelectedImage(align, relativeToMargins = false) },
                     )
                 }
@@ -274,21 +278,25 @@ internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_toolbar_layer))
             }
-            DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_layer_forward)) },
+            GalleryDropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_layer_forward),
+                    icon = GalleryMenuIcons.MoveUp,
                     onClick = { showLayer = false; vm.bringSelectedForward() },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_layer_backward)) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_layer_backward),
+                    icon = GalleryMenuIcons.MoveDown,
                     onClick = { showLayer = false; vm.sendSelectedBackward() },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_front)) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_front),
+                    icon = GalleryIcons.FlipToFront,
                     onClick = { showLayer = false; vm.bringSelectedToFront() },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_backlayer)) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_backlayer),
+                    icon = GalleryIcons.FlipToBack,
                     onClick = { showLayer = false; vm.sendSelectedToBack() },
                 )
             }
@@ -773,10 +781,10 @@ private fun PdfTextInspector(vm: PdfStudioViewModel, s: PdfStudioState, page: Pd
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_toolbar_align))
             }
-            DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+            GalleryDropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
                 alignEntries().forEach { (align, label) ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(label)) },
+                    GalleryMenuItem(
+                        text = stringResource(label),
                         onClick = { showAlign = false; vm.alignSelectedText(align) },
                     )
                 }
@@ -789,21 +797,25 @@ private fun PdfTextInspector(vm: PdfStudioViewModel, s: PdfStudioState, page: Pd
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_toolbar_layer))
             }
-            DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_layer_forward)) },
+            GalleryDropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_layer_forward),
+                    icon = GalleryMenuIcons.MoveUp,
                     onClick = { showLayer = false; vm.bringSelectedForward() },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_layer_backward)) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_layer_backward),
+                    icon = GalleryMenuIcons.MoveDown,
                     onClick = { showLayer = false; vm.sendSelectedBackward() },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_front)) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_front),
+                    icon = GalleryIcons.FlipToFront,
                     onClick = { showLayer = false; vm.bringSelectedToFront() },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_backlayer)) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_backlayer),
+                    icon = GalleryIcons.FlipToBack,
                     onClick = { showLayer = false; vm.sendSelectedToBack() },
                 )
             }
@@ -851,10 +863,10 @@ internal fun PdfGroupInspector(vm: PdfStudioViewModel, s: PdfStudioState) {
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_toolbar_align))
             }
-            DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+            GalleryDropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
                 alignEntries().forEach { (align, label) ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(label)) },
+                    GalleryMenuItem(
+                        text = stringResource(label),
                         onClick = {
                             showAlign = false
                             vm.alignGroupSelection(align)
@@ -870,29 +882,31 @@ internal fun PdfGroupInspector(vm: PdfStudioViewModel, s: PdfStudioState) {
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_distribute))
             }
-            DropdownMenu(expanded = showDistribute, onDismissRequest = { showDistribute = false }) {
+            GalleryDropdownMenu(expanded = showDistribute, onDismissRequest = { showDistribute = false }) {
                 val canDistribute = count >= 3
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_distribute_horizontal)) },
-                    enabled = canDistribute,
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_distribute_horizontal),
+                    icon = GalleryIcons.DistributeHorizontal,
                     onClick = {
                         showDistribute = false
                         vm.distributeGroupSelection(PdfSnapGuides.Orientation.Horizontal)
                     },
-                )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.pdf_distribute_vertical)) },
                     enabled = canDistribute,
+                )
+                GalleryMenuItem(
+                    text = stringResource(R.string.pdf_distribute_vertical),
+                    icon = GalleryIcons.DistributeVertical,
                     onClick = {
                         showDistribute = false
                         vm.distributeGroupSelection(PdfSnapGuides.Orientation.Vertical)
                     },
+                    enabled = canDistribute,
                 )
                 if (!canDistribute)
                     Text(
                         stringResource(R.string.pdf_distribute_needs_three),
                         style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                     )
             }
         }

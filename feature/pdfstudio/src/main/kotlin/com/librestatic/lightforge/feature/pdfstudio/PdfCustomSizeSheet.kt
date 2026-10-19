@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import java.text.DecimalFormatSymbols
 import java.util.Locale
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 
 private val UNIT_SUFFIXES = listOf("mm", "cm", "in", "px")
 
@@ -137,10 +139,10 @@ internal fun PdfCustomSizeSheet(
             var unitMenu by remember { mutableStateOf(false) }
             Box {
                 OutlinedButton(onClick = { unitMenu = true }) { Text(UNIT_SUFFIXES[unit.ordinal]) }
-                DropdownMenu(expanded = unitMenu, onDismissRequest = { unitMenu = false }) {
+                GalleryDropdownMenu(expanded = unitMenu, onDismissRequest = { unitMenu = false }) {
                     PdfUnit.entries.forEach { u ->
-                        DropdownMenuItem(
-                            text = { Text(UNIT_SUFFIXES[u.ordinal]) },
+                        GalleryMenuItem(
+                            text = UNIT_SUFFIXES[u.ordinal],
                             onClick = {
                                 unitMenu = false
                                 // Re-express the current, still-valid values in the new unit;
