@@ -51,8 +51,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
@@ -203,6 +201,8 @@ import dagger.hilt.android.EntryPointAccessors
 import com.librestatic.lightforge.feature.places.OfflineGazetteer
 import com.librestatic.lightforge.feature.places.BundledGazetteer
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 
 internal enum class RootTab { Photos, Collections, Search }
 /** Maps only the exact public-image identity used by a saved Motion provider. */
@@ -3349,13 +3349,14 @@ internal fun ProductionGalleryApp(
                                             contentDescription = stringResource(com.librestatic.lightforge.feature.viewer.R.string.viewer_more),
                                         )
                                     }
-                                    DropdownMenu(
+                                    GalleryDropdownMenu(
                                         expanded = trashMenuExpanded,
                                         onDismissRequest = { trashMenuExpanded = false },
                                     ) {
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(com.librestatic.lightforge.feature.trash.R.string.trash_empty)) },
-                                            leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
+                                        GalleryMenuItem(
+                                            text = stringResource(com.librestatic.lightforge.feature.trash.R.string.trash_empty),
+                                            icon = GalleryIcons.Trash,
+                                            destructive = true,
                                             onClick = {
                                                 trashMenuExpanded = false
                                                 if (gallerySettings.operations.skipAppDeleteConfirmation) {

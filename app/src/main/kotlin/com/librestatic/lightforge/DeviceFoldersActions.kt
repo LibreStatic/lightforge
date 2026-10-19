@@ -1,11 +1,8 @@
 package com.librestatic.lightforge
 
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,6 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
+import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
  * Top-bar actions of the "On device" screen: Search, New folder (advanced mode only) and an overflow with "Sort and view",
@@ -48,55 +49,63 @@ internal fun RowScope.DeviceFoldersActions(
         IconButton(onClick = { expanded = true }, modifier = Modifier.testTag("device-folders-overflow")) {
             Icon(GalleryIcons.More, contentDescription = stringResource(R.string.device_folders_more_options))
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        GalleryDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             if (chrome.canShowHidden) {
                 CheckedItem(
                     text = stringResource(R.string.device_folders_show_hidden),
                     checked = chrome.temporaryShowHidden,
                     tag = "device-folders-show-hidden",
+                    icon = GalleryIcons.Visibility,
                 ) { expanded = false; onTemporaryShowHiddenChange(!chrome.temporaryShowHidden) }
             }
             if (chrome.canSearchInFolder) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.device_folders_search_in_folder)) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.device_folders_search_in_folder),
                     onClick = { expanded = false; onSearchInFolder() },
-                    modifier = Modifier.testTag("device-folders-search-in-folder"),
+                    icon = GalleryIcons.Search,
+                    testTag = "device-folders-search-in-folder",
                 )
             }
             if (chrome.canBrowseOptions) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.device_folders_sort_view)) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.device_folders_sort_view),
                     onClick = { expanded = false; onSortAndView() },
-                    modifier = Modifier.testTag("device-folders-sort-view"),
+                    icon = GalleryIcons.Sort,
+                    testTag = "device-folders-sort-view",
                 )
             }
+            if (chrome.canShowHidden || chrome.canSearchInFolder || chrome.canBrowseOptions) GalleryMenuDivider()
             CheckedItem(
                 text = stringResource(R.string.device_folders_include_subfolders),
                 checked = chrome.includeSubfolders,
                 tag = "device-folders-include-subfolders",
+                icon = GalleryIcons.Folder,
             ) { expanded = false; onIncludeSubfoldersChange(!chrome.includeSubfolders) }
             CheckedItem(
                 text = stringResource(R.string.device_folders_compact_chains),
                 checked = chrome.compactChains,
                 tag = "device-folders-compact-chains",
+                icon = GalleryIcons.Layers,
             ) { expanded = false; onCompactChainsChange(!chrome.compactChains) }
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.device_folders_refresh)) },
+            GalleryMenuDivider()
+            GalleryMenuItem(
+                text = stringResource(R.string.device_folders_refresh),
                 onClick = { expanded = false; onRefresh() },
-                modifier = Modifier.testTag("device-folders-refresh"),
+                icon = GalleryIcons.Refresh,
+                testTag = "device-folders-refresh",
             )
         }
     }
 }
 
 @Composable
-private fun CheckedItem(text: String, checked: Boolean, tag: String, onClick: () -> Unit) {
-    DropdownMenuItem(
-        text = { Text(text) },
-        trailingIcon = if (checked) {
-            { Icon(GalleryIcons.Check, contentDescription = stringResource(R.string.device_folders_checked)) }
-        } else null,
+private fun CheckedItem(text: String, checked: Boolean, tag: String, icon: ImageVector, onClick: () -> Unit) {
+    GalleryMenuItem(
+        text = text,
         onClick = onClick,
-        modifier = Modifier.testTag(tag),
+        icon = icon,
+        checked = checked,
+        checkedDescription = stringResource(R.string.device_folders_checked),
+        testTag = tag,
     )
 }

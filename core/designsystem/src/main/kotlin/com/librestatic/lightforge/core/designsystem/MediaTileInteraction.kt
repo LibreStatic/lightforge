@@ -11,10 +11,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
@@ -221,14 +218,14 @@ fun MediaTileContextMenu(
     actions: List<GallerySelectionAction>,
     offset: DpOffset = DpOffset.Zero,
 ) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss, offset = offset) {
+    GalleryDropdownMenu(expanded = expanded, onDismissRequest = onDismiss, offset = offset) {
         actions.forEach { action ->
-            DropdownMenuItem(
-                text = { Text(action.label) },
+            GalleryMenuItem(
+                text = action.label,
                 onClick = { onDismiss(); action.onClick() },
                 enabled = action.enabled,
-                leadingIcon = { Icon(action.icon, contentDescription = null) },
-                modifier = action.testTag?.let { Modifier.testTag(it) } ?: Modifier,
+                icon = action.icon,
+                testTag = action.testTag,
             )
         }
     }

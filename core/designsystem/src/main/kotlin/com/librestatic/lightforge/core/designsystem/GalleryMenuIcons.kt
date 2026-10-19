@@ -81,6 +81,8 @@ import androidx.compose.material.icons.outlined.PhotoAlbum
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.PhotoSizeSelectLarge
+import androidx.compose.material.icons.outlined.Print
+import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -124,6 +126,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
  */
 object GalleryMenuIcons {
     val Check: ImageVector get() = Icons.Outlined.Check
+
+    val Print: ImageVector get() = Icons.Outlined.Print
+    val SetAsWallpaper: ImageVector get() = Icons.Outlined.Wallpaper
+    val MoveUp: ImageVector get() = Icons.Outlined.ArrowUpward
+    val MoveDown: ImageVector get() = Icons.Outlined.ArrowDownward
+    val EditDate: ImageVector get() = Icons.Outlined.EditCalendar
 
     // Photos sort options.
     val SortNewest: ImageVector get() = Icons.Outlined.ArrowDownward

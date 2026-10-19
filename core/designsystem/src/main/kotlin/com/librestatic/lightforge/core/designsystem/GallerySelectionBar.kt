@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -251,16 +249,14 @@ private fun SelectionBarOverflow(actions: List<GallerySelectionAction>) {
                 testTag = "gallery_selection_more",
             ),
         )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        GalleryDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             actions.forEach { action ->
-                DropdownMenuItem(
-                    text = { Text(action.label) },
+                GalleryMenuItem(
+                    text = action.label,
                     onClick = { expanded = false; action.onClick() },
                     enabled = action.enabled,
-                    leadingIcon = { Icon(action.icon, contentDescription = null) },
-                    modifier = action.testTag?.let {
-                        Modifier.semantics { testTagsAsResourceId = true }.testTag(it)
-                    } ?: Modifier,
+                    icon = action.icon,
+                    testTag = action.testTag,
                 )
             }
         }
