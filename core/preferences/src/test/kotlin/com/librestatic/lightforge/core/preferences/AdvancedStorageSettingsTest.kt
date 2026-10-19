@@ -188,16 +188,30 @@ class AdvancedStorageSettingsTest {
     }
 
     @Test
-    fun `an explicit stored choice is kept and needs no offer`() {
-        for (stored in listOf(true, false)) {
-            test { repo ->
-                repo.setOnboardingCompleted(true)
-                repo.setWish(stored)
-                repo.resolveAdvancedStorageDefault()
-                assertEquals(stored, repo.enabled())
-                assertFalse(repo.pending())
-            }
-        }
+    fun `an explicit stored on is kept and needs no offer`() = test { repo ->
+        repo.setOnboardingCompleted(true)
+        repo.setWish(true)
+        repo.resolveAdvancedStorageDefault()
+        assertTrue(repo.enabled())
+        assertFalse(repo.pending())
+    }
+
+    @Test
+    fun `a stored off on an upgraded install is still offered the switch`() = test { repo ->
+        // Any settings write before the migration settles persists the wish as off.
+        repo.setOnboardingCompleted(true)
+        repo.setWish(false)
+        repo.resolveAdvancedStorageDefault()
+        assertFalse(repo.enabled())
+        assertTrue(repo.pending())
+    }
+
+    @Test
+    fun `an upgraded install reads as off before the migration settles`() = test { repo ->
+        repo.setOnboardingCompleted(true)
+        assertFalse(repo.enabled())
+        repo.resolveAdvancedStorageDefault()
+        assertFalse(repo.enabled())
     }
 
     @Test

@@ -192,7 +192,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
     suspend fun resolveAdvancedStorageDefault() {
         store.edit { target ->
             if (target[advancedStorageMigrationKey] != null) return@edit
-            if (target[onboardingKey] == true && target[Keys.AdvancedStorageEnabled] == null) {
+            // A write that ran before this saw the mode as off (see advancedStorageDefault), so only an explicit on counts as a choice.
+            if (target[onboardingKey] == true && target[Keys.AdvancedStorageEnabled] != true) {
                 target[Keys.AdvancedStorageEnabled] = false
                 target[advancedStorageMigrationKey] = MigrationPending
             } else {
@@ -200,6 +201,14 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
             }
         }
     }
+
+    /**
+     * The wish when none is stored: on, except for an upgraded install whose migration is not settled
+     * yet. Reading it as off until [resolveAdvancedStorageDefault] runs keeps an upgrade from ever
+     * observing (or persisting) a transient "on" that would then flip back off.
+     */
+    private fun advancedStorageDefault(p: Preferences): Boolean =
+        p[advancedStorageMigrationKey] != null || p.asMap().isEmpty() || p[onboardingKey] == false
 
     /** Records the answer to the migration offer, whatever it was; it is never shown again. */
     suspend fun resolveAdvancedStorageMigration() {
@@ -380,7 +389,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         keepLastModifiedWhenPossible = p[Keys.KeepModified] ?: true,
                         skipAppDeleteConfirmation = p[Keys.SkipDeleteConfirmation] ?: false,
                         dismissedWarnings = DismissibleWarning.fromKeys(p[Keys.DismissedWarnings].orEmpty()),
-                        advancedStorageEnabled = p[Keys.AdvancedStorageEnabled] ?: true,
+                        advancedStorageEnabled = p[Keys.AdvancedStorageEnabled] ?: advancedStorageDefault(p),
                         advancedShowHidden = p[Keys.AdvancedShowHidden] ?: false,
                         advancedDeleteEmptyFolders = p[Keys.AdvancedDeleteEmptyFolders] ?: false,
                         compactFolderChains = p[Keys.CompactFolderChains] ?: true,
