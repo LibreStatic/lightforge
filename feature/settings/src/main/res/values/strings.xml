@@ -301,4 +301,8 @@
     <string name="storage_access_included_remove">Remove</string>
     <string name="storage_access_included_remove_description">Remove %1$s from the included folders</string>
     <string name="storage_access_include_failed">That folder could not be added.</string>
+    <string name="storage_access_migration_title">Switch to advanced storage mode?</string>
+    <string name="storage_access_migration_body">Lightforge can now show and manage every folder on your device, including hidden ones, and hide, unhide and scan folders. Android will ask you to allow All files access. You can turn this off anytime in Settings &gt; Storage access.</string>
+    <string name="storage_access_migration_switch">Switch</string>
+    <string name="storage_access_migration_not_now">Not now</string>
 </resources>

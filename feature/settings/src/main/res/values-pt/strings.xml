@@ -302,4 +302,8 @@
     <string name="storage_access_included_remove">Remover</string>
     <string name="storage_access_included_remove_description">Remover %1$s das pastas incluídas</string>
     <string name="storage_access_include_failed">Não foi possível adicionar essa pasta.</string>
+    <string name="storage_access_migration_title">Mudar para o modo de armazenamento avançado?</string>
+    <string name="storage_access_migration_body">O Lightforge agora pode mostrar e gerenciar todas as pastas do seu dispositivo, inclusive as ocultas, além de ocultar, exibir e verificar pastas. O Android vai pedir que você permita o acesso a todos os arquivos. Você pode desativar isso quando quiser em Configurações &gt; Acesso ao armazenamento.</string>
+    <string name="storage_access_migration_switch">Mudar</string>
+    <string name="storage_access_migration_not_now">Agora não</string>
 </resources>

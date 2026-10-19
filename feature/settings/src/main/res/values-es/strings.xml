@@ -302,4 +302,8 @@
     <string name="storage_access_included_remove">Quitar</string>
     <string name="storage_access_included_remove_description">Quitar %1$s de las carpetas incluidas</string>
     <string name="storage_access_include_failed">No se pudo agregar esa carpeta.</string>
+    <string name="storage_access_migration_title">¿Pasar al modo de almacenamiento avanzado?</string>
+    <string name="storage_access_migration_body">Ahora Lightforge puede mostrar y administrar todas las carpetas de tu dispositivo, incluidas las ocultas, y ocultar, mostrar y escanear carpetas. Android te va a pedir que permitas el acceso a todos los archivos. Podés desactivarlo cuando quieras en Ajustes &gt; Acceso al almacenamiento.</string>
+    <string name="storage_access_migration_switch">Pasar</string>
+    <string name="storage_access_migration_not_now">Ahora no</string>
 </resources>

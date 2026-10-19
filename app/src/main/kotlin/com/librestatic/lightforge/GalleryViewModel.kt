@@ -471,6 +471,8 @@ class GalleryViewModel @Inject constructor(
     /** First-run wizard flag; null while it is being settled, so nothing flashes before it. */
     val onboardingCompleted = kotlinx.coroutines.flow.flow {
         gallerySettingsRepository.resolveOnboarding()
+        // Right after the first-run flag: an upgraded install is told apart from a fresh one by it.
+        gallerySettingsRepository.resolveAdvancedStorageDefault()
         emitAll(gallerySettingsRepository.onboardingCompleted)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
