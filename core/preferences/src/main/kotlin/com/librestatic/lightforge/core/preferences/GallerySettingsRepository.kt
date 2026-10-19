@@ -30,6 +30,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
     private val revisionKey = longPreferencesKey("portable.revision")
     private val receiptsKey = stringSetPreferencesKey("portable.receipts")
     private val onboardingKey = booleanPreferencesKey("onboarding.completed")
+    private val advancedStorageMigrationKey = stringPreferencesKey("advanced.migration")
 
     private fun advance(target: MutablePreferences): Long =
         Math.addExact(target[revisionKey] ?: 0L, 1L).also { target[revisionKey] = it }
@@ -176,8 +177,42 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         return completed
     }
 
+    /** True while an upgraded install has not yet answered the advanced storage migration offer. */
+    val advancedStorageMigrationPending: Flow<Boolean> =
+        store.data
+            .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
+            .map { it[advancedStorageMigrationKey] == MigrationPending }
+
+    /**
+     * Settles the advanced storage default (ADR-046) once per install, device-locally like
+     * [onboardingCompleted]. Call right after [resolveOnboarding]. An upgraded install that never
+     * stored a choice keeps the previous behaviour (explicit off) and is offered the switch once; a
+     * fresh install or an explicit stored choice needs no offer.
+     */
+    suspend fun resolveAdvancedStorageDefault() {
+        store.edit { target ->
+            if (target[advancedStorageMigrationKey] != null) return@edit
+            if (target[onboardingKey] == true && target[Keys.AdvancedStorageEnabled] == null) {
+                target[Keys.AdvancedStorageEnabled] = false
+                target[advancedStorageMigrationKey] = MigrationPending
+            } else {
+                target[advancedStorageMigrationKey] = MigrationResolved
+            }
+        }
+    }
+
+    /** Records the answer to the migration offer, whatever it was; it is never shown again. */
+    suspend fun resolveAdvancedStorageMigration() {
+        store.edit { it[advancedStorageMigrationKey] = MigrationResolved }
+    }
+
     suspend fun setOnboardingCompleted(completed: Boolean) {
         store.edit { it[onboardingKey] = completed }
+    }
+
+    private companion object {
+        const val MigrationPending = "pending"
+        const val MigrationResolved = "resolved"
     }
 
     suspend fun reset() {
@@ -345,7 +380,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         keepLastModifiedWhenPossible = p[Keys.KeepModified] ?: true,
                         skipAppDeleteConfirmation = p[Keys.SkipDeleteConfirmation] ?: false,
                         dismissedWarnings = DismissibleWarning.fromKeys(p[Keys.DismissedWarnings].orEmpty()),
-                        advancedStorageEnabled = p[Keys.AdvancedStorageEnabled] ?: false,
+                        advancedStorageEnabled = p[Keys.AdvancedStorageEnabled] ?: true,
                         advancedShowHidden = p[Keys.AdvancedShowHidden] ?: false,
                         advancedDeleteEmptyFolders = p[Keys.AdvancedDeleteEmptyFolders] ?: false,
                         compactFolderChains = p[Keys.CompactFolderChains] ?: true,
@@ -644,8 +679,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     o.bool("keepLastModifiedWhenPossible", true),
                     o.bool("skipAppDeleteConfirmation", false),
                     DismissibleWarning.fromKeys(o.stringSet("dismissedWarnings")),
-                    // Optional and lenient: absent or malformed (older or foreign export) means off.
-                    o.optBoolean("advancedStorageEnabled", false),
+                    // Optional and lenient: absent or malformed (older or foreign export) means the default (on).
+                    o.optBoolean("advancedStorageEnabled", true),
                     o.optBoolean("advancedShowHidden", false),
                     o.optBoolean("advancedDeleteEmptyFolders", false),
                     o.optBoolean("compactFolderChains", true),

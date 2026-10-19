@@ -578,6 +578,7 @@ internal fun ProductionGalleryApp(
         EntryPointAccessors.fromApplication(context.applicationContext, AdvancedStorageEntryPoint::class.java).status()
     }
     val advancedState by advancedStorageStatus.status.collectAsState()
+    AdvancedStorageMigrationPrompt(allowed = external == null && !(gallerySettings.security.appLockEnabled && !appUnlocked))
     val folderChrome by folderExplorer.chrome.collectAsState()
     var openStorageAccessPage by rememberSaveable { mutableStateOf(false) }
     val folderLibrary = remember(viewModel) {

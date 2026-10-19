@@ -21,14 +21,18 @@ fun OnboardingWelcomePreview() = OnboardingFrame(OnboardingStep.Welcome)
 
 /** The permissions page: the longest list, so the footer overlaps it in short windows. */
 @Composable
-fun OnboardingPermissionsPreview() = OnboardingFrame(OnboardingStep.Permissions)
+fun OnboardingPermissionsPreview() = OnboardingFrame(OnboardingStep.Permissions, allFilesAccess = true)
+
+/** The permissions page of a build without advanced storage: no All files access row. */
+@Composable
+fun OnboardingPermissionsNoAllFilesPreview() = OnboardingFrame(OnboardingStep.Permissions)
 
 /** The last page, which has no Skip. */
 @Composable
 fun OnboardingDonePreview() = OnboardingFrame(OnboardingStep.Done)
 
 @Composable
-private fun OnboardingFrame(initial: OnboardingStep) {
+private fun OnboardingFrame(initial: OnboardingStep, allFilesAccess: Boolean = false) {
     val context = LocalContext.current
     // The backdrop and samples animate on an endless frame loop that never lets the headless
     // renderer go idle; with animations off (as on the test emulator) they render their still frame.
@@ -51,6 +55,11 @@ private fun OnboardingFrame(initial: OnboardingStep) {
             onOpenLicenses = {},
             onPermissionResult = {},
             onFinish = {},
+            allFilesAccess = if (allFilesAccess) {
+                OnboardingAllFilesAccess(isGranted = { false }, intent = { null }, onResult = {})
+            } else {
+                null
+            },
         )
     }
 }

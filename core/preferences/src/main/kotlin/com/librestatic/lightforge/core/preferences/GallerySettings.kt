@@ -227,10 +227,11 @@ data class OperationSettings(
     /** Warnings the user chose not to see again; empty means every warning is shown. */
     val dismissedWarnings: Set<DismissibleWarning> = emptySet(),
     /**
-     * The user's opt-in to the advanced storage mode (ADR-046). Only a wish: the mode is active when
-     * this is on AND the system grants All files access. Builds without the feature keep the value.
+     * The user's wish for the advanced storage mode (ADR-046): on by default, can be turned off in
+     * Settings. Only a wish: the mode is active when this is on AND the system grants All files
+     * access. Builds without the feature keep the value.
      */
-    val advancedStorageEnabled: Boolean = false,
+    val advancedStorageEnabled: Boolean = true,
     /** Advanced mode only: list media a `.nomedia` or dot-prefixed folder hides (ADR-046). */
     val advancedShowHidden: Boolean = false,
     /** Advanced mode only: remove a folder left empty after a move (ADR-046). */

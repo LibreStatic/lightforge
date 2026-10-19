@@ -302,4 +302,8 @@
     <string name="storage_access_included_remove">Rimuovi</string>
     <string name="storage_access_included_remove_description">Rimuovi %1$s dalle cartelle incluse</string>
     <string name="storage_access_include_failed">Impossibile aggiungere questa cartella.</string>
+    <string name="storage_access_migration_title">Passare alla modalità di archiviazione avanzata?</string>
+    <string name="storage_access_migration_body">Lightforge ora può mostrare e gestire tutte le cartelle del dispositivo, comprese quelle nascoste, e nascondere, mostrare e analizzare le cartelle. Android ti chiederà di consentire l\'accesso a tutti i file. Puoi disattivarla in qualsiasi momento in Impostazioni &gt; Accesso all\'archiviazione.</string>
+    <string name="storage_access_migration_switch">Passa</string>
+    <string name="storage_access_migration_not_now">Non ora</string>
 </resources>

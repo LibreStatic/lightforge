@@ -31,38 +31,45 @@ class AdvancedStorageSettingsTest {
 
     private suspend fun GallerySettingsRepository.enabled() = settings.first().operations.advancedStorageEnabled
 
+    private suspend fun GallerySettingsRepository.pending() = advancedStorageMigrationPending.first()
+
+    private suspend fun GallerySettingsRepository.setWish(value: Boolean) =
+        update { it.copy(operations = it.operations.copy(advancedStorageEnabled = value)) }
+
     @Test
-    fun `is off by default`() = test { repo ->
-        assertFalse(GallerySettings().operations.advancedStorageEnabled)
-        assertFalse(repo.enabled())
+    fun `is on by default`() = test { repo ->
+        assertTrue(GallerySettings().operations.advancedStorageEnabled)
+        assertTrue(repo.enabled())
     }
 
     @Test
     fun `persists and round trips through the export`() = test { repo ->
-        repo.update { it.copy(operations = it.operations.copy(advancedStorageEnabled = true)) }
-        assertTrue(repo.enabled())
-        val exported = repo.exportJson()
-        assertTrue(exported.getJSONObject("operations").getBoolean("advancedStorageEnabled"))
-        repo.reset()
+        repo.setWish(false)
         assertFalse(repo.enabled())
-        repo.importJson(exported)
+        val exported = repo.exportJson()
+        assertFalse(exported.getJSONObject("operations").getBoolean("advancedStorageEnabled"))
+        repo.reset()
         assertTrue(repo.enabled())
+        repo.importJson(exported)
+        assertFalse(repo.enabled())
     }
 
     @Test
-    fun `an export without the field keeps the default`() = test { repo ->
+    fun `an export without the field yields the default on`() = test { repo ->
+        repo.setWish(false)
         repo.importJson(JSONObject("""{"operations":{"skipAppDeleteConfirmation":true}}"""))
-        assertFalse(repo.enabled())
+        assertTrue(repo.enabled())
+        repo.setWish(false)
         repo.importJson(JSONObject("{}"))
-        assertFalse(repo.enabled())
+        assertTrue(repo.enabled())
     }
 
     @Test
     fun `importing a malformed or foreign value never fails`() = test { repo ->
         repo.importJson(JSONObject("""{"operations":{"advancedStorageEnabled":"yes"}}"""))
-        assertFalse(repo.enabled())
+        assertTrue(repo.enabled())
         repo.importJson(JSONObject("""{"operations":{"advancedStorageEnabled":null,"someFutureKey":1}}"""))
-        assertFalse(repo.enabled())
+        assertTrue(repo.enabled())
         assertEquals(true, repo.settings.first().operations.keepLastModifiedWhenPossible)
     }
 
@@ -162,5 +169,72 @@ class AdvancedStorageSettingsTest {
         assertEquals(emptySet<String>(), repo.settings.first().operations.scannedFolders)
         repo.importJson(exported)
         assertEquals(paths, repo.settings.first().operations.scannedFolders)
+    }
+
+    @Test
+    fun `a fresh install keeps the default and has nothing pending`() = test { repo ->
+        assertFalse(repo.resolveOnboarding())
+        repo.resolveAdvancedStorageDefault()
+        assertTrue(repo.enabled())
+        assertFalse(repo.pending())
+    }
+
+    @Test
+    fun `an upgraded install without the key is turned off explicitly and offered the switch`() = test { repo ->
+        repo.setOnboardingCompleted(true)
+        repo.resolveAdvancedStorageDefault()
+        assertFalse(repo.enabled())
+        assertTrue(repo.pending())
+    }
+
+    @Test
+    fun `an explicit stored choice is kept and needs no offer`() {
+        for (stored in listOf(true, false)) {
+            test { repo ->
+                repo.setOnboardingCompleted(true)
+                repo.setWish(stored)
+                repo.resolveAdvancedStorageDefault()
+                assertEquals(stored, repo.enabled())
+                assertFalse(repo.pending())
+            }
+        }
+    }
+
+    @Test
+    fun `an already resolved install is never touched again`() = test { repo ->
+        repo.resolveAdvancedStorageDefault() // fresh: resolved
+        repo.setOnboardingCompleted(true)
+        repo.resolveAdvancedStorageDefault()
+        assertTrue(repo.enabled())
+        assertFalse(repo.pending())
+    }
+
+    @Test
+    fun `a pending offer survives repeated resolves until it is answered`() = test { repo ->
+        repo.setOnboardingCompleted(true)
+        repo.resolveAdvancedStorageDefault()
+        repo.resolveAdvancedStorageDefault()
+        assertTrue(repo.pending())
+        assertFalse(repo.enabled())
+        repo.resolveAdvancedStorageMigration()
+        assertFalse(repo.pending())
+        assertFalse(repo.enabled())
+        repo.resolveAdvancedStorageDefault()
+        assertFalse(repo.pending())
+    }
+
+    @Test
+    fun `reset and import leave the migration state alone`() = test { repo ->
+        repo.setOnboardingCompleted(true)
+        repo.resolveAdvancedStorageDefault()
+        assertTrue(repo.pending())
+        repo.reset()
+        assertTrue(repo.pending())
+        assertTrue(repo.enabled())
+        repo.importJson(JSONObject("{}"))
+        assertTrue(repo.pending())
+        repo.resolveAdvancedStorageMigration()
+        repo.reset()
+        assertFalse(repo.pending())
     }
 }

@@ -139,6 +139,7 @@ fun OnboardingScreen(
     onFinish: (analysis: Set<OnboardingAnalysisOption>?) -> Unit,
     modifier: Modifier = Modifier,
     splash: OnboardingSplashHandoff = OnboardingSplashHandoff(onScreen = false),
+    allFilesAccess: OnboardingAllFilesAccess? = null,
 ) {
     val reducedMotion = rememberGalleryReducedMotion()
     val pager = rememberPagerState { FeaturePageCount }
@@ -270,7 +271,7 @@ fun OnboardingScreen(
                     when (current) {
                         OnboardingStep.Welcome -> WelcomeStep()
                         OnboardingStep.Features -> FeaturesStep(pager, reducedMotion)
-                        OnboardingStep.Permissions -> PermissionsStep(access, permissions, onPermissionResult)
+                        OnboardingStep.Permissions -> PermissionsStep(access, permissions, onPermissionResult, allFilesAccess)
                         OnboardingStep.Analysis -> AnalysisStep(analysis, onAnalysisChange)
                         OnboardingStep.OpenSource -> OpenSourceStep(versionName, onOpenLicenses)
                         OnboardingStep.Done -> DoneStep(reducedMotion)
@@ -536,11 +537,15 @@ private fun FeaturesStep(pager: androidx.compose.foundation.pager.PagerState, re
     }
 }
 
+/** Key under which the wizard remembers it launched the All files access screen. */
+private const val AllFilesAskKey = "lightforge.ALL_FILES_ACCESS"
+
 @Composable
 private fun PermissionsStep(
     access: LibraryAccess,
     permissions: PermissionCoordinator,
     onPermissionResult: () -> Unit,
+    allFilesAccess: OnboardingAllFilesAccess?,
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
@@ -548,6 +553,11 @@ private fun PermissionsStep(
     var tick by remember { mutableIntStateOf(0) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         permissions.revalidate()
+        onPermissionResult()
+        tick++
+    }
+    val allFilesLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        allFilesAccess?.onResult?.invoke()
         onPermissionResult()
         tick++
     }
@@ -564,6 +574,14 @@ private fun PermissionsStep(
         )
     }
 
+    // The system All files access screen has no rationale or "blocked" state: asking again always works.
+    val allFilesStatus = remember(tick, access) {
+        OnboardingPermissionPolicy.single(
+            granted = allFilesAccess?.isGranted?.invoke() == true,
+            asked = asked.any(listOf(AllFilesAskKey)),
+            showRationale = true,
+        )
+    }
     val mediaPlan = remember(permissions) { permissions.initialMediaRequest() }
     val locationPermission = Manifest.permission.ACCESS_MEDIA_LOCATION
     val notificationsAvailable = Build.VERSION.SDK_INT >= 33
@@ -605,6 +623,22 @@ private fun PermissionsStep(
     )
     Spacer(Modifier.height(GallerySpacing.Lg))
     Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+        if (allFilesAccess != null) {
+            PermissionRow(
+                icon = GalleryIcons.Folder,
+                title = stringResource(R.string.onboarding_permission_all_files_title),
+                body = stringResource(R.string.onboarding_permission_all_files_body),
+                status = allFilesStatus,
+                container = MaterialTheme.colorScheme.secondaryContainer,
+                content = MaterialTheme.colorScheme.onSecondaryContainer,
+                tag = "all-files",
+                onRequest = {
+                    asked.mark(listOf(AllFilesAskKey))
+                    allFilesAccess.intent()?.let { intent -> runCatching { allFilesLauncher.launch(intent) } }
+                },
+                onOpenSettings = {},
+            )
+        }
         PermissionRow(
             icon = GalleryIcons.PhotoLibrary,
             title = stringResource(R.string.onboarding_permission_media_title),

@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.feature.onboarding
 
+import android.content.Intent
 import androidx.compose.ui.geometry.Rect
 import com.librestatic.lightforge.core.model.GrantLevel
 import com.librestatic.lightforge.core.model.LibraryAccess
@@ -16,6 +17,18 @@ data class OnboardingSplashHandoff(val onScreen: Boolean, val iconBounds: Rect? 
 
 /** Opt-in on-device analysis features offered by the wizard; the host maps them to its switches. */
 enum class OnboardingAnalysisOption { People, Content, Pets, Semantic }
+
+/**
+ * The All files access row (ADR-046), supplied by the host so this module never depends on the
+ * advanced storage code. A null value hides the row (the build does not support the mode).
+ * [isGranted] is read live; [intent] opens the system screen for this app; [onResult] runs when the
+ * user returns from it so the host can re-read the permission.
+ */
+class OnboardingAllFilesAccess(
+    val isGranted: () -> Boolean,
+    val intent: () -> Intent?,
+    val onResult: () -> Unit,
+)
 
 /** What a permission row shows. Never rendered as an error: every state keeps the app usable. */
 enum class OnboardingPermissionStatus {

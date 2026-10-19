@@ -55,6 +55,8 @@
     <string name="onboarding_permission_location_body">Lit où les photos ont été prises pour créer la carte des Lieux. La position ne quitte jamais votre appareil.</string>
     <string name="onboarding_permission_location_needs_media">Autorisez d\'abord les photos et vidéos.</string>
     <string name="onboarding_permission_location_auto_granted">Android l\'accorde automatiquement avec l\'accès aux photos, donc aucune demande n\'apparaît.</string>
+    <string name="onboarding_permission_all_files_title">Accès à tous les fichiers</string>
+    <string name="onboarding_permission_all_files_body">Permet à Lightforge d\'afficher et de gérer tous les dossiers de votre appareil, y compris les dossiers masqués. Vous pouvez le désactiver à tout moment dans Réglages &gt; Accès au stockage.</string>
     <string name="onboarding_permission_notifications_title">Notifications</string>
     <string name="onboarding_permission_notifications_body">Uniquement pour afficher la progression des longues exportations, sauvegardes et synchronisations.</string>
     <string name="onboarding_permissions_footer">Vous pouvez les modifier à tout moment dans les paramètres Android.</string>
