@@ -82,6 +82,7 @@ internal fun FolderExplorerHost(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val resources = androidx.compose.ui.platform.LocalResources.current
     val state by viewModel.uiState.collectAsState()
     val active by viewModel.advancedActive.collectAsState()
     val revoked by viewModel.revokedWithHidden.collectAsState()
@@ -152,7 +153,7 @@ internal fun FolderExplorerHost(
                 { card ->
                     viewModel.clearFolderSelection()
                     if (!pinFolderShortcut(context, card.name, card.location)) {
-                        scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.folder_shortcut_failed)) }
+                        scope.launch { snackbarHostState.showSnackbar(resources.getString(R.string.folder_shortcut_failed)) }
                     }
                 }
             } else {

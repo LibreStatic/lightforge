@@ -465,6 +465,9 @@ class GalleryViewModel @Inject constructor(
         GallerySettings(),
     )
 
+    /** The surface chosen to open on, read once from storage so a cold start does not flash the default. */
+    suspend fun startScreen() = gallerySettingsRepository.settings.first().operations.startScreen
+
     /** First-run wizard flag; null while it is being settled, so nothing flashes before it. */
     val onboardingCompleted = kotlinx.coroutines.flow.flow {
         gallerySettingsRepository.resolveOnboarding()
@@ -3037,23 +3040,50 @@ class GalleryViewModel @Inject constructor(
         albumRequest.value = AlbumRequest(key, filter, sort)
     }
 
+    /** The filter and sort remembered for [key], or the defaults when the user never changed them. */
+    suspend fun albumView(key: AlbumKey): Pair<AlbumMediaFilter, AlbumSort> =
+        AlbumViewPrefs.decode(gallerySettingsRepository.settings.first().operations.folderViewOptions[AlbumViewPrefs.keyOf(key)])
+            ?: AlbumViewPrefs.Default
+
+    /** Remembers the filter and sort of [key] for the next time it is opened. */
+    fun saveAlbumView(key: AlbumKey, filter: AlbumMediaFilter, sort: AlbumSort) {
+        viewModelScope.launch {
+            gallerySettingsRepository.update { settings ->
+                val map = settings.operations.folderViewOptions + (AlbumViewPrefs.keyOf(key) to AlbumViewPrefs.encode(filter, sort))
+                settings.copy(operations = settings.operations.copy(folderViewOptions = map))
+            }
+        }
+    }
+
     fun selectAlbum(album: AlbumSummary, filter: AlbumMediaFilter, sort: AlbumSort) {
         mutableSelectedAlbum.value = album
         selectAlbum(album.key, filter, sort)
     }
 
     /** The media stored in one device folder (optionally with its subfolders), for the folder explorer's inline grid. */
-    fun folderMedia(volumeName: String, relativePath: String, includeSubfolders: Boolean): Flow<PagingData<TimelineMedia>> =
+    fun folderMedia(
+        volumeName: String,
+        relativePath: String,
+        includeSubfolders: Boolean,
+        filter: AlbumMediaFilter = AlbumMediaFilter.All,
+        sort: AlbumSort = AlbumSort.NewestFirst,
+    ): Flow<PagingData<TimelineMedia>> =
         runtime.filterNotNull()
-            .flatMapLatest { it.albums.mediaInFolder(volumeName, relativePath, includeSubfolders) }
+            .flatMapLatest { it.albums.mediaInFolder(volumeName, relativePath, includeSubfolders, filter, sort) }
             .withoutPending(pendingLibraryRemovals) { it.key }
 
-    /** Opens the viewer over a device folder, so swiping stays inside that folder (and its subfolders when asked). */
-    fun openFolderMedia(media: TimelineMedia, volumeName: String, relativePath: String, includeSubfolders: Boolean) =
-        openMedia(
-            media,
-            MediaQuery(scope = MediaQuery.Scope.Folder(volumeName, relativePath, includeSubfolders)),
-        )
+    /** Opens the viewer over a device folder, so swiping stays inside that folder (and its subfolders when asked) in the order the grid shows. */
+    fun openFolderMedia(
+        media: TimelineMedia,
+        volumeName: String,
+        relativePath: String,
+        includeSubfolders: Boolean,
+        filter: AlbumMediaFilter = AlbumMediaFilter.All,
+        sort: AlbumSort = AlbumSort.NewestFirst,
+    ) = openMedia(
+        media,
+        folderQuery(MediaQuery.Scope.Folder(volumeName, relativePath, includeSubfolders), filter, sort),
+    )
 
     /** Relative path to bucket id of the indexed folders at or under [prefix]. */
     suspend fun folderBuckets(volumeName: String, prefix: String): Map<String, Long> = withContext(Dispatchers.IO) {
@@ -7050,6 +7080,8 @@ class GalleryViewModel @Inject constructor(
                 if (active) {
                     runtime.filterNotNull().first()
                     withContext(Dispatchers.IO) { advancedOperations.recoverInterrupted() }
+                    // Folders the user included are scanned again, so files added since are indexed.
+                    gallerySettings.value.operations.scannedFolders.forEach { advancedStorage.scanFolderTree(it) }
                 }
             }
         }
@@ -7110,6 +7142,23 @@ class GalleryViewModel @Inject constructor(
             }
         }
     }
+
+    /** Hides the ticked files by name (advanced mode only); they stay on the device and can be shown again. */
+    fun hideSelectionByName() {
+        if (!advancedStatus.status.value.active) return
+        viewModelScope.launch {
+            val keys = selectedKeys()
+            if (keys.isEmpty()) return@launch
+            val (done, failed) = advancedOperations.hideByName(keys)
+            if (done > 0) clearSelection()
+            advancedEventChannel.send(AdvancedOpEvent.Hidden(done, failed))
+        }
+    }
+
+    /** Whether All files access is on, which unlocks hiding files by name. */
+    val advancedActive: kotlinx.coroutines.flow.StateFlow<Boolean> =
+        advancedStatus.status.map { it.active }.distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.Eagerly, advancedStatus.status.value.active)
 
     fun beginItemFolderTransfer(media: TimelineMedia, move: Boolean) {
         mutableFolderPick.value = FolderPickRequest.Items(if (move) PickPurpose.Move else PickPurpose.Copy, listOf(media.key))
@@ -7853,11 +7902,18 @@ class GalleryViewModel @Inject constructor(
 
     private fun mediaMime(kind: MediaKind) = if (kind == MediaKind.Image) "image/*" else "video/*"
 
-    private fun albumQuery(key: AlbumKey, filter: AlbumMediaFilter, sort: AlbumSort) = MediaQuery(
-        scope = when (key) {
+    private fun albumQuery(key: AlbumKey, filter: AlbumMediaFilter, sort: AlbumSort) = folderQuery(
+        when (key) {
             is AlbumKey.Physical -> MediaQuery.Scope.PhysicalAlbum(key.volumeName, key.bucketId)
             is AlbumKey.Virtual -> MediaQuery.Scope.VirtualAlbum(key.albumId)
         },
+        filter,
+        sort,
+    )
+
+    /** The viewer query of a grid that lists [scope] with [filter] and [sort], so swiping follows the grid. */
+    private fun folderQuery(scope: MediaQuery.Scope, filter: AlbumMediaFilter, sort: AlbumSort) = MediaQuery(
+        scope = scope,
         kindFilter = when (filter) {
             AlbumMediaFilter.All -> MediaQuery.KindFilter.ImagesAndVideos
             AlbumMediaFilter.Images -> MediaQuery.KindFilter.Images

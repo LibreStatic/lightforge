@@ -316,6 +316,27 @@ internal class AdvancedFileOperations(
         return true
     }
 
+    /**
+     * Hides each file by giving it a leading dot (`IMG.jpg` becomes `.IMG.jpg`), recorded so it can be
+     * shown again. Returns the files hidden and the files that could not be.
+     */
+    suspend fun hideByName(keys: List<MediaKey>): Pair<Int, Int> {
+        if (!isActive()) return 0 to keys.size
+        val found = sources(keys)
+        val verified = verifyIdentity(found)
+        var done = 0
+        found.forEach { source ->
+            val path = source.takeIf { it.key in verified }?.let {
+                advanced.absolutePathOf(it.volumeName, it.relativePath, it.displayName)
+            }
+            if (path != null && advanced.hideWithDotPrefix(path) == AdvancedResult.Done) {
+                done++
+                applyHint(source.key)
+            }
+        }
+        return done to (keys.size - done)
+    }
+
     /** Moves the folder into [destination]; both prefixes are re-read afterwards. */
     suspend fun moveFolder(source: FolderTarget, destination: FolderTarget): FolderOpResult {
         val sourcePath = source.relativePath?.takeIf { it.isNotBlank() } ?: return FolderOpResult(AdvancedResult.Failed("volume root"))

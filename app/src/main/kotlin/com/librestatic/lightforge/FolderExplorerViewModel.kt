@@ -171,7 +171,13 @@ class FolderExplorerViewModel @Inject constructor(
                 flowOf(emptyList())
             } else {
                 merge(flowOf(Unit), diskTick.map { }, mediaStoreChanges())
-                    .mapLatest { advanced.queryHiddenMedia() }
+                    .mapLatest {
+                        val rows = advanced.queryHiddenMedia()
+                        // The library tree already counts rows it indexes (dot-path media, or a folder another app
+                        // marked .nomedia before the next sweep); the overlay only adds what the library lacks.
+                        val inLibrary = repository.get().libraryKeysAmong(rows.map { MediaKey(it.volumeName, it.mediaStoreId) })
+                        rows.filter { MediaKey(it.volumeName, it.mediaStoreId) !in inLibrary }
+                    }
                     .flowOn(Dispatchers.IO)
             }
         }
@@ -186,14 +192,15 @@ class FolderExplorerViewModel @Inject constructor(
             .mapLatest { (st, load, at) ->
                 val tree = (load as? TreeLoad.Loaded)?.tree
                 if (!st.active || tree == null) return@mapLatest emptyList()
-                val resolved = resolveLocation(tree, at)
-                val volume = resolved.volumeName ?: return@mapLatest emptyList()
-                val path = resolved.relativePath
-                val absolute = advanced.absolutePathOf(volume, path) ?: return@mapLatest emptyList()
-                val base = path?.let(::normalizedFolderPath).orEmpty()
-                advanced.listDirectories(absolute)
-                    .filter { it.isEmpty && (st.showHidden || !it.isDotPrefixed) }
-                    .map { EmptyDirectory(volume, "$base${it.name}/") }
+                // The requested location, not the one the library tree resolves it to: a folder only the disk knows
+                // is not in that tree yet, and resolving would send the user back to its parent.
+                val requested = at.volumeName?.takeIf { name -> tree.volumes.any { it.volumeName == name } }
+                val volume = requested ?: resolveLocation(tree, at).volumeName ?: return@mapLatest emptyList()
+                diskOverlayDirectories(volume, if (requested != null) at.relativePath else null, st.showHidden) { path ->
+                    advanced.absolutePathOf(volume, path)?.let { absolute ->
+                        advanced.listDirectories(absolute).takeIf { it.isNotEmpty() || java.io.File(absolute).isDirectory }
+                    }
+                }
             }
             .flowOn(Dispatchers.IO)
 
@@ -314,7 +321,7 @@ class FolderExplorerViewModel @Inject constructor(
         library,
     ) { scope, lib -> scope to lib }
         .flatMapLatest { (scope, lib) ->
-            if (scope == null || lib == null) flowOf(PagingData.empty()) else lib.media(scope.volumeName, scope.relativePath, scope.includeSubfolders)
+            if (scope == null || lib == null) flowOf(PagingData.empty()) else lib.media(scope.volumeName, scope.relativePath, scope.includeSubfolders, scope.filter, scope.sort)
         }
         .cachedIn(viewModelScope)
 

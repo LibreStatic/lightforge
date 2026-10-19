@@ -171,4 +171,7 @@
     <string name="folder_op_copied">Pasta copiada</string>
     <string name="device_folders_search_in_folder">Pesquisar nesta pasta</string>
     <string name="folder_op_has_trash">Esta pasta guarda itens da lixeira, então nada foi excluído. Restaure-os ou exclua-os da lixeira primeiro.</string>
+    <string name="selection_hide_by_name">Ocultar pelo nome</string>
+    <string name="adv_hide_files_failed">Não foi possível ocultar esses arquivos.</string>
+    <plurals name="adv_hide_files_done"><item quantity="one">%1$d arquivo oculto</item><item quantity="many">%1$d arquivos ocultos</item><item quantity="other">%1$d arquivos ocultos</item></plurals>
 </resources>

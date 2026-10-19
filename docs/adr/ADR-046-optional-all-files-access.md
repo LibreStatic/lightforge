@@ -60,10 +60,20 @@ refuses hide, create, rename, move and delete there and the explorer shows no me
 cards. A renamed or moved folder takes its folder rules (excluded or included, by path and by
 bucket) with it, so an excluded folder stays excluded.
 
-The app does not hide by renaming with a leading dot: the code was removed, and a dot-prefixed
-record written by an earlier build is still undone by unhide. Unhide works for hides this app
-recorded; a `.nomedia` made by another app is never deleted. Included folders that MediaStore does
-not index are not offered.
+Files can be hidden by name: the selection bar's "Hide by name" (mode on) renames each file with a
+leading dot (`IMG.jpg` becomes `.IMG.jpg`) and records the new path as `HiddenKind.DotPrefix`.
+Folders are never hidden that way (a `.nomedia` does that), and a name that is already dotted, a
+taken target or a missing permission is refused. The hidden file appears in the hidden overlay and
+Settings > Storage access lists it, where unhide renames it back; a dot-prefixed record of a folder
+written by an earlier build is still undone. Unhide works for hides this app recorded; a `.nomedia`
+made by another app is never deleted.
+
+Scanned folders (the plan's "included folders"): Storage access lists folders the user added with the system picker. Adding one
+asks the media scanner to index every photo and video below it (`AdvancedStorage.scanFolderTree`,
+recursive, at most 50,000 files, never the Android data and obb trees, never `.pending-` or
+`.trashed-` placeholders) and stores the absolute path in `OperationSettings.scannedFolders`, which
+is part of the settings export. Every included folder is scanned again whenever the mode turns on.
+Removing a folder from the list only stops that rescan; the library items stay.
 
 Cross-volume moves keep the verified copy path: size and hash check, then delete. Every
 batch operation uses the same strategy: rename when the capability is present, otherwise
@@ -259,8 +269,17 @@ to the Trash) and clears the selection with Escape; Right and Left open and clos
 scroll position of every folder is saved per folder in the saved state and is restored once the paged files
 are loaded, so it survives process death.
 
-Not built: the rename-against-verified-copy benchmark; included folders that
-MediaStore does not index. The old SAF tree launch stack (`VerifiedMoveController` and its tree
+Per-folder options now cover the files as well as the folders (7.6): file sort (date, name, size),
+type filter (all, photos, videos) and grid or list layout are stored with the folder in
+`folderViewOptions`, applied to the folder's file grid and to the viewer scope opened from it. An
+album screen keeps its own filter and sort per album in the same map (`AlbumViewPrefs`). The start
+screen (Photos, Albums or Folders) is a setting applied once per cold start when no external intent
+is being handled. A folder that exists only on the disk (just created, or empty) stays openable and
+nestable because the explorer lists the directories along the whole path of the open location.
+Hidden items the library already lists are dropped from the overlay, so nothing appears twice in
+Photos or in a folder.
+
+Not built: the rename-against-verified-copy benchmark. The old SAF tree launch stack (`VerifiedMoveController` and its tree
 launchers) is no longer started by the folder picker and remains only because device tests use it.
 The scrubber histogram does not count hidden items merged into Photos. The viewer, system
 integration, photo editor, formats and slideshow sprints of the Simple Gallery gap plan are outside

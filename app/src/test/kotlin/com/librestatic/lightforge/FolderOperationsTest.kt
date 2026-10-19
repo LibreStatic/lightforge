@@ -105,4 +105,66 @@ class FolderOperationsTest {
     fun aFolderHoldingTrashMapsToItsOwnMessage() {
         assertEquals(FolderMessage.FolderHasTrash, AdvancedResult.Failed(FOLDER_HAS_TRASH).toFolderMessage(FolderOp.Delete))
     }
+
+    /** A tiny disk: the directories that exist, as relative paths without the trailing slash. */
+    private class FakeDisk(vararg dirs: String) {
+        val dirs = dirs.toMutableSet()
+        fun list(parent: String?): List<com.librestatic.lightforge.core.mediastore.DirectoryEntry>? {
+            val base = parent?.trimEnd('/')
+            if (base != null && base !in dirs) return null
+            return dirs.filter { it.substringBeforeLast('/', "") == base.orEmpty() && it.isNotEmpty() }.map { path ->
+                val name = path.substringAfterLast('/')
+                com.librestatic.lightforge.core.mediastore.DirectoryEntry(
+                    name, "/disk/$path",
+                    isEmpty = dirs.none { it.startsWith("$path/") },
+                    hasNoMedia = false,
+                    isDotPrefixed = name.startsWith("."),
+                )
+            }
+        }
+    }
+
+    private fun overlayTree(disk: FakeDisk, at: String?): com.librestatic.lightforge.core.model.folders.FolderTree {
+        val base = com.librestatic.lightforge.core.model.folders.FolderTree.from(
+            listOf(
+                com.librestatic.lightforge.core.model.folders.FolderNode(
+                    "v", "DCIM/", "DCIM",
+                    com.librestatic.lightforge.core.model.folders.FolderStats(null, 1, 1, 0, 10, 1, 1, 5, isAvailable = true),
+                    emptyList(),
+                ),
+            ),
+        )
+        val dirs = runBlocking { diskOverlayDirectories("v", at, showHidden = false, listChildren = disk::list) }
+        return com.librestatic.lightforge.core.model.folders.mergeAdvancedOverlay(base, emptyList(), dirs)
+    }
+
+    @Test
+    fun aFolderOnlyTheDiskKnowsStaysOpenableAndNestable() {
+        val disk = FakeDisk("A")
+        // Open A: it is not in the library tree, yet it must resolve to itself and not to the volume root.
+        val inA = overlayTree(disk, "A/")
+        assertEquals(
+            com.librestatic.lightforge.feature.folders.FolderLocation("v", "A/"),
+            com.librestatic.lightforge.feature.folders.resolveLocation(inA, com.librestatic.lightforge.feature.folders.FolderLocation("v", "A/")),
+        )
+        // Create A/B while inside A: both stay in the tree whichever of the two is open.
+        disk.dirs += "A/B"
+        for (at in listOf("A/", "A/B/", null)) {
+            val tree = overlayTree(disk, at)
+            assertTrue("A visible at $at", tree.find("v", "A/") != null)
+            if (at != null) assertTrue("A/B visible at $at", tree.find("v", "A/B/") != null)
+        }
+        assertEquals(
+            com.librestatic.lightforge.feature.folders.FolderLocation("v", "A/B/"),
+            com.librestatic.lightforge.feature.folders.resolveLocation(
+                overlayTree(disk, "A/B/"), com.librestatic.lightforge.feature.folders.FolderLocation("v", "A/B/"),
+            ),
+        )
+    }
+
+    @Test
+    fun aDirectoryThatIsGoneEndsTheWalk() {
+        val disk = FakeDisk("A")
+        assertEquals(listOf("A/"), runBlocking { diskOverlayDirectories("v", "Gone/Deeper/", false, disk::list) }.map { it.relativePath })
+    }
 }

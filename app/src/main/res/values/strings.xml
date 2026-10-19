@@ -184,4 +184,7 @@
     <string name="folder_op_copied">Folder copied</string>
     <string name="device_folders_search_in_folder">Search in this folder</string>
     <string name="folder_op_has_trash">This folder holds items from Trash, so nothing was deleted. Restore them or delete them from Trash first.</string>
+    <string name="selection_hide_by_name">Hide by name</string>
+    <string name="adv_hide_files_failed">Could not hide those files.</string>
+    <plurals name="adv_hide_files_done"><item quantity="one">Hid %1$d file</item><item quantity="other">Hid %1$d files</item></plurals>
 </resources>

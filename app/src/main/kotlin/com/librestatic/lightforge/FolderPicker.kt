@@ -64,6 +64,8 @@ internal sealed interface AdvancedOpEvent {
     data class Transfer(val result: TransferResult) : AdvancedOpEvent
 
     /** [leaveAlbum]: the folder that was open as an album no longer exists under that identity. */
+    data class Hidden(val done: Int, val failed: Int) : AdvancedOpEvent
+
     data class Folder(val message: FolderMessage, val leaveAlbum: Boolean = false) : AdvancedOpEvent
 }
 
@@ -196,6 +198,13 @@ internal fun AdvancedOperationsHost(
                     folderExplorer.clearFolderSelection()
                     showFolderMessage(context, snackbarHostState, event.message, onOpenStorageAccess)
                     if (event.leaveAlbum) currentOnLeave()
+                }
+                is AdvancedOpEvent.Hidden -> {
+                    folderExplorer.diskChanged()
+                    snackbarHostState.showSnackbar(
+                        if (event.done == 0) resources.getString(R.string.adv_hide_files_failed)
+                        else resources.getQuantityString(R.plurals.adv_hide_files_done, event.done, event.done),
+                    )
                 }
                 is AdvancedOpEvent.Transfer -> {
                     folderExplorer.diskChanged()

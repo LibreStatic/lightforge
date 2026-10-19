@@ -5,7 +5,11 @@ import com.librestatic.lightforge.core.mediastore.ALREADY_HIDDEN_BY_OTHERS
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
 import com.librestatic.lightforge.core.mediastore.AdvancedStorage
 import com.librestatic.lightforge.core.mediastore.FOLDER_HAS_TRASH
+import com.librestatic.lightforge.core.database.AlbumMediaFilter
+import com.librestatic.lightforge.core.database.AlbumSort
 import com.librestatic.lightforge.feature.folders.FolderDeleteSummary
+import com.librestatic.lightforge.feature.folders.FolderFileFilter
+import com.librestatic.lightforge.feature.folders.FolderFileSort
 import com.librestatic.lightforge.core.mediastore.HiddenMediaRow
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.model.folders.HiddenFolderGroup
@@ -14,7 +18,13 @@ import kotlinx.coroutines.flow.Flow
 
 /** What the folder explorer needs from the library; the gallery view model owns the real thing. */
 interface FolderLibrary {
-    fun media(volumeName: String, relativePath: String, includeSubfolders: Boolean): Flow<PagingData<TimelineMedia>>
+    fun media(
+        volumeName: String,
+        relativePath: String,
+        includeSubfolders: Boolean,
+        filter: FolderFileFilter = FolderFileFilter.All,
+        sort: FolderFileSort = FolderFileSort.NewestFirst,
+    ): Flow<PagingData<TimelineMedia>>
 
     /** Re-reads one folder subtree from MediaStore, then refreshes the library views. */
     suspend fun reconcile(volumeName: String, relativePathPrefix: String)
@@ -98,6 +108,32 @@ internal fun HiddenMediaRow.facts() = HiddenRowFacts(
     dateMillis = dateTakenOrModifiedMillis,
 )
 
+/**
+ * The directories on disk the explorer adds to the library tree for [location]: the children of every level from
+ * the volume root down to the folder itself, so a folder only the disk knows (new, empty, or holding nothing the
+ * library indexes) stays reachable together with the ones created inside it. [listChildren] lists the directories
+ * of a relative path (null is the volume root). A folder carrying `.nomedia` or a dot name is left out unless
+ * hidden items are shown; a folder that is only a lone `.nomedia` marker still counts as empty.
+ */
+internal suspend fun diskOverlayDirectories(
+    volumeName: String,
+    location: String?,
+    showHidden: Boolean,
+    listChildren: suspend (String?) -> List<com.librestatic.lightforge.core.mediastore.DirectoryEntry>?,
+): List<com.librestatic.lightforge.core.model.folders.EmptyDirectory> {
+    val segments = normalizedFolderPath(location.orEmpty()).trim('/').split('/').filter { it.isNotEmpty() }
+    val result = LinkedHashSet<com.librestatic.lightforge.core.model.folders.EmptyDirectory>()
+    for (depth in 0..segments.size) {
+        val parent = if (depth == 0) null else segments.take(depth).joinToString("/", postfix = "/")
+        // A level that is gone ends the walk: nothing below it exists either.
+        val children = listChildren(parent) ?: break
+        children
+            .filter { (showHidden || !it.isDotPrefixed) && (it.isEmpty || showHidden || !it.hasNoMedia) }
+            .mapTo(result) { com.librestatic.lightforge.core.model.folders.EmptyDirectory(volumeName, "${parent.orEmpty()}${it.name}/") }
+    }
+    return result.toList()
+}
+
 /** Groups hidden rows by folder and kind, the shape the folder tree overlay takes. */
 internal fun groupHiddenRows(rows: List<HiddenMediaRow>): List<HiddenFolderGroup> = groupHiddenFacts(rows.map { it.facts() })
 
@@ -137,4 +173,19 @@ internal suspend fun summarizeFolderDelete(storage: AdvancedStorage, absolutePat
         )
     }
     return total
+}
+
+internal fun FolderFileFilter.toAlbumFilter() = when (this) {
+    FolderFileFilter.All -> AlbumMediaFilter.All
+    FolderFileFilter.Images -> AlbumMediaFilter.Images
+    FolderFileFilter.Videos -> AlbumMediaFilter.Videos
+}
+
+internal fun FolderFileSort.toAlbumSort() = when (this) {
+    FolderFileSort.NewestFirst -> AlbumSort.NewestFirst
+    FolderFileSort.OldestFirst -> AlbumSort.OldestFirst
+    FolderFileSort.NameAscending -> AlbumSort.NameAscending
+    FolderFileSort.NameDescending -> AlbumSort.NameDescending
+    FolderFileSort.SizeAscending -> AlbumSort.SizeAscending
+    FolderFileSort.SizeDescending -> AlbumSort.SizeDescending
 }

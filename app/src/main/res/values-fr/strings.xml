@@ -171,4 +171,7 @@
     <string name="folder_op_copied">Dossier copié</string>
     <string name="device_folders_search_in_folder">Rechercher dans ce dossier</string>
     <string name="folder_op_has_trash">Ce dossier contient des éléments de la corbeille, donc rien n\'a été supprimé. Restaurez-les ou supprimez-les d\'abord de la corbeille.</string>
+    <string name="selection_hide_by_name">Masquer par le nom</string>
+    <string name="adv_hide_files_failed">Impossible de masquer ces fichiers.</string>
+    <plurals name="adv_hide_files_done"><item quantity="one">%1$d fichier masqué</item><item quantity="many">%1$d fichiers masqués</item><item quantity="other">%1$d fichiers masqués</item></plurals>
 </resources>

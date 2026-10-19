@@ -421,6 +421,7 @@ internal fun ProductionGalleryApp(
     val destructiveAuthTitle = stringResource(R.string.destructive_auth_title)
     val destructiveAuthBody = stringResource(R.string.destructive_auth_body)
     val access by viewModel.access.collectAsState()
+    val advancedActive by viewModel.advancedActive.collectAsState()
     val engineState by viewModel.engineState.collectAsState()
     val thumbnails by viewModel.thumbnailLoader.collectAsState()
     val folderExplorer = rememberFolderExplorerViewModel()
@@ -581,8 +582,13 @@ internal fun ProductionGalleryApp(
     var openStorageAccessPage by rememberSaveable { mutableStateOf(false) }
     val folderLibrary = remember(viewModel) {
         object : FolderLibrary {
-            override fun media(volumeName: String, relativePath: String, includeSubfolders: Boolean) =
-                viewModel.folderMedia(volumeName, relativePath, includeSubfolders)
+            override fun media(
+                volumeName: String,
+                relativePath: String,
+                includeSubfolders: Boolean,
+                filter: com.librestatic.lightforge.feature.folders.FolderFileFilter,
+                sort: com.librestatic.lightforge.feature.folders.FolderFileSort,
+            ) = viewModel.folderMedia(volumeName, relativePath, includeSubfolders, filter.toAlbumFilter(), sort.toAlbumSort())
 
             override suspend fun reconcile(volumeName: String, relativePathPrefix: String) =
                 viewModel.reconcileFolder(volumeName, relativePathPrefix)
@@ -768,6 +774,21 @@ internal fun ProductionGalleryApp(
     var photosFocusSequence by remember { mutableStateOf(0L) }
     LaunchedEffect(route, rootTab) {
         if (route != SurfaceRoute.Root || rootTab != RootTab.Photos) photosFocusReturn = null
+    }
+    // The chosen start screen applies once, to a fresh launch that nothing else (a shortcut, a shared file) has
+    // already steered; a restored or navigated session keeps where it is.
+    var startScreenApplied by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (startScreenApplied) return@LaunchedEffect
+        startScreenApplied = true
+        val start = viewModel.startScreen()
+        if (external == null && route == SurfaceRoute.Root && rootTab == RootTab.Photos) {
+            when (start) {
+                com.librestatic.lightforge.core.preferences.StartScreen.Photos -> Unit
+                com.librestatic.lightforge.core.preferences.StartScreen.Albums -> rootTab = RootTab.Collections
+                com.librestatic.lightforge.core.preferences.StartScreen.Folders -> route = SurfaceRoute.DeviceFolders
+            }
+        }
     }
     LaunchedEffect(route, external) {
         if (external != null || route !in setOf(SurfaceRoute.Root, SurfaceRoute.Viewer,
@@ -1772,7 +1793,7 @@ internal fun ProductionGalleryApp(
                     },
                     onOpenMedia = { media, scope ->
                         openViewer(ViewerReturnDestination.Folders) {
-                            viewModel.openFolderMedia(media, scope.volumeName, scope.relativePath, scope.includeSubfolders)
+                            viewModel.openFolderMedia(media, scope.volumeName, scope.relativePath, scope.includeSubfolders, scope.filter.toAlbumFilter(), scope.sort.toAlbumSort())
                         }
                     },
                     onMoveFolder = { card -> viewModel.beginFolderMovePick(card.location) },
@@ -1822,6 +1843,15 @@ internal fun ProductionGalleryApp(
                             swipeEnabled = selectionCount == 0L && !albumCoverWorking,
                         ) { contentModifier ->
                         key(album.key) {
+                        // Each album remembers its own sort and filter; one never opened starts from the defaults.
+                        LaunchedEffect(album.key) {
+                            val (storedFilter, storedSort) = viewModel.albumView(album.key)
+                            if (storedFilter != filter || storedSort != sort) {
+                                filter = storedFilter
+                                sort = storedSort
+                                viewModel.selectAlbum(album, filter, sort)
+                            }
+                        }
                         AlbumContent(
                             album,
                             albumItems,
@@ -1830,8 +1860,16 @@ internal fun ProductionGalleryApp(
                             sort,
                             selection,
                             album.itemCount,
-                            onFilterChange = { filter = it; viewModel.selectAlbum(album, filter, sort) },
-                            onSortChange = { sort = it; viewModel.selectAlbum(album, filter, sort) },
+                            onFilterChange = {
+                                filter = it
+                                viewModel.saveAlbumView(album.key, filter, sort)
+                                viewModel.selectAlbum(album, filter, sort)
+                            },
+                            onSortChange = {
+                                sort = it
+                                viewModel.saveAlbumView(album.key, filter, sort)
+                                viewModel.selectAlbum(album, filter, sort)
+                            },
                             onMediaClick = { media ->
                                 if (selectionCount > 0) viewModel.toggleSelection(media)
                                 else openViewer(ViewerReturnDestination.Album(album.key)) {
@@ -2855,6 +2893,8 @@ internal fun ProductionGalleryApp(
                             canMoveToFolder = true,
                             onMoveToFolder = { viewModel.beginSelectionFolderTransfer(move = true) },
                             onCopyToFolder = { viewModel.beginSelectionFolderTransfer(move = false) },
+                            canHideByName = advancedActive,
+                            onHideByName = viewModel::hideSelectionByName,
                             onArchive = { viewModel.setSelectionArchived(true) },
                             onShare = {
                                 if (gallerySettings.operations.shareWithoutLocationByDefault) {
@@ -4142,6 +4182,8 @@ private fun SelectionActions(
     canMoveToFolder: Boolean,
     onMoveToFolder: () -> Unit,
     onCopyToFolder: () -> Unit,
+    canHideByName: Boolean = false,
+    onHideByName: () -> Unit = {},
     onArchive: () -> Unit,
     onShare: () -> Unit,
     onClear: () -> Unit,
@@ -4233,6 +4275,9 @@ private fun SelectionActions(
                 ) else null,
                 if (canMoveToFolder) action(
                     stringResource(R.string.selection_copy_to_folder), GalleryIcons.ContentCopy, onCopyToFolder, true, false, "selection-copy-to-folder",
+                ) else null,
+                if (canHideByName) action(
+                    stringResource(R.string.selection_hide_by_name), GalleryIcons.VisibilityOff, onHideByName, true, false, "selection-hide-by-name",
                 ) else null,
                 action(stringResource(R.string.archive_move), GalleryIcons.Archive, onArchive, true, false, null),
                 action(stringResource(R.string.selection_select_all), GalleryIcons.Check, onSelectAll, true, false, null),
