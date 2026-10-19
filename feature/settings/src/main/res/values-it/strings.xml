@@ -244,8 +244,8 @@
     <string name="storage_access_turn_off_no_permission">L\'accesso a tutti i file non è più consentito, quindi per ora le cartelle non possono essere mostrate di nuovo.</string>
     <string name="storage_access_turn_off_unhide">Mostra e disattiva</string>
     <string name="storage_access_turn_off_keep">Lascia nascoste e disattiva</string>
-    <string name="storage_access_hidden_title">Cartelle nascoste da Lightforge</string>
-    <string name="storage_access_hidden_body">Lightforge ha aggiunto un file .nomedia a queste cartelle. Mostrale di nuovo per rivedere le loro foto e i loro video.</string>
+    <string name="storage_access_hidden_title">Nascosto da Lightforge</string>
+    <string name="storage_access_hidden_body">Lightforge ha nascosto queste cartelle con un file .nomedia, o questi file dando loro un nome che inizia con un punto. Mostrali di nuovo per rivedere le loro foto e i loro video.</string>
     <string name="storage_access_hidden_on">Nascosta il %1$s</string>
     <string name="storage_access_unhide">Mostra</string>
     <string name="storage_access_unhide_description">Mostra di nuovo %1$s</string>
@@ -289,8 +289,8 @@
         <item quantity="many">Mostrare di nuovo %1$d cartelle?</item>
         <item quantity="other">Mostrare di nuovo %1$d cartelle?</item>
     </plurals>
-    <string name="storage_access_advanced_supporting">Mostra gli elementi nascosti, nasconde e mostra di nuovo le cartelle, sposta e rinomina i file all\'istante nello stesso archivio, crea, rinomina, sposta, copia ed elimina definitivamente le cartelle (anche quelle con file all\'interno).</string>
-    <string name="storage_access_enable_body">Questa modalità permette a Lightforge di:\n• Mostrare foto e video nelle cartelle nascoste con .nomedia\n• Nascondere e mostrare di nuovo le cartelle\n• Spostare e rinominare i file all\'istante nello stesso archivio\n• Creare, rinominare, spostare e copiare cartelle\n• Eliminare definitivamente le cartelle con tutto il loro contenuto, dopo che hai confermato quanti file sono (nulla passa dal cestino)\n• Facoltativamente, eliminare le cartelle rimaste vuote dopo uno spostamento\n\nUsa l\'autorizzazione di accesso a tutti i file, che concedi nella schermata successiva. Puoi disattivarla in qualsiasi momento. Lightforge conserva l\'elenco delle cartelle che nasconde per poter annullare.</string>
+    <string name="storage_access_advanced_supporting">Mostra gli elementi nascosti, nasconde e mostra di nuovo le cartelle, nasconde singoli file rinominandoli con un punto iniziale, aggiunge alla libreria cartelle che il sistema non analizza, sposta e rinomina i file all\'istante nello stesso archivio, crea, rinomina, sposta, copia ed elimina definitivamente le cartelle (anche quelle con file all\'interno).</string>
+    <string name="storage_access_enable_body">Questa modalità permette a Lightforge di:\n• Mostrare foto e video nelle cartelle nascoste con .nomedia\n• Nascondere e mostrare di nuovo le cartelle\n• Nascondere singoli file rinominandoli con un punto iniziale e mostrarli di nuovo\n• Analizzare cartelle che il sistema non indicizza per aggiungerle alla libreria\n• Spostare e rinominare i file all\'istante nello stesso archivio\n• Creare, rinominare, spostare e copiare cartelle\n• Eliminare definitivamente le cartelle con tutto il loro contenuto, dopo che hai confermato quanti file sono (nulla passa dal cestino)\n• Facoltativamente, eliminare le cartelle rimaste vuote dopo uno spostamento\n\nUsa l\'autorizzazione di accesso a tutti i file, che concedi nella schermata successiva. Puoi disattivarla in qualsiasi momento. Lightforge conserva l\'elenco delle cartelle che nasconde per poter annullare.</string>
     <string name="settings_start_screen">Schermata iniziale</string>
     <string name="settings_start_screen_photos">Foto</string>
     <string name="settings_start_screen_albums">Album</string>

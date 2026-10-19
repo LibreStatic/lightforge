@@ -248,8 +248,8 @@
     <string name="storage_access_turn_off_no_permission">All files access is no longer allowed, so the folders cannot be unhidden right now.</string>
     <string name="storage_access_turn_off_unhide">Unhide and turn off</string>
     <string name="storage_access_turn_off_keep">Keep hidden and turn off</string>
-    <string name="storage_access_hidden_title">Folders hidden by Lightforge</string>
-    <string name="storage_access_hidden_body">Lightforge added a .nomedia file to these folders. Unhide them to show their photos and videos again.</string>
+    <string name="storage_access_hidden_title">Hidden by Lightforge</string>
+    <string name="storage_access_hidden_body">Lightforge hid these folders with a .nomedia file, or hid these files by giving them a name that starts with a dot. Unhide them to show their photos and videos again.</string>
     <string name="storage_access_hidden_on">Hidden on %1$s</string>
     <string name="storage_access_unhide">Unhide</string>
     <string name="storage_access_unhide_description">Unhide %1$s</string>
@@ -288,8 +288,8 @@
         <item quantity="one">Unhide %1$d folder?</item>
         <item quantity="other">Unhide %1$d folders?</item>
     </plurals>
-    <string name="storage_access_advanced_supporting">Show hidden items, hide and unhide folders, move and rename files instantly within the same storage, create, rename, move, copy and permanently delete folders (including ones with files in them).</string>
-    <string name="storage_access_enable_body">This mode lets Lightforge:\n• Show photos and videos in folders hidden with .nomedia\n• Hide and unhide folders\n• Move and rename files instantly within the same storage\n• Create, rename, move and copy folders\n• Permanently delete folders together with everything inside them, after you confirm how many files that is (nothing goes to Trash)\n• Optionally delete folders left empty after a move\n\nIt uses the All files access permission, which you grant on the next screen. You can turn it off at any time. Lightforge keeps a list of the folders it hides so it can undo it.</string>
+    <string name="storage_access_advanced_supporting">Show hidden items, hide and unhide folders, hide individual files by renaming them with a leading dot, add folders the system does not scan to the library, move and rename files instantly within the same storage, create, rename, move, copy and permanently delete folders (including ones with files in them).</string>
+    <string name="storage_access_enable_body">This mode lets Lightforge:\n• Show photos and videos in folders hidden with .nomedia\n• Hide and unhide folders\n• Hide individual files by renaming them with a leading dot, and unhide them\n• Scan folders the system does not index into the library\n• Move and rename files instantly within the same storage\n• Create, rename, move and copy folders\n• Permanently delete folders together with everything inside them, after you confirm how many files that is (nothing goes to Trash)\n• Optionally delete folders left empty after a move\n\nIt uses the All files access permission, which you grant on the next screen. You can turn it off at any time. Lightforge keeps a list of the folders it hides so it can undo it.</string>
     <string name="settings_start_screen">Start screen</string>
     <string name="settings_start_screen_photos">Photos</string>
     <string name="settings_start_screen_albums">Albums</string>

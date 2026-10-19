@@ -244,8 +244,8 @@
     <string name="storage_access_turn_off_no_permission">L\'accès à tous les fichiers n\'est plus autorisé : les dossiers ne peuvent pas être réaffichés pour le moment.</string>
     <string name="storage_access_turn_off_unhide">Réafficher et désactiver</string>
     <string name="storage_access_turn_off_keep">Garder masqués et désactiver</string>
-    <string name="storage_access_hidden_title">Dossiers masqués par Lightforge</string>
-    <string name="storage_access_hidden_body">Lightforge a ajouté un fichier .nomedia à ces dossiers. Réaffichez-les pour retrouver leurs photos et vidéos.</string>
+    <string name="storage_access_hidden_title">Masqué par Lightforge</string>
+    <string name="storage_access_hidden_body">Lightforge a masqué ces dossiers avec un fichier .nomedia, ou ces fichiers en leur donnant un nom commençant par un point. Réaffichez-les pour retrouver leurs photos et vidéos.</string>
     <string name="storage_access_hidden_on">Masqué le %1$s</string>
     <string name="storage_access_unhide">Réafficher</string>
     <string name="storage_access_unhide_description">Réafficher %1$s</string>
@@ -289,8 +289,8 @@
         <item quantity="many">Réafficher %1$d dossiers ?</item>
         <item quantity="other">Réafficher %1$d dossiers ?</item>
     </plurals>
-    <string name="storage_access_advanced_supporting">Affiche les éléments masqués, masque et réaffiche des dossiers, déplace et renomme des fichiers instantanément sur le même stockage, crée, renomme, déplace, copie et supprime définitivement des dossiers (y compris ceux qui contiennent des fichiers).</string>
-    <string name="storage_access_enable_body">Ce mode permet à Lightforge de :\n• Afficher les photos et vidéos des dossiers masqués avec .nomedia\n• Masquer et réafficher des dossiers\n• Déplacer et renommer des fichiers instantanément sur le même stockage\n• Créer, renommer, déplacer et copier des dossiers\n• Supprimer définitivement des dossiers avec tout leur contenu, après confirmation du nombre de fichiers concernés (rien ne passe par la corbeille)\n• Supprimer, si vous le souhaitez, les dossiers restés vides après un déplacement\n\nIl utilise l\'autorisation d\'accès à tous les fichiers, que vous accordez à l\'écran suivant. Vous pouvez le désactiver à tout moment. Lightforge conserve la liste des dossiers qu\'il masque pour pouvoir annuler.</string>
+    <string name="storage_access_advanced_supporting">Affiche les éléments masqués, masque et réaffiche des dossiers, masque des fichiers isolés en les renommant avec un point initial, ajoute à la bibliothèque des dossiers que le système n\'analyse pas, déplace et renomme des fichiers instantanément sur le même stockage, crée, renomme, déplace, copie et supprime définitivement des dossiers (y compris ceux qui contiennent des fichiers).</string>
+    <string name="storage_access_enable_body">Ce mode permet à Lightforge de :\n• Afficher les photos et vidéos des dossiers masqués avec .nomedia\n• Masquer et réafficher des dossiers\n• Masquer des fichiers isolés en les renommant avec un point initial, et les réafficher\n• Analyser des dossiers que le système n\'indexe pas pour les ajouter à la bibliothèque\n• Déplacer et renommer des fichiers instantanément sur le même stockage\n• Créer, renommer, déplacer et copier des dossiers\n• Supprimer définitivement des dossiers avec tout leur contenu, après confirmation du nombre de fichiers concernés (rien ne passe par la corbeille)\n• Supprimer, si vous le souhaitez, les dossiers restés vides après un déplacement\n\nIl utilise l\'autorisation d\'accès à tous les fichiers, que vous accordez à l\'écran suivant. Vous pouvez le désactiver à tout moment. Lightforge conserve la liste des dossiers qu\'il masque pour pouvoir annuler.</string>
     <string name="settings_start_screen">Écran de démarrage</string>
     <string name="settings_start_screen_photos">Photos</string>
     <string name="settings_start_screen_albums">Albums</string>

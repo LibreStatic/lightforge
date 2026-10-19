@@ -244,8 +244,8 @@
     <string name="storage_access_turn_off_no_permission">El acceso a todos los archivos ya no está permitido, así que ahora no se pueden volver a mostrar las carpetas.</string>
     <string name="storage_access_turn_off_unhide">Mostrar y desactivar</string>
     <string name="storage_access_turn_off_keep">Mantener ocultas y desactivar</string>
-    <string name="storage_access_hidden_title">Carpetas ocultadas por Lightforge</string>
-    <string name="storage_access_hidden_body">Lightforge añadió un archivo .nomedia a estas carpetas. Vuelve a mostrarlas para ver de nuevo sus fotos y videos.</string>
+    <string name="storage_access_hidden_title">Ocultado por Lightforge</string>
+    <string name="storage_access_hidden_body">Lightforge ocultó estas carpetas con un archivo .nomedia, o estos archivos dándoles un nombre que empieza por punto. Vuelve a mostrarlos para ver de nuevo sus fotos y videos.</string>
     <string name="storage_access_hidden_on">Oculta desde el %1$s</string>
     <string name="storage_access_unhide">Mostrar</string>
     <string name="storage_access_unhide_description">Volver a mostrar %1$s</string>
@@ -289,8 +289,8 @@
         <item quantity="many">¿Volver a mostrar %1$d carpetas?</item>
         <item quantity="other">¿Volver a mostrar %1$d carpetas?</item>
     </plurals>
-    <string name="storage_access_advanced_supporting">Muestra elementos ocultos, oculta y vuelve a mostrar carpetas, mueve y renombra archivos al instante dentro del mismo almacenamiento, crea, renombra, mueve, copia y elimina de forma permanente carpetas (también las que tienen archivos).</string>
-    <string name="storage_access_enable_body">Este modo permite a Lightforge:\n• Mostrar fotos y vídeos de carpetas ocultas con .nomedia\n• Ocultar y volver a mostrar carpetas\n• Mover y renombrar archivos al instante dentro del mismo almacenamiento\n• Crear, renombrar, mover y copiar carpetas\n• Eliminar de forma permanente carpetas con todo lo que contienen, tras confirmar cuántos archivos son (nada pasa a la papelera)\n• Opcionalmente, eliminar las carpetas que quedan vacías tras un movimiento\n\nUsa el permiso de acceso a todos los archivos, que concedes en la siguiente pantalla. Puedes desactivarlo cuando quieras. Lightforge guarda una lista de las carpetas que oculta para poder deshacerlo.</string>
+    <string name="storage_access_advanced_supporting">Muestra elementos ocultos, oculta y vuelve a mostrar carpetas, oculta archivos sueltos renombrándolos con un punto inicial, agrega a la biblioteca carpetas que el sistema no analiza, mueve y renombra archivos al instante dentro del mismo almacenamiento, crea, renombra, mueve, copia y elimina de forma permanente carpetas (también las que tienen archivos).</string>
+    <string name="storage_access_enable_body">Este modo permite a Lightforge:\n• Mostrar fotos y vídeos de carpetas ocultas con .nomedia\n• Ocultar y volver a mostrar carpetas\n• Ocultar archivos sueltos renombrándolos con un punto inicial, y volver a mostrarlos\n• Analizar carpetas que el sistema no indexa para añadirlas a la biblioteca\n• Mover y renombrar archivos al instante dentro del mismo almacenamiento\n• Crear, renombrar, mover y copiar carpetas\n• Eliminar de forma permanente carpetas con todo lo que contienen, tras confirmar cuántos archivos son (nada pasa a la papelera)\n• Opcionalmente, eliminar las carpetas que quedan vacías tras un movimiento\n\nUsa el permiso de acceso a todos los archivos, que concedes en la siguiente pantalla. Puedes desactivarlo cuando quieras. Lightforge guarda una lista de las carpetas que oculta para poder deshacerlo.</string>
     <string name="settings_start_screen">Pantalla de inicio</string>
     <string name="settings_start_screen_photos">Fotos</string>
     <string name="settings_start_screen_albums">Álbumes</string>

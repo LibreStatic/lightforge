@@ -537,7 +537,7 @@ class StorageEngineTest {
         val (_, hidden) = legacyDotHide("Trip")
         val e = engine()
         granted = false
-        assertEquals(AdvancedResult.NotGranted, e.unhide(hidden.path))
+        assertEquals(AdvancedResult.NeedsTreeGrant(hidden.parentFile!!.path), e.unhide(hidden.path))
         granted = true
         dir("Pictures/Trip")
         assertTrue(e.unhide(hidden.path) is AdvancedResult.Failed)
@@ -563,6 +563,59 @@ class StorageEngineTest {
         assertEquals(listOf(hidden.path), e.hiddenByApp().map { it.absolutePath })
         assertEquals(AdvancedResult.Done, e.unhide(hidden.path))
         assertTrue(file.isFile && !hidden.exists() && e.hiddenByApp().isEmpty())
+    }
+
+    private fun hiddenByName(): Pair<File, File> {
+        val file = File(dir("Pictures/Trip"), "a.jpg").apply { writeText("x") }
+        assertEquals(AdvancedResult.Done, engine().hideWithDotPrefix(file.path))
+        return file to File(file.parentFile, ".a.jpg")
+    }
+
+    @Test fun aFileHiddenByNameAsksForAFolderGrantWhenThePermissionIsGone() {
+        val (file, hidden) = hiddenByName()
+        val e = engine()
+        granted = false
+        assertEquals(AdvancedResult.NeedsTreeGrant(hidden.parentFile!!.path), e.unhide(hidden.path))
+        assertTrue(hidden.isFile && !file.exists())
+        assertEquals(1, e.hiddenByApp().size)
+        assertEquals(1, e.unhideAll().size)
+    }
+
+    @Test fun aFileHiddenByNameIsUnhiddenThroughTheFolderGrantWithoutThePermission() {
+        val (file, hidden) = hiddenByName()
+        val e = engine()
+        granted = false
+        var asked: Pair<String, String>? = null
+        val result = e.unhideWithTree(hidden.path, "primary:Pictures/Trip", { false }) { id, name ->
+            asked = id to name
+            hidden.renameTo(File(hidden.parentFile, name))
+        }
+        assertEquals(AdvancedResult.Done, result)
+        assertEquals("Pictures/Trip/.a.jpg" to "a.jpg", asked?.let { it.first.substringAfter(':') to it.second })
+        assertTrue(file.isFile && !hidden.exists() && e.hiddenByApp().isEmpty())
+    }
+
+    @Test fun anAncestorGrantAlsoUnhidesTheFileButAnotherFolderOrVolumeDoesNot() {
+        val (file, hidden) = hiddenByName()
+        val e = engine()
+        granted = false
+        var called = false
+        val rename: (String, String) -> Boolean = { _, name -> called = true; hidden.renameTo(File(hidden.parentFile, name)) }
+        assertTrue(e.unhideWithTree(hidden.path, "primary:Pictures/Other", { false }, rename) is AdvancedResult.Failed)
+        assertTrue(e.unhideWithTree(hidden.path, "ABCD-1234:Pictures/Trip", { false }, rename) is AdvancedResult.Failed)
+        assertFalse(called)
+        assertTrue(hidden.isFile && e.hiddenByApp().size == 1)
+        assertEquals(AdvancedResult.Done, e.unhideWithTree(hidden.path, "primary:Pictures", { false }, rename))
+        assertTrue(file.isFile && e.hiddenByApp().isEmpty())
+    }
+
+    @Test fun aFailedTreeRenameKeepsTheRecordAndTheHiddenFile() {
+        val (_, hidden) = hiddenByName()
+        val e = engine()
+        granted = false
+        assertTrue(e.unhideWithTree(hidden.path, "primary:Pictures/Trip", { false }, { _, _ -> false }) is AdvancedResult.Failed)
+        assertTrue(hidden.isFile)
+        assertEquals(1, e.hiddenByApp().size)
     }
 
     @Test fun hidingByNameRefusesFoldersHiddenNamesTakenTargetsAndMissingPermission() {

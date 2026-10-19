@@ -9,6 +9,7 @@ import com.librestatic.lightforge.core.mediastore.HiddenEntry
 import com.librestatic.lightforge.core.model.folders.HiddenMediaKind
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -109,6 +110,8 @@ class FolderOperationsTest {
     /** A tiny disk: the directories that exist, as relative paths without the trailing slash. */
     private class FakeDisk(vararg dirs: String) {
         val dirs = dirs.toMutableSet()
+        /** Directories that hold a file the library does not index (a PDF, an APK). */
+        val withFiles = mutableSetOf<String>()
         fun list(parent: String?): List<com.librestatic.lightforge.core.mediastore.DirectoryEntry>? {
             val base = parent?.trimEnd('/')
             if (base != null && base !in dirs) return null
@@ -116,7 +119,7 @@ class FolderOperationsTest {
                 val name = path.substringAfterLast('/')
                 com.librestatic.lightforge.core.mediastore.DirectoryEntry(
                     name, "/disk/$path",
-                    isEmpty = dirs.none { it.startsWith("$path/") },
+                    isEmpty = path !in withFiles && dirs.none { it.startsWith("$path/") },
                     hasNoMedia = false,
                     isDotPrefixed = name.startsWith("."),
                 )
@@ -160,6 +163,18 @@ class FolderOperationsTest {
                 overlayTree(disk, "A/B/"), com.librestatic.lightforge.feature.folders.FolderLocation("v", "A/B/"),
             ),
         )
+    }
+
+    @Test
+    fun aFolderHoldingOnlyNonMediaFilesOrUnlistedSubfoldersIsNotShownAsEmpty() {
+        val disk = FakeDisk("Documents", "Documents/Work", "Download", "Download/Empty", "Tree", "Tree/Sub")
+        disk.withFiles += "Documents/Work"
+        val tree = overlayTree(disk, "Documents/")
+        assertFalse(tree.find("v", "Documents/Work/")!!.direct!!.isEmptyDirectory)
+        assertFalse(tree.find("v", "Documents/")!!.direct!!.isEmptyDirectory)
+        // A folder with subfolders the open path does not list is not empty either.
+        assertFalse(overlayTree(disk, null).find("v", "Tree/")!!.direct!!.isEmptyDirectory)
+        assertTrue(overlayTree(disk, "Download/").find("v", "Download/Empty/")!!.direct!!.isEmptyDirectory)
     }
 
     @Test

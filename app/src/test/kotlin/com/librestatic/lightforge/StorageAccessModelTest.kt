@@ -27,6 +27,8 @@ class StorageAccessModelTest {
         val failing: Set<String> = emptySet(),
         /** Without the permission the owner can still delete its own marker (slice 1's owner-delete path). */
         var ownerDelete: Boolean = true,
+        /** Entries hidden by renaming; undoing them needs the permission or a folder grant, never an owner delete. */
+        val dotNamed: Set<String> = emptySet(),
     ) : AdvancedStorage {
         val registry = hidden.toMutableList()
         var revokeAfter: Int? = null
@@ -35,11 +37,12 @@ class StorageAccessModelTest {
         override fun permissionIntent(): Intent? = null
         override suspend fun hideFolder(absolutePath: String) = AdvancedResult.Done
         override suspend fun unhideFolder(absolutePath: String): AdvancedResult = when {
-            !granted && !ownerDelete -> AdvancedResult.NeedsTreeGrant(absolutePath)
+            !granted && (!ownerDelete || absolutePath in dotNamed) -> AdvancedResult.NeedsTreeGrant(absolutePath)
             absolutePath in failing -> AdvancedResult.Failed("busy")
             else -> { registry.remove(absolutePath); AdvancedResult.Done }
         }
-        override suspend fun hiddenByApp() = registry.map { HiddenEntry(it, HiddenKind.NoMediaFile, 5L) }
+        override suspend fun hiddenByApp() =
+            registry.map { HiddenEntry(it, if (it in dotNamed) HiddenKind.DotPrefix else HiddenKind.NoMediaFile, 5L) }
         override suspend fun unhideAllRecorded(): List<HiddenEntry> {
             val failed = mutableListOf<String>()
             var done = 0
@@ -103,6 +106,15 @@ class StorageAccessModelTest {
         val after = env.model.snapshot()
         assertEquals(listOf("/b"), after.hidden.map { it.absolutePath })
         assertTrue(after.treeGrantPaths.isEmpty())
+    }
+
+    @Test fun `a file hidden by name asks for the folder instead of the permission once access is gone`() = runBlocking {
+        val env = Env(Fake(granted = false, hidden = listOf("/p/.a.jpg"), dotNamed = setOf("/p/.a.jpg")))
+        assertEquals(StorageAccessMessageKind.NotAllUnhidden, env.model.unhide("/p/.a.jpg")?.kind)
+        assertEquals(setOf("/p/.a.jpg"), env.model.snapshot().treeGrantPaths)
+        env.storage.registry.remove("/p/.a.jpg")
+        assertNull(env.model.afterTreeUnhide("/p/.a.jpg", AdvancedResult.Done))
+        assertTrue(env.model.snapshot().hidden.isEmpty())
     }
 
     @Test fun `unhide removes the entry and a failure keeps it listed`() = runBlocking {

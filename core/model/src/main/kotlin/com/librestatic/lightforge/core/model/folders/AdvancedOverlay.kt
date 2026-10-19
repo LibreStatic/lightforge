@@ -17,14 +17,18 @@ data class HiddenFolderGroup(
     val kind: HiddenMediaKind,
 )
 
-/** A directory on disk that holds no media at all. */
-data class EmptyDirectory(val volumeName: String, val relativePath: String)
+/**
+ * A directory on disk the library lists no media for. [isEmpty] is true only when the directory holds nothing
+ * (or just a lone `.nomedia`); a directory with other files or subfolders is false and is never shown as empty.
+ */
+data class EmptyDirectory(val volumeName: String, val relativePath: String, val isEmpty: Boolean = true)
 
 /**
  * Adds hidden folders and empty directories to [tree]. A hidden group lands on the folder it names
  * (creating it and its missing parents), summing into an existing folder's stats and flagging it
  * [FolderStats.isHidden]. An empty directory becomes a zero-stats node flagged
- * [FolderStats.isEmptyDirectory] unless the folder already has media. Empty overlays return [tree].
+ * [FolderStats.isEmptyDirectory] only when the directory is truly empty and the folder has no media; a disk-only
+ * directory that holds other files stays a zero-stats node that is not flagged. Empty overlays return [tree].
  */
 fun mergeAdvancedOverlay(
     tree: FolderTree,
@@ -66,7 +70,7 @@ fun mergeAdvancedOverlay(
                     dir.volumeName,
                     dir.relativePath,
                     dir.relativePath.trim('/').substringAfterLast('/'),
-                    FolderStats(null, 0, 0, 0, 0, 0, 0, null, isAvailable = true, isEmptyDirectory = true),
+                    FolderStats(null, 0, 0, 0, 0, 0, 0, null, isAvailable = true, isEmptyDirectory = dir.isEmpty),
                 ),
             )
         }

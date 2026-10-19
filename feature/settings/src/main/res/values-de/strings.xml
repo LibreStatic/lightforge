@@ -242,8 +242,8 @@
     <string name="storage_access_turn_off_no_permission">Der Zugriff auf alle Dateien ist nicht mehr erlaubt, daher können die Ordner derzeit nicht eingeblendet werden.</string>
     <string name="storage_access_turn_off_unhide">Einblenden und ausschalten</string>
     <string name="storage_access_turn_off_keep">Versteckt lassen und ausschalten</string>
-    <string name="storage_access_hidden_title">Von Lightforge versteckte Ordner</string>
-    <string name="storage_access_hidden_body">Lightforge hat diesen Ordnern eine .nomedia-Datei hinzugefügt. Blende sie wieder ein, um ihre Fotos und Videos erneut anzuzeigen.</string>
+    <string name="storage_access_hidden_title">Von Lightforge versteckt</string>
+    <string name="storage_access_hidden_body">Lightforge hat diese Ordner mit einer .nomedia-Datei versteckt oder diese Dateien durch einen Namen mit führendem Punkt. Blende sie wieder ein, um ihre Fotos und Videos erneut anzuzeigen.</string>
     <string name="storage_access_hidden_on">Versteckt am %1$s</string>
     <string name="storage_access_unhide">Einblenden</string>
     <string name="storage_access_unhide_description">%1$s einblenden</string>
@@ -282,8 +282,8 @@
         <item quantity="one">%1$d Ordner einblenden?</item>
         <item quantity="other">%1$d Ordner einblenden?</item>
     </plurals>
-    <string name="storage_access_advanced_supporting">Blendet versteckte Elemente ein, versteckt und blendet Ordner ein, verschiebt und benennt Dateien im selben Speicher sofort um, erstellt, benennt um, verschiebt, kopiert und löscht Ordner endgültig (auch solche mit Dateien).</string>
-    <string name="storage_access_enable_body">Mit diesem Modus kann Lightforge:\n• Fotos und Videos in mit .nomedia versteckten Ordnern anzeigen\n• Ordner verstecken und wieder einblenden\n• Dateien im selben Speicher sofort verschieben und umbenennen\n• Ordner erstellen, umbenennen, verschieben und kopieren\n• Ordner samt Inhalt endgültig löschen, nachdem du bestätigt hast, wie viele Dateien das sind (nichts landet im Papierkorb)\n• Optional nach dem Verschieben leer gebliebene Ordner löschen\n\nEr nutzt die Berechtigung „Zugriff auf alle Dateien“, die du im nächsten Bildschirm erteilst. Du kannst ihn jederzeit ausschalten. Lightforge führt eine Liste der versteckten Ordner, um das rückgängig machen zu können.</string>
+    <string name="storage_access_advanced_supporting">Blendet versteckte Elemente ein, versteckt und blendet Ordner ein, versteckt einzelne Dateien, indem es sie mit einem führenden Punkt umbenennt, fügt der Bibliothek Ordner hinzu, die das System nicht durchsucht, verschiebt und benennt Dateien im selben Speicher sofort um, erstellt, benennt um, verschiebt, kopiert und löscht Ordner endgültig (auch solche mit Dateien).</string>
+    <string name="storage_access_enable_body">Mit diesem Modus kann Lightforge:\n• Fotos und Videos in mit .nomedia versteckten Ordnern anzeigen\n• Ordner verstecken und wieder einblenden\n• Einzelne Dateien verstecken, indem sie mit einem führenden Punkt umbenannt werden, und wieder einblenden\n• Ordner durchsuchen, die das System nicht indexiert, und der Bibliothek hinzufügen\n• Dateien im selben Speicher sofort verschieben und umbenennen\n• Ordner erstellen, umbenennen, verschieben und kopieren\n• Ordner samt Inhalt endgültig löschen, nachdem du bestätigt hast, wie viele Dateien das sind (nichts landet im Papierkorb)\n• Optional nach dem Verschieben leer gebliebene Ordner löschen\n\nEr nutzt die Berechtigung „Zugriff auf alle Dateien“, die du im nächsten Bildschirm erteilst. Du kannst ihn jederzeit ausschalten. Lightforge führt eine Liste der versteckten Ordner, um das rückgängig machen zu können.</string>
     <string name="settings_start_screen">Startbildschirm</string>
     <string name="settings_start_screen_photos">Fotos</string>
     <string name="settings_start_screen_albums">Alben</string>

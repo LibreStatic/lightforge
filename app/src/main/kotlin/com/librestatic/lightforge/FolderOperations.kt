@@ -129,7 +129,7 @@ internal suspend fun diskOverlayDirectories(
         val children = listChildren(parent) ?: break
         children
             .filter { (showHidden || !it.isDotPrefixed) && (it.isEmpty || showHidden || !it.hasNoMedia) }
-            .mapTo(result) { com.librestatic.lightforge.core.model.folders.EmptyDirectory(volumeName, "${parent.orEmpty()}${it.name}/") }
+            .mapTo(result) { com.librestatic.lightforge.core.model.folders.EmptyDirectory(volumeName, "${parent.orEmpty()}${it.name}/", it.isEmpty) }
     }
     return result.toList()
 }

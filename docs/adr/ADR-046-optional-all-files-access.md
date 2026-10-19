@@ -65,7 +65,9 @@ leading dot (`IMG.jpg` becomes `.IMG.jpg`) and records the new path as `HiddenKi
 Folders are never hidden that way (a `.nomedia` does that), and a name that is already dotted, a
 taken target or a missing permission is refused. The hidden file appears in the hidden overlay and
 Settings > Storage access lists it, where unhide renames it back; a dot-prefixed record of a folder
-written by an earlier build is still undone. Unhide works for hides this app recorded; a `.nomedia`
+written by an earlier build is still undone. Without the permission (revoked, or a build with the flag off) the
+row asks for the file's folder (or an ancestor) with the system picker and the rename goes through
+`DocumentsContract.renameDocument`; the volume and path of the grant are checked first. Unhide works for hides this app recorded; a `.nomedia`
 made by another app is never deleted.
 
 Scanned folders (the plan's "included folders"): Storage access lists folders the user added with the system picker. Adding one
@@ -188,8 +190,9 @@ Before shipping, the following checks must pass:
 
 Shipped behind the mode (`AdvancedStorageStatus`, active only when supported, enabled and
 granted, re-read on every resume): hidden items overlay (read live, no Room column), temporary
-show-hidden with the 5-minute background timeout and app-lock gate, folder Hide/Unhide, folder
-create, rename, move, copy and delete, a destination picker, same-volume batch rename that keeps
+show-hidden with the 5-minute background timeout and app-lock gate, folder Hide/Unhide, hiding a
+file by name (leading dot) and its unhide, scanned folders (recursive scan of a folder the user adds),
+folder create, rename, move, copy and delete, a destination picker, same-volume batch rename that keeps
 media identity, optional deletion of empty folders, and the revoked notice with unhide. Standard
 top-level folders (DCIM, Pictures, Download, Movies, Music, Podcasts, Ringtones, Alarms,
 Notifications, Documents, Audiobooks, Recordings, Screenshots) and the volume root cannot be hidden,

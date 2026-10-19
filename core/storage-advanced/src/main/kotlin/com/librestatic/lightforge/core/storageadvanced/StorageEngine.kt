@@ -100,21 +100,26 @@ internal class StorageEngine(
      * [unhide] through a SAF tree grant whose full document id (`primary:Pics/Sub` or
      * `1234-5678:Pics/Sub`) is [treeDocumentId]; both the volume and the path must match [path].
      */
-    fun unhideWithTree(path: String, treeDocumentId: String, deleteViaTree: (File) -> Boolean): AdvancedResult =
-        unhideWith(path, treeDocumentId, deleteViaTree)
+    fun unhideWithTree(
+        path: String,
+        treeDocumentId: String,
+        deleteViaTree: (File) -> Boolean,
+        renameViaTree: (documentId: String, newName: String) -> Boolean = { _, _ -> false },
+    ): AdvancedResult = unhideWith(path, treeDocumentId, deleteViaTree, renameViaTree)
 
     private fun unhideWith(
         path: String,
         treeDocumentId: String?,
         deleteViaTree: ((File) -> Boolean)?,
+        renameViaTree: ((String, String) -> Boolean)? = null,
     ): AdvancedResult {
         val dir = validated(path) ?: return INVALID
         val entries = registry.read()
         val entry = entries.firstOrNull { it.absolutePath == dir.path }
             ?: return AdvancedResult.Failed("Not hidden by this app")
         if (entry.kind == HiddenKind.DotPrefix) {
-            // A dot prefix is undone by renaming; a tree grant cannot do that.
-            return if (deleteViaTree != null) AdvancedResult.Failed("Needs All files access") else undoDotPrefix(dir, entry, entries)
+            // A dot prefix is undone by renaming: with the permission, or through a folder grant without it.
+            return undoDotPrefix(dir, entry, entries, treeDocumentId, renameViaTree)
         }
         val marker = File(dir, NOMEDIA)
         if (marker.exists() && looksLikeOurs(marker, entry)) {
@@ -403,17 +408,28 @@ internal class StorageEngine(
         }
     }
 
-    private fun undoDotPrefix(hidden: File, entry: HiddenEntry, entries: List<HiddenEntry>): AdvancedResult {
+    private fun undoDotPrefix(
+        hidden: File,
+        entry: HiddenEntry,
+        entries: List<HiddenEntry>,
+        treeDocumentId: String? = null,
+        renameViaTree: ((String, String) -> Boolean)? = null,
+    ): AdvancedResult {
         val forget = { registry.write(entries - entry) }
         // Renamed or deleted behind our back: the hide is already resolved.
         if (!hidden.exists() || !hidden.name.startsWith(".") || hidden.name.length < 2) {
             return try { forget(); AdvancedResult.Done } catch (e: Exception) { AdvancedResult.Failed(e.message ?: "Could not update registry") }
         }
-        if (!isGranted()) return AdvancedResult.NotGranted
         val parent = hidden.parentFile ?: return INVALID
         val visible = File(parent, hidden.name.substring(1))
+        if (renameViaTree == null && !isGranted()) {
+            // Recovery needs no All files access: the user grants the folder and the rename goes through SAF.
+            return AdvancedResult.NeedsTreeGrant(parent.path)
+        }
         if (visible.exists()) return AdvancedResult.Failed("Target exists")
-        val result = if (hidden.isDirectory) {
+        val result = if (renameViaTree != null) {
+            renameDotPrefixViaTree(hidden, visible, treeDocumentId, renameViaTree)
+        } else if (hidden.isDirectory) {
             moveDir(hidden, visible)
         } else {
             when (val outcome = renameOne(hidden.path, visible.path)) {
@@ -429,6 +445,50 @@ internal class StorageEngine(
         } catch (e: Exception) {
             AdvancedResult.Failed(e.message ?: "Could not update registry")
         }
+    }
+
+    /**
+     * Renames [hidden] to [visible] through a folder grant. The grant must be the file's folder or one of its
+     * ancestors, on the same volume. Records of folders inside a renamed folder follow it, as in [moveDir].
+     */
+    private fun renameDotPrefixViaTree(
+        hidden: File,
+        visible: File,
+        treeDocumentId: String?,
+        renameViaTree: (String, String) -> Boolean,
+    ): AdvancedResult {
+        val root = rootOf(hidden) ?: return INVALID
+        val volumeName = volumes().firstOrNull { canonical(it.root) == root }?.name
+        val treeVolume = treeDocumentId?.substringBefore(':', "")
+        val treePath = treeDocumentId?.substringAfter(':', "")?.trim('/')
+        val parentPath = hidden.parentFile?.relativeTo(root)?.path ?: return INVALID
+        val covers = treePath != null && (treePath.isEmpty() || parentPath == treePath || parentPath.startsWith("$treePath/"))
+        if (volumeName == null || treeVolume.isNullOrEmpty() || !sameVolume(treeVolume, volumeName) || !covers) {
+            return AdvancedResult.Failed("Granted folder does not match")
+        }
+        val entries = registry.read()
+        val rewritten = entries.map { e ->
+            if (under(File(e.absolutePath), hidden)) e.copy(absolutePath = visible.path + e.absolutePath.removePrefix(hidden.path)) else e
+        }
+        val changed = rewritten != entries
+        if (changed) {
+            try {
+                registry.write(rewritten)
+            } catch (e: Exception) {
+                return AdvancedResult.Failed(e.message ?: "Could not update registry")
+            }
+        }
+        val renamed = try {
+            renameViaTree("$treeVolume:${hidden.relativeTo(root).path}", visible.name) && !hidden.exists() && visible.exists()
+        } catch (_: SecurityException) {
+            false
+        }
+        if (!renamed) {
+            if (changed) runCatching { registry.write(entries) }
+            return AdvancedResult.Failed("Could not rename")
+        }
+        scan(listOf(hidden.path, visible.path))
+        return AdvancedResult.Done
     }
 
     /** Deletes files, one result each and one scan for the batch. A file that is already gone counts as deleted. */

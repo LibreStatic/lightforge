@@ -57,6 +57,18 @@ class AdvancedOverlayTest {
         assertEquals(190L, direct.minSortMillis)
     }
 
+    @Test fun aDiskOnlyDirectoryHoldingOtherFilesIsNotFlaggedEmpty() {
+        val merged = mergeAdvancedOverlay(
+            baseTree(),
+            emptyList(),
+            listOf(EmptyDirectory("v", "Documents/Work/", isEmpty = false), EmptyDirectory("v", "Documents/New/")),
+        )
+        val work = merged.find("v", "Documents/Work/")!!.direct!!
+        assertFalse(work.isEmptyDirectory)
+        assertEquals(0L, work.directCount)
+        assertTrue(merged.find("v", "Documents/New/")!!.direct!!.isEmptyDirectory)
+    }
+
     @Test fun emptyDirectoriesAreZeroStatsNodesUnlessTheFolderHasMedia() {
         val merged = mergeAdvancedOverlay(
             baseTree(),

@@ -72,10 +72,18 @@ class FileAdvancedStorage(context: Context, private val recoveryOnly: Boolean = 
         unguarded {
             val docId = runCatching { DocumentsContract.getTreeDocumentId(treeUri) }.getOrNull()
                 ?: return@unguarded AdvancedResult.Failed("Not a folder grant")
-            engine.unhideWithTree(absolutePath, docId) { marker ->
-                val child = DocumentsContract.buildDocumentUriUsingTree(treeUri, "$docId/${marker.name}")
-                runCatching { DocumentsContract.deleteDocument(appContext.contentResolver, child) }.getOrDefault(false)
-            }
+            engine.unhideWithTree(
+                absolutePath,
+                docId,
+                deleteViaTree = { marker ->
+                    val child = DocumentsContract.buildDocumentUriUsingTree(treeUri, "$docId/${marker.name}")
+                    runCatching { DocumentsContract.deleteDocument(appContext.contentResolver, child) }.getOrDefault(false)
+                },
+                renameViaTree = { documentId, newName ->
+                    val child = DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
+                    runCatching { DocumentsContract.renameDocument(appContext.contentResolver, child, newName) }.getOrNull() != null
+                },
+            )
         }
 
     override suspend fun hiddenByApp(): List<HiddenEntry> =
