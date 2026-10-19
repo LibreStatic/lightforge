@@ -1,0 +1,72 @@
+<en-US>
+• Advanced storage mode: hide and unhide folders and files, scan folders Android skips, and move, copy and rename folders.
+• On device: folder explorer with sorting, filters, pins and two panes on large screens.
+• Generative eraser: fills larger areas with new detail. Each erase can be undone.
+• Search inside a folder with in:
+• Old FLV videos (Sorenson, VP6) play.
+• Clearer screens and many fixes.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Modo de almacenamiento avanzado: ocultá y mostrá carpetas y archivos, escaneá carpetas que Android omite y mové, copiá y renombrá carpetas.
+• Del dispositivo: explorador con orden, filtros, fijados y dos paneles en pantallas grandes.
+• Borrador generativo: rellena áreas grandes. Podés deshacer cada borrado.
+• Buscá dentro de una carpeta con in:
+• Se reproducen videos FLV antiguos.
+• Pantallas más claras y muchos arreglos.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Modo de almacenamiento avanzado: oculta y muestra carpetas y archivos, escanea carpetas que Android omite y mueve, copia y renombra carpetas.
+• Del dispositivo: explorador con orden, filtros, fijados y dos paneles en pantallas grandes.
+• Borrador generativo: rellena áreas grandes. Puedes deshacer cada borrado.
+• Busca dentro de una carpeta con in:
+• Se reproducen vídeos FLV antiguos.
+• Pantallas más claras y muchas correcciones.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Modo de armazenamento avançado: oculte e mostre pastas e arquivos, verifique pastas que o Android ignora e mova, copie e renomeie pastas.
+• No dispositivo: explorador com ordenação, filtros, fixados e dois painéis em telas grandes.
+• Borracha generativa: preenche áreas grandes. Desfaça cada apagamento.
+• Pesquise dentro de uma pasta com in:
+• Vídeos FLV antigos tocam.
+• Telas mais claras e muitas correções.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Modo de armazenamento avançado: oculte e mostre pastas e ficheiros, analise pastas que o Android ignora e mova, copie e mude o nome de pastas.
+• No dispositivo: explorador com ordenação, filtros, afixados e dois painéis em ecrãs grandes.
+• Borracha generativa: preenche áreas grandes. Anule cada apagamento.
+• Pesquise dentro de uma pasta com in:
+• Vídeos FLV antigos reproduzem.
+• Ecrãs mais claros e muitas correções.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Mode de stockage avancé : masquez et affichez dossiers et fichiers, analysez les dossiers ignorés par Android, déplacez, copiez et renommez des dossiers.
+• Sur l’appareil : explorateur avec tri, filtres, épingles et deux volets sur grand écran.
+• Gomme générative : remplit de grandes zones. Chaque effacement peut être annulé.
+• Cherchez dans un dossier avec in:
+• Les anciennes vidéos FLV se lisent.
+• Nombreuses corrections.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• Erweiterter Speichermodus: Ordner und Dateien aus- und einblenden, von Android übersprungene Ordner scannen, Ordner verschieben, kopieren und umbenennen.
+• Auf dem Gerät: Ordner-Explorer mit Sortierung, Filtern, Anheften und zwei Bereichen auf großen Displays.
+• Generativer Radierer: füllt größere Bereiche. Jedes Radieren lässt sich rückgängig machen.
+• In einem Ordner suchen mit in:
+• Alte FLV-Videos laufen.
+• Viele Korrekturen.
+Probleme melden unter github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Modalità di archiviazione avanzata: nascondi e mostra cartelle e file, analizza cartelle ignorate da Android, sposta, copia e rinomina cartelle.
+• Sul dispositivo: esplora cartelle con ordinamento, filtri, fissati e due riquadri su schermi grandi.
+• Gomma generativa: riempie aree ampie. Ogni cancellazione si può annullare.
+• Cerca in una cartella con in:
+• I vecchi video FLV si riproducono.
+• Molte correzioni.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
