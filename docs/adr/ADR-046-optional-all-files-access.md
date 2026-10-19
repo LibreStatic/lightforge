@@ -39,10 +39,11 @@ The app declares `MANAGE_MEDIA` (Android 12+ special access, "Media management")
   for the system screen.
 - Settings offers the grant. It is never required.
 
-### 2. Opt-in advanced storage mode (`MANAGE_EXTERNAL_STORAGE`)
+### 2. Advanced storage mode (`MANAGE_EXTERNAL_STORAGE`)
 
-The user turns the mode on in Settings, sees an explanation, and grants all-files access
-on the system screen. The mode enables:
+Amended 2026-10-19: the mode is on by default instead of opt-in (see "Default on" below).
+The user can turn it off in Settings > Storage access, which also shows an explanation and
+sends them to the system screen to grant all-files access. The mode enables:
 
 - showing items hidden by `.nomedia`, including a "temporarily show hidden" switch that turns
   itself off after the app has been in the background for 5 minutes, in the Folders explorer and
@@ -185,6 +186,25 @@ Before shipping, the following checks must pass:
       several folders is covered by the unit tests. Not measured: other devices or OEM builds.
   - Benchmark rename against verified copy on about 1000 photos on the `remoteacceptance`
     build: still open.
+
+## Default on (amended 2026-10-19)
+
+The wish `OperationSettings.advancedStorageEnabled` now defaults to true (new installs, resets
+and imports that lack the field). It is still only a wish: the mode is active when the wish is
+on, the system grants all-files access and the build supports it.
+
+- New installs: the onboarding permissions step has an "All files access" row, first in the list,
+  that opens the system screen. Skipping it leaves the wish on and the Storage access page shows
+  "Waiting for permission"; the media permission stays the fallback.
+- Upgraded installs: an install that completed onboarding before this change and never stored the
+  field keeps the old behaviour (the wish is written explicitly as off) and gets a one-time dialog
+  offering to switch. "Switch" turns the wish on and opens the system screen; "Not now", Back or an
+  outside tap keeps it off. The dialog never shows again. The state is a device-local key in the
+  settings store, outside `GallerySettings`, so exports, imports and resets never replay or clear
+  it. An install that already stored an explicit choice keeps it and sees no dialog.
+- The switch in Settings > Storage access stays the way to turn the mode off.
+- Builds with `-Plightforge.allFilesAccess=false` are unchanged: the mode is unsupported, there
+  is no onboarding row and no dialog.
 
 ## Shipped scope
 
