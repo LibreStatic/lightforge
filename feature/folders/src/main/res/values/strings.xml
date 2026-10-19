@@ -166,4 +166,9 @@
         <item quantity="one">%1$d folder selected</item>
         <item quantity="other">%1$d folders selected</item>
     </plurals>
+    <string name="folders_tree_pane">Folder tree</string>
+    <string name="folders_tree_expanded">Expanded</string>
+    <string name="folders_tree_collapsed">Collapsed</string>
+    <string name="folders_tree_expand">Expand %1$s</string>
+    <string name="folders_tree_collapse">Collapse %1$s</string>
 </resources>

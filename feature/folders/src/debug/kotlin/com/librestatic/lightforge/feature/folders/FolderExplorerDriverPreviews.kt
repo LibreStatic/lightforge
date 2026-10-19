@@ -77,6 +77,23 @@ fun FolderExplorerAdvancedHiddenFolderPreview() = Frame(
 @Composable
 fun FolderExplorerRevokedPreview() = Frame(singleVolume, FolderLocation.Start, revoked = 2)
 
+/**
+ * Large window (start it with `--qualifiers w1000dp-h700dp`): the folder tree on the left, the content on
+ * the right. Tap a tree row to open it, its chevron to open or close it; folders and files are drag sources
+ * and the tree rows, breadcrumb segments and cards are drop targets (a drop only logs in the preview).
+ */
+@Composable
+fun FolderExplorerLargeScreenPreview() = Frame(
+    advancedTree, FolderLocation("external_primary", "DCIM/"),
+    actions = previewActions, browse = previewDragBrowse, withTree = true, advanced = true,
+)
+
+/** The same window with advanced mode off: the tree pane is there, folders cannot be dragged. */
+@Composable
+fun FolderExplorerLargeScreenBrowseOffPreview() = Frame(
+    singleVolume, FolderLocation("external_primary", "DCIM/"), browse = previewDragBrowse, withTree = true,
+)
+
 /** The folder tree could not be read: the error state with Retry. */
 @Composable
 fun FolderExplorerErrorPreview() = Frame(state = FolderExplorerUiState.Error)
@@ -239,10 +256,13 @@ private fun Frame(
     state: FolderExplorerUiState? = null,
     browse: FolderBrowseActions? = null,
     excludedPaths: Set<String> = emptySet(),
+    withTree: Boolean = false,
+    advanced: Boolean = false,
 ) {
     LightforgeTheme {
         Surface(Modifier.fillMaxSize()) {
             var location by remember { mutableStateOf(start) }
+            var expanded by remember { mutableStateOf(treeAncestorKeys(start)) }
             val loader = remember { ThumbnailLoader(FakeThumbnails, maxCacheBytes = 16L * 1024 * 1024, threadCount = 1) }
             FolderExplorerContent(
                 state = state ?: buildFolderExplorerUiState(
@@ -250,15 +270,35 @@ private fun Frame(
                     isExcluded = { _, _, path -> path in excludedPaths },
                 ),
                 thumbnails = loader,
-                onEnter = { location = it },
+                onEnter = {
+                    location = it
+                    expanded = expanded + treeAncestorKeys(it)
+                },
                 onOpenFiles = {},
                 actions = actions,
                 revokedWithHidden = revoked,
                 browse = browse,
+                selection = ExplorerSelection(advanced = advanced),
+                tree = if (withTree) {
+                    FolderTreeUi(
+                        rows = buildFolderTreeRows(tree, location, expanded, spaces),
+                        onToggle = { row -> expanded = if (row.expanded) expanded - row.key else expanded + row.key },
+                    )
+                } else {
+                    null
+                },
             )
         }
     }
 }
+
+private val previewDragBrowse = FolderBrowseActions(
+    onTogglePin = {},
+    onSetExcluded = { _, _ -> },
+    onQueryChange = {},
+    onCloseSearch = {},
+    onDrop = { _, _ -> },
+)
 
 private val previewActions = FolderExplorerActions(
     onHide = {},

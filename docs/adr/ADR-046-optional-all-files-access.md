@@ -240,7 +240,19 @@ show-hidden toggle in its overflow, and hidden items merged into the timeline; a
 carry the "Show in Photos even if hidden" rule. Hidden items in Photos carry a hidden badge, follow the library order including the grouping, and the Raw and Animated chips apply to them as to library items (Animated reads the file header). They open in an external viewer and
 cannot be selected or edited, because they are not in the library.
 
-Not built: tree pane, drag and drop and keyboard navigation on large screens (7.11); the rename-against-verified-copy benchmark; included folders that
+Large screens (7.11): from 720 dp of content width the explorer shows a folder tree on the left and
+the folder on the right. The tree lists every volume and, below an open row, its folders (chains merged like
+the cards); opening a folder opens the way to it, and what the user opened or closed is kept in the saved
+state. Folders, files and the ticked selection can be dragged (a mouse or stylus at once, touch by long press
+on a ticked item) and dropped on a tree row, a breadcrumb segment or a folder card: a drop is a move that
+follows the destination picker rules (`ExplorerDragPayload.canDropOn`) and ends with the same result
+message; folders need the mode, files do not. The keyboard moves the focus with the arrows, opens with Enter,
+goes up with Backspace or Alt+Up, selects all with Ctrl+A, deletes with Delete (folders ask first, files go
+to the Trash) and clears the selection with Escape; Right and Left open and close a focused tree row. The
+scroll position of every folder is saved per folder in the saved state and is restored once the paged files
+are loaded, so it survives process death.
+
+Not built: the rename-against-verified-copy benchmark; included folders that
 MediaStore does not index. The old SAF tree launch stack (`VerifiedMoveController` and its tree
 launchers) is no longer started by the folder picker and remains only because device tests use it.
 The scrubber histogram does not count hidden items merged into Photos. The viewer, system

@@ -177,4 +177,9 @@
         <item quantity="many">%1$d carpetas seleccionadas</item>
         <item quantity="other">%1$d carpetas seleccionadas</item>
     </plurals>
+    <string name="folders_tree_pane">Árbol de carpetas</string>
+    <string name="folders_tree_expanded">Expandida</string>
+    <string name="folders_tree_collapsed">Contraída</string>
+    <string name="folders_tree_expand">Expandir %1$s</string>
+    <string name="folders_tree_collapse">Contraer %1$s</string>
 </resources>

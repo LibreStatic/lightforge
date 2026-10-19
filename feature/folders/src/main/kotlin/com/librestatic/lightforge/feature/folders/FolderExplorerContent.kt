@@ -11,6 +11,20 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.focusable
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.paging.LoadState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -50,6 +64,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -159,60 +174,85 @@ fun FolderExplorerContent(
     browse: FolderBrowseActions? = null,
     selection: ExplorerSelection = ExplorerSelection.None,
     scrollMemory: ScrollMemory = remember { InMemoryScrollMemory() },
+    /** The tree pane rows; shown beside the content once the width allows it (plan 7.11). */
+    tree: FolderTreeUi? = null,
 ) {
     val picking = mode as? ExplorerMode.PickDestination
+    val drag = remember { ExplorerDragState() }
     Column(modifier.fillMaxSize()) {
         if (revokedWithHidden > 0 && picking == null) RevokedNotice(revokedWithHidden, onUnhideFolders)
         // Placeholders sit in this weighted box, never in a list item, so they centre in what is left.
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            when (state) {
-                FolderExplorerUiState.Loading -> {
-                    val description = stringResource(R.string.folders_loading)
-                    Box(Modifier.fillMaxSize().semantics { contentDescription = description }, Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val treeShown = tree != null && picking == null && maxWidth >= TreePaneMinWidthDp.dp &&
+                (state is FolderExplorerUiState.Folder || state is FolderExplorerUiState.Volumes)
+            Row(Modifier.fillMaxSize()) {
+                if (treeShown && tree != null) {
+                    val filesIn = (state as? FolderExplorerUiState.Folder)?.crumbs?.last()?.location
+                    FolderTreePane(
+                        rows = tree.rows,
+                        onEnter = onEnter,
+                        onToggle = tree.onToggle,
+                        drag = drag,
+                        accepts = { payload, destination -> payload.canDropOn(destination, filesIn, selection.advanced) },
+                        onDrop = browse?.onDrop,
+                        modifier = Modifier.width(TreePaneWidth).fillMaxHeight(),
+                    )
+                    VerticalDivider()
                 }
-                FolderExplorerUiState.Empty -> GalleryStateContent(
-                    title = stringResource(R.string.folders_empty_title),
-                    body = stringResource(R.string.folders_empty_body),
-                    illustrationDescription = stringResource(R.string.folders_empty_title),
-                    modifier = Modifier.fillMaxSize().testTag("folder-explorer-empty"),
-                    heroIcon = GalleryIcons.Folder,
-                )
-                FolderExplorerUiState.Error -> GalleryStateContent(
-                    title = stringResource(R.string.folders_error_title),
-                    body = stringResource(R.string.folders_error_body),
-                    illustrationDescription = stringResource(R.string.folders_error_title),
-                    modifier = Modifier.fillMaxSize().testTag("folder-explorer-error"),
-                    heroIcon = GalleryIcons.Warning,
-                    action = {
-                        Button(onClick = onRetry, modifier = Modifier.testTag("folder-explorer-retry")) {
-                            Text(stringResource(R.string.folders_retry))
+                Box(Modifier.weight(1f).fillMaxHeight()) {
+                    when (state) {
+                        FolderExplorerUiState.Loading -> {
+                            val description = stringResource(R.string.folders_loading)
+                            Box(Modifier.fillMaxSize().semantics { contentDescription = description }, Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
                         }
-                    },
-                )
-                is FolderExplorerUiState.Volumes -> FolderGrid(Modifier) {
-                    items(state.volumes, key = { it.volumeName }) { volume ->
-                        VolumeCard(volume, thumbnails) { onEnter(volume.location) }
+                        FolderExplorerUiState.Empty -> GalleryStateContent(
+                            title = stringResource(R.string.folders_empty_title),
+                            body = stringResource(R.string.folders_empty_body),
+                            illustrationDescription = stringResource(R.string.folders_empty_title),
+                            modifier = Modifier.fillMaxSize().testTag("folder-explorer-empty"),
+                            heroIcon = GalleryIcons.Folder,
+                        )
+                        FolderExplorerUiState.Error -> GalleryStateContent(
+                            title = stringResource(R.string.folders_error_title),
+                            body = stringResource(R.string.folders_error_body),
+                            illustrationDescription = stringResource(R.string.folders_error_title),
+                            modifier = Modifier.fillMaxSize().testTag("folder-explorer-error"),
+                            heroIcon = GalleryIcons.Warning,
+                            action = {
+                                Button(onClick = onRetry, modifier = Modifier.testTag("folder-explorer-retry")) {
+                                    Text(stringResource(R.string.folders_retry))
+                                }
+                            },
+                        )
+                        is FolderExplorerUiState.Volumes -> FolderGrid(Modifier) {
+                            items(state.volumes, key = { it.volumeName }) { volume ->
+                                VolumeCard(volume, thumbnails) { onEnter(volume.location) }
+                            }
+                        }
+                        is FolderExplorerUiState.Folder -> FolderLevel(
+                            state = state,
+                            thumbnails = thumbnails,
+                            onEnter = onEnter,
+                            onOpenFiles = onOpenFiles,
+                            actions = actions,
+                            media = media,
+                            onMediaClick = onMediaClick,
+                            picking = picking,
+                            browse = browse,
+                            selection = selection,
+                            scrollMemory = scrollMemory,
+                            drag = drag,
+                        )
                     }
                 }
-                is FolderExplorerUiState.Folder -> FolderLevel(
-                    state = state,
-                    thumbnails = thumbnails,
-                    onEnter = onEnter,
-                    onOpenFiles = onOpenFiles,
-                    actions = actions,
-                    media = media,
-                    onMediaClick = onMediaClick,
-                    picking = picking,
-                    browse = browse,
-                    selection = selection,
-                    scrollMemory = scrollMemory,
-                )
             }
         }
     }
 }
+
+private val TreePaneWidth = 280.dp
 
 @Composable
 private fun FolderLevel(
@@ -227,18 +267,56 @@ private fun FolderLevel(
     browse: FolderBrowseActions?,
     selection: ExplorerSelection,
     scrollMemory: ScrollMemory,
+    drag: ExplorerDragState,
 ) {
     var dialog by remember { mutableStateOf<FolderDialog?>(null) }
     var pathEntryOpen by remember { mutableStateOf(false) }
     val up = state.crumbs.getOrNull(state.crumbs.lastIndex - 1)?.location
     val upLabel = stringResource(R.string.folders_up_one_level)
     val upActions = if (up == null) emptyList() else listOf(CustomAccessibilityAction(upLabel) { onEnter(up); true })
-    Column(Modifier.fillMaxSize()) {
+    val selectedCards = state.folders.filter { it.key in selection.folders }
+    val here = state.crumbs.last().location
+    val currentDrop = browse?.onDrop?.takeIf { picking == null }
+    val accepts: (ExplorerDragPayload, FolderLocation) -> Boolean =
+        { payload, destination -> payload.canDropOn(destination, here, selection.advanced) }
+    // Keyboard: the focus system moves between folders and files and Enter opens the focused one; these keys
+    // are the explorer's own. They reach this column from the focused item, or from the column itself.
+    val focus = remember { FocusRequester() }
+    val searching = browse?.searching == true
+    LaunchedEffect(here, searching) { if (!searching) runCatching { focus.requestFocus() } }
+    Column(
+        Modifier
+            .fillMaxSize()
+            .focusRequester(focus)
+            .focusable()
+            .onKeyEvent { event ->
+                if (picking != null || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                val shortcut = explorerShortcutFor(event.key, event.isCtrlPressed, event.isAltPressed, selection.selecting)
+                when (shortcut) {
+                    ExplorerShortcut.Up -> up?.let { onEnter(it); true } ?: false
+                    ExplorerShortcut.SelectAll -> { selection.onSelectAll(); true }
+                    ExplorerShortcut.ClearSelection -> { selection.onClear(); true }
+                    ExplorerShortcut.Delete -> when {
+                        selectedCards.isNotEmpty() -> {
+                            val allowed = selectionCapabilities(selectedCards, selection.fileCount, selection.advanced, selection.canPinShortcut).delete
+                            if (allowed) dialog = FolderDialog.Delete(selectedCards, selection.fileCount > 0)
+                            allowed
+                        }
+                        selection.fileCount > 0 -> { selection.onTrashFiles(); true }
+                        else -> false
+                    }
+                    null -> false
+                }
+            },
+    ) {
         if (browse != null && browse.searching && picking == null) {
             FolderSearchField(state.query, browse.onQueryChange, browse.onCloseSearch)
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Breadcrumb(state.crumbs, onEnter, upActions, Modifier.weight(1f), onEditPath = { pathEntryOpen = true })
+            Breadcrumb(
+                state.crumbs, onEnter, upActions, Modifier.weight(1f), onEditPath = { pathEntryOpen = true },
+                drag = drag, accepts = accepts, onDrop = currentDrop,
+            )
             state.rootSpace?.let { space ->
                 val free = space.freeBytes
                 val total = space.totalBytes
@@ -299,10 +377,13 @@ private fun FolderLevel(
                     browse = browse,
                     selection = selection,
                     scrollMemory = scrollMemory,
+                    drag = drag,
+                    accepts = accepts,
+                    onDrop = currentDrop,
                 )
             }
             if (picking == null && selection.selectingFolders) {
-                val selected = state.folders.filter { it.key in selection.folders }
+                val selected = selectedCards
                 val capabilities = selectionCapabilities(selected, selection.fileCount, selection.advanced, selection.canPinShortcut)
                 val withFiles = selection.fileCount > 0
                 FolderSelectionBar(
@@ -384,16 +465,37 @@ private fun FolderLevelGrid(
     browse: FolderBrowseActions?,
     selection: ExplorerSelection,
     scrollMemory: ScrollMemory,
+    drag: ExplorerDragState,
+    accepts: (ExplorerDragPayload, FolderLocation) -> Boolean,
+    onDrop: ((ExplorerDragPayload, FolderLocation) -> Unit)?,
 ) {
     // Each folder keeps its own scroll position: entering one starts at its top, going back restores the parent.
     // The host owns the memory, so it also survives leaving the screen and the process.
     val locationKey = state.crumbs.last().location.let { "${it.volumeName}|${it.relativePath}" }
+    val saved = remember(locationKey) { scrollMemory.get(locationKey) }
     val gridState = remember(locationKey) {
-        scrollMemory.get(locationKey)?.let { (index, offset) -> LazyGridState(index, offset) } ?: LazyGridState()
+        saved?.let { (index, offset) -> LazyGridState(index, offset) } ?: LazyGridState()
     }
-    LaunchedEffect(gridState, locationKey) {
-        snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
-            .collect { scrollMemory.set(locationKey, it) }
+    // After a process death the folders are there before the paged files are, and a grid that is too short
+    // clamps the saved index. Until the saved place exists, the grid is not recorded and is moved there once
+    // enough items have loaded (or the files have finished loading and the place is gone).
+    var restored by remember(locationKey) { mutableStateOf(saved == null) }
+    val filesLoading by rememberUpdatedState(media?.loadState?.refresh is LoadState.Loading)
+    LaunchedEffect(gridState, locationKey, restored) {
+        if (restored) {
+            snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+                .collect { scrollMemory.set(locationKey, it) }
+        }
+    }
+    LaunchedEffect(gridState, locationKey, restored) {
+        val target = saved ?: return@LaunchedEffect
+        if (restored) return@LaunchedEffect
+        snapshotFlow { gridState.layoutInfo.totalItemsCount to filesLoading }.collect { (total, loading) ->
+            if (total > target.first || !loading) {
+                gridState.scrollToItem(target.first.coerceAtMost((total - 1).coerceAtLeast(0)), target.second)
+                restored = true
+            }
+        }
     }
     val listMode = state.options.view == FolderViewMode.List && picking == null
     LazyVerticalGrid(
@@ -422,17 +524,30 @@ private fun FolderLevelGrid(
             }
             val activeActions = if (picking == null) actions else null
             val activeBrowse = if (picking == null) browse else null
-            FolderEntry(
-                folder = folder,
-                loader = thumbnails,
-                actions = activeActions,
-                browse = activeBrowse,
-                onDialog = onDialog,
-                picking = picking != null,
-                listMode = listMode,
-                selection = if (picking == null) selection else ExplorerSelection.None,
-                onClick = open,
-            )
+            val dnd = if (picking == null && onDrop != null) {
+                Modifier
+                    .explorerDragSource(
+                        state = drag,
+                        touchArmed = folder.key in selection.folders,
+                        payload = { dragPayloadForFolder(folder, state.folders, selection).takeIf { selection.advanced } },
+                    )
+                    .explorerDropTarget(drag, folder.location, { accepts(it, folder.location) }, onDrop)
+            } else {
+                Modifier
+            }
+            Box(dnd) {
+                FolderEntry(
+                    folder = folder,
+                    loader = thumbnails,
+                    actions = activeActions,
+                    browse = activeBrowse,
+                    onDialog = onDialog,
+                    picking = picking != null,
+                    listMode = listMode,
+                    selection = if (picking == null) selection else ExplorerSelection.None,
+                    onClick = open,
+                )
+            }
         }
         if (picking != null) return@LazyVerticalGrid
         if (state.hiddenItems.isNotEmpty()) {
@@ -449,14 +564,27 @@ private fun FolderLevelGrid(
                 key = media.itemKey { "media:${it.key.volumeName}:${it.key.mediaStoreId}" },
             ) { index ->
                 media[index]?.let { item ->
-                    MediaTile(
-                        media = item,
-                        loader = thumbnails,
-                        selecting = selection.selecting,
-                        selected = selection.isMediaSelected(item.key),
-                        onLongClick = { selection.onToggleMedia(item) },
-                        onClick = { if (selection.selecting) selection.onToggleMedia(item) else onMediaClick(item, scope) },
-                    )
+                    val tileSelected = selection.isMediaSelected(item.key)
+                    val dnd = if (onDrop != null) {
+                        Modifier.explorerDragSource(
+                            state = drag,
+                            touchArmed = tileSelected,
+                            payload = { dragPayloadForFile(item.key, state.folders, selection) },
+                        )
+                    } else {
+                        Modifier
+                    }
+                    Box(dnd) {
+                        MediaTile(
+                            media = item,
+                            loader = thumbnails,
+                            selecting = selection.selecting,
+                            selected = tileSelected,
+                            // A ticked tile's long press starts a touch drag, so it must not untick it.
+                            onLongClick = { if (!tileSelected || onDrop == null) selection.onToggleMedia(item) },
+                            onClick = { if (selection.selecting) selection.onToggleMedia(item) else onMediaClick(item, scope) },
+                        )
+                    }
                 }
             }
         } else {
@@ -511,7 +639,7 @@ private object FolderLevelCells : GridCells {
 }
 
 @Composable
-private fun volumeName(volumeName: String, label: String?): String =
+internal fun volumeName(volumeName: String, label: String?): String =
     if (volumeName == PrimaryVolume) stringResource(R.string.folders_internal_storage) else label ?: volumeName
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -522,6 +650,9 @@ private fun Breadcrumb(
     upActions: List<CustomAccessibilityAction>,
     modifier: Modifier = Modifier,
     onEditPath: () -> Unit = {},
+    drag: ExplorerDragState? = null,
+    accepts: (ExplorerDragPayload, FolderLocation) -> Boolean = { _, _ -> false },
+    onDrop: ((ExplorerDragPayload, FolderLocation) -> Unit)? = null,
 ) {
     val scroll = rememberScrollState()
     val editPathLabel = stringResource(R.string.folders_path_edit_action)
@@ -552,6 +683,13 @@ private fun Breadcrumb(
                     .heightIn(min = 48.dp)
                     .clip(MaterialTheme.shapes.large)
                     .background(if (crumb.isCurrent) colors.secondaryContainer else colors.surface)
+                    .then(
+                        if (drag != null && onDrop != null) {
+                            Modifier.explorerDropTarget(drag, crumb.location, { accepts(it, crumb.location) }, onDrop)
+                        } else {
+                            Modifier
+                        },
+                    )
                     .combinedClickable(
                         role = Role.Button,
                         onLongClickLabel = editPathLabel,
@@ -676,7 +814,7 @@ private fun FolderEntry(
         null
     }
     val click = { if (selecting) selection.onToggleFolder(folder) else onClick() }
-    val longClick = if (canSelect) ({ selection.onToggleFolder(folder) }) else null
+    val longClick = if (canSelect) ({ if (!(selected && browse?.onDrop != null && selection.advanced)) selection.onToggleFolder(folder) }) else null
     // The dimmed card's badge is a shortcut back to the library: it opens the Include dialog.
     val include: (() -> Unit)? = if (browse != null && !picking && !selecting && folder.location.relativePath != null) {
         { onDialog(FolderDialog.Include(folder)) }

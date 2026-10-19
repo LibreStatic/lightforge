@@ -11,6 +11,7 @@ import com.librestatic.lightforge.core.mediastore.AdvancedResult
 import com.librestatic.lightforge.core.mediastore.HiddenMediaRow
 import com.librestatic.lightforge.core.preferences.LibraryFilter
 import com.librestatic.lightforge.core.preferences.activeFilters
+import com.librestatic.lightforge.feature.folders.ExplorerDragPayload
 import com.librestatic.lightforge.feature.folders.FolderLocation
 import com.librestatic.lightforge.feature.folders.PickPurpose
 import android.graphics.Bitmap
@@ -7170,6 +7171,29 @@ class GalleryViewModel @Inject constructor(
         mutableFolderPick.value = null
         mutableLastDestination.value = destination
         folderPickerPrefs.edit().putString("volume", volume).putString("path", destination.relativePath).apply()
+        runPick(request, destination)
+    }
+
+    /**
+     * Drag and drop in the explorer (plan 7.11): moves what was dragged into the folder it was dropped on, with
+     * the rules and the result message of the destination picker. The ticked files come along when the drag
+     * says so. The last picked destination is left alone, since no picker was involved.
+     */
+    fun dropOnFolder(payload: ExplorerDragPayload, destination: FolderLocation) {
+        if (destination.volumeName == null || payload.isEmpty) return
+        viewModelScope.launch {
+            val keys = (payload.files + if (payload.withSelectedFiles) selectedKeys() else emptyList()).distinct()
+            val request = when {
+                payload.folders.isEmpty() -> keys.takeIf { it.isNotEmpty() }?.let { FolderPickRequest.Items(PickPurpose.Move, it) }
+                payload.folders.size == 1 && keys.isEmpty() -> FolderPickRequest.Folder(payload.folders.single())
+                else -> FolderPickRequest.Mixed(payload.folders, keys, copy = false)
+            } ?: return@launch
+            runPick(request, destination)
+        }
+    }
+
+    private fun runPick(request: FolderPickRequest, destination: FolderLocation) {
+        val volume = destination.volumeName ?: return
         val target = FolderTarget(volume, destination.relativePath?.takeIf { it.isNotBlank() })
         viewModelScope.launch {
             when (request) {

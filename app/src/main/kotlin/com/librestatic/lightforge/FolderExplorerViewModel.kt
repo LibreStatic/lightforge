@@ -26,6 +26,9 @@ import com.librestatic.lightforge.core.preferences.withFolderPathSelected
 import com.librestatic.lightforge.feature.folders.FolderCardUi
 import com.librestatic.lightforge.feature.folders.FolderDeleteSummary
 import com.librestatic.lightforge.feature.folders.FolderViewOptions
+import com.librestatic.lightforge.feature.folders.TreeRowUi
+import com.librestatic.lightforge.feature.folders.buildFolderTreeRows
+import com.librestatic.lightforge.feature.folders.treeAncestorKeys
 import com.librestatic.lightforge.feature.folders.ScrollMemory
 import com.librestatic.lightforge.feature.folders.decodeScrollPositions
 import com.librestatic.lightforge.feature.folders.encodeScrollPositions
@@ -150,6 +153,11 @@ class FolderExplorerViewModel @Inject constructor(
 
     private val includeSubfolders = savedState.getStateFlow(IncludeKey, false)
 
+    /** The tree pane rows that are open; saved with the location so they outlive the process. */
+    private val expandedTreeKeys: StateFlow<Set<String>> =
+        savedState.getStateFlow<ArrayList<String>?>(TreeExpandedKey, null).map { it.orEmpty().toSet() }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
     /** Persisted preference (default on): merge chains of single-child folders into one card. */
     private val compactChains: StateFlow<Boolean> = settings.settings.map { it.operations.compactFolderChains }
         .distinctUntilChanged()
@@ -263,6 +271,20 @@ class FolderExplorerViewModel @Inject constructor(
         }.flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FolderExplorerUiState.Loading)
 
+    /** The rows of the large-screen tree pane (plan 7.11); empty until the folder tree has loaded. */
+    val treeRows: StateFlow<List<TreeRowUi>> =
+        combine(mergedTree, location, expandedTreeKeys, spaces, compactChains) { load, at, expanded, space, compact ->
+            val tree = (load as? TreeLoad.Loaded)?.tree
+            if (tree == null) emptyList() else buildFolderTreeRows(tree, at, expanded, space, compact)
+        }.flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Opens or closes a row of the tree pane without leaving the folder being shown. */
+    fun toggleTreeRow(row: TreeRowUi) {
+        val keys = expandedTreeKeys.value
+        savedState[TreeExpandedKey] = ArrayList(if (row.expanded) keys - row.key else keys + row.key)
+    }
+
     /** Whether the advanced actions (overflow menu, hidden items, empty folders) are on. */
     val advancedActive: StateFlow<Boolean> = status.map { it.active }.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -310,6 +332,11 @@ class FolderExplorerViewModel @Inject constructor(
     fun open(target: FolderLocation) {
         savedState[VolumeKey] = target.volumeName
         savedState[PathKey] = target.relativePath
+        // The tree pane opens the way to the folder, and keeps what the user opened or closed by hand.
+        val reveal = treeAncestorKeys(target)
+        if (reveal.isNotEmpty() && !expandedTreeKeys.value.containsAll(reveal)) {
+            savedState[TreeExpandedKey] = ArrayList(expandedTreeKeys.value + reveal)
+        }
         // A new level starts with nothing ticked and no filter, so a stale search never hides its folders.
         mutableSelectedFolders.value = emptySet()
         closeSearch()
@@ -669,6 +696,7 @@ class FolderExplorerViewModel @Inject constructor(
         const val VolumeKey = "folders.volume"
         const val PathKey = "folders.path"
         const val IncludeKey = "folders.subfolders"
+        const val TreeExpandedKey = "folders.tree.expanded"
         const val SearchOpenKey = "folders.search_open"
         const val SearchQueryKey = "folders.search_query"
         const val ScrollKey = "folders.scroll"

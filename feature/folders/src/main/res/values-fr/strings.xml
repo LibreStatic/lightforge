@@ -177,4 +177,9 @@
         <item quantity="many">%1$d dossiers sélectionnés</item>
         <item quantity="other">%1$d dossiers sélectionnés</item>
     </plurals>
+    <string name="folders_tree_pane">Arborescence des dossiers</string>
+    <string name="folders_tree_expanded">Développé</string>
+    <string name="folders_tree_collapsed">Réduit</string>
+    <string name="folders_tree_expand">Développer %1$s</string>
+    <string name="folders_tree_collapse">Réduire %1$s</string>
 </resources>

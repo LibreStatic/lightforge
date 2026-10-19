@@ -1778,6 +1778,7 @@ internal fun ProductionGalleryApp(
                     onMoveFolder = { card -> viewModel.beginFolderMovePick(card.location) },
                     onCopyFolder = { card -> viewModel.beginFolderCopyPick(card.location) },
                     onTransferSelection = { cards, move -> viewModel.beginMixedTransfer(cards.map { it.location }, move) },
+                    onDropOnFolder = viewModel::dropOnFolder,
                     onAddFoldersToAlbum = { cards ->
                         viewModel.beginAddFoldersToAlbum(cards.map { it.location })
                         showAddToAlbum = true

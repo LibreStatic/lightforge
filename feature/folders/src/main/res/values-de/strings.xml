@@ -165,4 +165,9 @@
         <item quantity="one">%1$d Ordner ausgewählt</item>
         <item quantity="other">%1$d Ordner ausgewählt</item>
     </plurals>
+    <string name="folders_tree_pane">Ordnerbaum</string>
+    <string name="folders_tree_expanded">Geöffnet</string>
+    <string name="folders_tree_collapsed">Geschlossen</string>
+    <string name="folders_tree_expand">%1$s aufklappen</string>
+    <string name="folders_tree_collapse">%1$s zuklappen</string>
 </resources>

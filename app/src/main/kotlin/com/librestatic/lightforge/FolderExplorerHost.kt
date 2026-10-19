@@ -21,7 +21,10 @@ import com.librestatic.lightforge.core.model.AlbumSummary
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.model.MediaKey
+import com.librestatic.lightforge.feature.folders.ExplorerDragPayload
 import com.librestatic.lightforge.feature.folders.ExplorerSelection
+import com.librestatic.lightforge.feature.folders.FolderLocation
+import com.librestatic.lightforge.feature.folders.FolderTreeUi
 import com.librestatic.lightforge.feature.folders.FolderBrowseActions
 import com.librestatic.lightforge.feature.folders.FolderCoverDialog
 import com.librestatic.lightforge.feature.folders.FolderCardUi
@@ -70,6 +73,8 @@ internal fun FolderExplorerHost(
     onTransferSelection: (List<FolderCardUi>, move: Boolean) -> Unit,
     /** Opens the album chooser for everything in the folders. */
     onAddFoldersToAlbum: (List<FolderCardUi>) -> Unit,
+    /** Moves what a drag carried into the folder it was dropped on (plan 7.11). */
+    onDropOnFolder: (ExplorerDragPayload, FolderLocation) -> Unit,
     /** The gallery selection that carries the file actions; the explorer only ticks and reads it. */
     mediaSelection: MediaSelectionAccess,
     /** Runs a destructive action behind the destructive-action lock (biometric prompt when it is on). */
@@ -84,6 +89,7 @@ internal fun FolderExplorerHost(
     val viewOptionsOpen by viewModel.viewOptionsOpen.collectAsState()
     val chrome by viewModel.chrome.collectAsState()
     val selectedFolders by viewModel.selectedFolders.collectAsState()
+    val treeRows by viewModel.treeRows.collectAsState()
     val coverTarget by viewModel.coverTarget.collectAsState()
     val coverCandidates = viewModel.coverCandidates.collectAsLazyPagingItems()
     val media = viewModel.media.collectAsLazyPagingItems()
@@ -132,6 +138,7 @@ internal fun FolderExplorerHost(
     val scope = rememberCoroutineScope()
     val currentOnTransfer by rememberUpdatedState(onTransferSelection)
     val currentOnAlbum by rememberUpdatedState(onAddFoldersToAlbum)
+    val currentOnDrop by rememberUpdatedState(onDropOnFolder)
     val browse = remember(viewModel, chrome.searching, canPinShortcut) {
         FolderBrowseActions(
             onTogglePin = viewModel::togglePin,
@@ -153,6 +160,7 @@ internal fun FolderExplorerHost(
             },
             onAddFoldersToAlbum = { cards -> currentOnAlbum(cards) },
             onTransfer = { cards, move -> currentOnTransfer(cards, move) },
+            onDrop = { payload, destination -> currentOnDrop(payload, destination) },
         )
     }
     val selection = ExplorerSelection(
@@ -175,7 +183,9 @@ internal fun FolderExplorerHost(
         onPinFolders = viewModel::pinSelected,
         onExcludeFolders = viewModel::excludeSelected,
         onHideFolders = if (active) viewModel::hideSelected else null,
+        onTrashFiles = { currentRunDestructive { currentMediaSelection.trash() } },
     )
+    val tree = remember(treeRows, viewModel) { FolderTreeUi(treeRows, viewModel::toggleTreeRow) }
     FolderExplorerContent(
         state = state,
         thumbnails = thumbnails,
@@ -191,6 +201,7 @@ internal fun FolderExplorerHost(
         browse = browse,
         selection = selection,
         scrollMemory = viewModel.scrollMemory,
+        tree = tree,
     )
     coverTarget?.let { target ->
         FolderCoverDialog(

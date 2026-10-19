@@ -84,6 +84,17 @@ class FolderBrowseActions(
     val onAddFoldersToAlbum: (List<FolderCardUi>) -> Unit = {},
     /** Starts a move or copy of the folders (and of the ticked files, which the host knows) to a picked folder. */
     val onTransfer: (List<FolderCardUi>, move: Boolean) -> Unit = { _, _ -> },
+    /**
+     * Moves what a drag carried into the folder it was dropped on (plan 7.11); null turns dragging off. The
+     * host resolves the ticked files and runs the same move as the destination picker.
+     */
+    val onDrop: ((ExplorerDragPayload, FolderLocation) -> Unit)? = null,
+)
+
+/** The tree pane of the large-screen explorer: its [rows] and the open/close toggle of a row. */
+class FolderTreeUi(
+    val rows: List<TreeRowUi>,
+    val onToggle: (TreeRowUi) -> Unit,
 )
 
 /**
@@ -112,6 +123,8 @@ class ExplorerSelection(
     val onHideFolders: ((Boolean) -> Unit)? = null,
     /** The launcher can pin a shortcut. */
     val canPinShortcut: Boolean = false,
+    /** Moves the ticked files to the Trash (Delete key with only files ticked). */
+    val onTrashFiles: () -> Unit = {},
 ) {
     val selectingFolders: Boolean get() = folders.isNotEmpty()
     val selecting: Boolean get() = selectingFolders || mediaSelecting

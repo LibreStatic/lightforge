@@ -177,4 +177,9 @@
         <item quantity="many">%1$d cartelle selezionate</item>
         <item quantity="other">%1$d cartelle selezionate</item>
     </plurals>
+    <string name="folders_tree_pane">Albero delle cartelle</string>
+    <string name="folders_tree_expanded">Espansa</string>
+    <string name="folders_tree_collapsed">Compressa</string>
+    <string name="folders_tree_expand">Espandi %1$s</string>
+    <string name="folders_tree_collapse">Comprimi %1$s</string>
 </resources>

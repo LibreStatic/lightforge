@@ -177,4 +177,9 @@
         <item quantity="many">%1$d pastas selecionadas</item>
         <item quantity="other">%1$d pastas selecionadas</item>
     </plurals>
+    <string name="folders_tree_pane">Árvore de pastas</string>
+    <string name="folders_tree_expanded">Expandida</string>
+    <string name="folders_tree_collapsed">Recolhida</string>
+    <string name="folders_tree_expand">Expandir %1$s</string>
+    <string name="folders_tree_collapse">Recolher %1$s</string>
 </resources>
