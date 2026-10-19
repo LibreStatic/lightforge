@@ -6,12 +6,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import com.librestatic.lightforge.core.ml.LocalAnalysisFeature
+import com.librestatic.lightforge.feature.onboarding.OnboardingAllFilesAccess
 import com.librestatic.lightforge.feature.onboarding.OnboardingAnalysisOption
 import com.librestatic.lightforge.feature.onboarding.OnboardingScreen
 import com.librestatic.lightforge.feature.onboarding.OnboardingSplashHandoff
 import com.librestatic.lightforge.feature.onboarding.OnboardingStep
 import com.librestatic.lightforge.feature.permissions.PermissionCoordinator
+import dagger.hilt.android.EntryPointAccessors
 
 internal fun OnboardingAnalysisOption.toFeature(): LocalAnalysisFeature = when (this) {
     OnboardingAnalysisOption.People -> LocalAnalysisFeature.People
@@ -37,6 +41,17 @@ internal fun OnboardingHost(
         )
     }
     val access by viewModel.access.collectAsState()
+    // New installs are asked for All files access up front (ADR-046); absent when the build lacks it.
+    val context = LocalContext.current
+    val allFilesAccess = remember(context) {
+        val entryPoint = EntryPointAccessors.fromApplication(context.applicationContext, AdvancedStorageEntryPoint::class.java)
+        val advanced = entryPoint.advancedStorage()
+        if (!advanced.isSupported) null else OnboardingAllFilesAccess(
+            isGranted = advanced::isGranted,
+            intent = advanced::permissionIntent,
+            onResult = entryPoint.status()::refresh,
+        )
+    }
 
     if (showLicenses) {
         AboutContent(
@@ -60,5 +75,6 @@ internal fun OnboardingHost(
             viewModel.completeOnboarding(chosen?.mapTo(mutableSetOf()) { it.toFeature() })
         },
         splash = splash,
+        allFilesAccess = allFilesAccess,
     )
 }

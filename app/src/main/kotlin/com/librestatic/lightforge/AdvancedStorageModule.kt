@@ -35,4 +35,6 @@ object AdvancedStorageModule {
 @InstallIn(SingletonComponent::class)
 interface AdvancedStorageEntryPoint {
     fun status(): AdvancedStorageStatus
+
+    fun advancedStorage(): AdvancedStorage
 }
