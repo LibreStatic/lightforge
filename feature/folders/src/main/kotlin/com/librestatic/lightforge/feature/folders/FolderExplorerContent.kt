@@ -49,8 +49,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -111,6 +109,9 @@ import com.librestatic.lightforge.core.model.MediaKind
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
 
 private const val PrimaryVolume = "external_primary"
 
@@ -956,121 +957,124 @@ private fun FolderMenu(
     onDialog: (FolderDialog) -> Unit,
 ) {
     val isAndroidTree = folder.location.relativePath?.let { isAndroidAppTree(it) } == true
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    GalleryDropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         if (browse != null) {
-            DropdownMenuItem(
-                text = { Text(stringResource(if (folder.isPinned) R.string.folders_menu_unpin else R.string.folders_menu_pin)) },
-                leadingIcon = { Icon(GalleryIcons.Pin, contentDescription = null) },
+            GalleryMenuItem(
+                text = stringResource(if (folder.isPinned) R.string.folders_menu_unpin else R.string.folders_menu_pin),
                 onClick = { onDismiss(); browse.onTogglePin(folder) },
-                modifier = Modifier.testTag("folder-menu-pin"),
+                icon = GalleryIcons.Pin,
+                testTag = "folder-menu-pin",
             )
             if (folder.location.relativePath != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(if (folder.isExcluded) R.string.folders_menu_include else R.string.folders_menu_exclude)) },
-                    leadingIcon = { Icon(GalleryIcons.Block, contentDescription = null) },
+                GalleryMenuItem(
+                    text = stringResource(if (folder.isExcluded) R.string.folders_menu_include else R.string.folders_menu_exclude),
                     onClick = {
                         onDismiss()
                         onDialog(if (folder.isExcluded) FolderDialog.Include(folder) else FolderDialog.Exclude(folder))
                     },
-                    modifier = Modifier.testTag("folder-menu-exclude"),
+                    icon = GalleryIcons.Block,
+                    testTag = "folder-menu-exclude",
                 )
             }
             if (folder.itemCount > 0) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.folders_menu_add_to_album)) },
-                    leadingIcon = { Icon(GalleryIcons.Album, contentDescription = null) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.folders_menu_add_to_album),
                     onClick = { onDismiss(); browse.onAddFoldersToAlbum(listOf(folder)) },
-                    modifier = Modifier.testTag("folder-menu-album"),
+                    icon = GalleryIcons.Album,
+                    testTag = "folder-menu-album",
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.folders_menu_cover)) },
-                    leadingIcon = { Icon(GalleryIcons.Photo, contentDescription = null) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.folders_menu_cover),
                     onClick = { onDismiss(); browse.onChooseCover(folder) },
-                    modifier = Modifier.testTag("folder-menu-cover"),
+                    icon = GalleryIcons.Photo,
+                    testTag = "folder-menu-cover",
                 )
             }
             if (folder.hasCustomCover) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.folders_menu_cover_reset)) },
-                    leadingIcon = { Icon(GalleryIcons.Undo, contentDescription = null) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.folders_menu_cover_reset),
                     onClick = { onDismiss(); browse.onResetCover(folder) },
-                    modifier = Modifier.testTag("folder-menu-cover-reset"),
+                    icon = GalleryIcons.Undo,
+                    testTag = "folder-menu-cover-reset",
                 )
             }
             browse.onCreateShortcut?.let { shortcut ->
                 if (folder.location.relativePath != null) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.folders_menu_shortcut)) },
-                        leadingIcon = { Icon(GalleryIcons.OpenInNew, contentDescription = null) },
+                    GalleryMenuItem(
+                        text = stringResource(R.string.folders_menu_shortcut),
                         onClick = { onDismiss(); shortcut(folder) },
-                        modifier = Modifier.testTag("folder-menu-shortcut"),
+                        icon = GalleryIcons.OpenInNew,
+                        testTag = "folder-menu-shortcut",
                     )
                 }
             }
         }
+        if (browse != null && actions != null && !isAndroidTree) GalleryMenuDivider()
         if (actions != null && !isAndroidTree) {
             // Hide does nothing in a standard top-level folder: the system removes a .nomedia placed there.
             if (!folder.isHidden && !folder.isEmptyDirectory && !isStandardFolder(folder.location.relativePath)) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.folders_menu_hide)) },
-                    leadingIcon = { Icon(GalleryIcons.VisibilityOff, contentDescription = null) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.folders_menu_hide),
                     onClick = { onDismiss(); actions.onHide(folder) },
-                    modifier = Modifier.testTag("folder-menu-hide"),
+                    icon = GalleryIcons.VisibilityOff,
+                    testTag = "folder-menu-hide",
                 )
             }
             if (folder.isHidden && folder.isHiddenByApp) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.folders_menu_unhide)) },
-                    leadingIcon = { Icon(GalleryIcons.Visibility, contentDescription = null) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.folders_menu_unhide),
                     onClick = { onDismiss(); actions.onUnhide(folder) },
-                    modifier = Modifier.testTag("folder-menu-unhide"),
+                    icon = GalleryIcons.Visibility,
+                    testTag = "folder-menu-unhide",
                 )
             }
             if (folder.isHidden && folder.location.relativePath != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.folders_menu_show_even_if_hidden)) },
-                    leadingIcon = { Icon(GalleryIcons.Visibility, contentDescription = null) },
-                    trailingIcon = if (folder.showEvenIfHidden) {
-                        { Icon(GalleryIcons.Check, contentDescription = stringResource(R.string.folders_menu_checked)) }
-                    } else null,
+                GalleryMenuItem(
+                    text = stringResource(R.string.folders_menu_show_even_if_hidden),
                     onClick = { onDismiss(); actions.onToggleShowEvenIfHidden(folder) },
-                    modifier = Modifier.testTag("folder-menu-show-even-if-hidden"),
+                    icon = GalleryIcons.Visibility,
+                    checked = folder.showEvenIfHidden,
+                    checkedDescription = stringResource(R.string.folders_menu_checked),
+                    testTag = "folder-menu-show-even-if-hidden",
                 )
             }
             if (!folder.isEmptyDirectory) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.folders_menu_copy)) },
-                    leadingIcon = { Icon(GalleryIcons.ContentCopy, contentDescription = null) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.folders_menu_copy),
                     onClick = { onDismiss(); actions.onCopy(folder) },
-                    modifier = Modifier.testTag("folder-menu-copy"),
+                    icon = GalleryIcons.ContentCopy,
+                    testTag = "folder-menu-copy",
                 )
             }
             if (!isStandardFolder(folder.location.relativePath)) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.folders_menu_move)) },
-                    leadingIcon = { Icon(GalleryIcons.DriveFileMove, contentDescription = null) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.folders_menu_move),
                     onClick = { onDismiss(); actions.onMove(folder) },
-                    modifier = Modifier.testTag("folder-menu-move"),
+                    icon = GalleryIcons.DriveFileMove,
+                    testTag = "folder-menu-move",
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.folders_menu_rename)) },
-                    leadingIcon = { Icon(GalleryIcons.Rename, contentDescription = null) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.folders_menu_rename),
                     onClick = { onDismiss(); onDialog(FolderDialog.Rename(folder)) },
-                    modifier = Modifier.testTag("folder-menu-rename"),
+                    icon = GalleryIcons.Rename,
+                    testTag = "folder-menu-rename",
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.folders_menu_delete)) },
-                    leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
+                GalleryMenuDivider()
+                GalleryMenuItem(
+                    text = stringResource(R.string.folders_menu_delete),
+                    destructive = true,
                     onClick = { onDismiss(); onDialog(FolderDialog.Delete(listOf(folder))) },
-                    modifier = Modifier.testTag("folder-menu-delete"),
+                    icon = GalleryIcons.Trash,
+                    testTag = "folder-menu-delete",
                 )
             }
         }
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.folders_menu_properties)) },
-            leadingIcon = { Icon(GalleryIcons.Info, contentDescription = null) },
+        if (browse != null || (actions != null && !isAndroidTree)) GalleryMenuDivider()
+        GalleryMenuItem(
+            text = stringResource(R.string.folders_menu_properties),
             onClick = { onDismiss(); onDialog(FolderDialog.Properties(folder)) },
-            modifier = Modifier.testTag("folder-menu-properties"),
+            icon = GalleryIcons.Info,
+            testTag = "folder-menu-properties",
         )
     }
 }
