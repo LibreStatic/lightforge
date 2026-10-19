@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -90,14 +92,16 @@ private fun RowSurface(modifier: Modifier = Modifier, content: @Composable () ->
     )
 }
 
+/**
+ * One permission as a compact settings-style row: tonal icon, title with a short supporting line and
+ * the action on the same row. Rows are meant to sit in [PermissionGroup].
+ */
 @Composable
 internal fun PermissionRow(
     icon: ImageVector,
     title: String,
     body: String,
     status: OnboardingPermissionStatus,
-    container: Color,
-    content: Color,
     tag: String,
     onRequest: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -112,69 +116,80 @@ internal fun PermissionRow(
         OnboardingPermissionStatus.Blocked -> stringResource(R.string.onboarding_status_blocked)
         OnboardingPermissionStatus.NotRequested, OnboardingPermissionStatus.Unavailable -> null
     }
-    RowSurface(Modifier.testTag("onboarding-permission-$tag")) {
-        Column(Modifier.padding(GallerySpacing.Lg)) {
-            Row(verticalAlignment = Alignment.Top) {
-                IconBadge(icon, container, content)
-                Spacer(Modifier.width(GallerySpacing.Lg))
-                Column(Modifier.weight(1f).semantics(mergeDescendants = true) {
+    val action: Pair<Int, () -> Unit>? = when (status) {
+        OnboardingPermissionStatus.NotRequested, OnboardingPermissionStatus.Denied -> R.string.onboarding_allow to onRequest
+        OnboardingPermissionStatus.Partial -> R.string.onboarding_add_more to onRequest
+        OnboardingPermissionStatus.Blocked -> R.string.onboarding_open_settings to onOpenSettings
+        OnboardingPermissionStatus.Granted, OnboardingPermissionStatus.Unavailable -> null
+    }
+    val supporting = when {
+        !enabled && disabledHint != null -> disabledHint
+        status == OnboardingPermissionStatus.Granted && grantedNote != null -> grantedNote
+        else -> body
+    }
+    // Granted is shown by the trailing check; the other states add their own line under the body.
+    val extraStatus = statusText.takeIf { status != OnboardingPermissionStatus.Granted }
+    Surface(
+        modifier = Modifier.fillMaxWidth().testTag("onboarding-permission-$tag"),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Row(
+            Modifier.heightIn(min = 64.dp).padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center,
+            ) { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(22.dp)) }
+            Spacer(Modifier.width(GallerySpacing.Md))
+            Column(
+                Modifier.weight(1f).semantics(mergeDescendants = true) {
                     if (statusText != null) stateDescription = statusText
-                }) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        body,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    if (statusText != null) {
-                        Row(Modifier.padding(top = GallerySpacing.Xs), verticalAlignment = Alignment.CenterVertically) {
-                            if (status == OnboardingPermissionStatus.Granted) {
-                                Icon(
-                                    GalleryIcons.CheckCircle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Spacer(Modifier.width(GallerySpacing.Xs))
-                            }
-                            Text(statusText, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                    if (status == OnboardingPermissionStatus.Granted && grantedNote != null) {
-                        Text(
-                            grantedNote,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = GallerySpacing.Xs),
-                        )
-                    }
-                    if (!enabled && disabledHint != null) {
-                        Text(
-                            disabledHint,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = GallerySpacing.Xs),
-                        )
-                    }
+                },
+            ) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    supporting,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (extraStatus != null) {
+                    Text(extraStatus, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            val action: Pair<Int, () -> Unit>? = when (status) {
-                OnboardingPermissionStatus.NotRequested, OnboardingPermissionStatus.Denied -> R.string.onboarding_allow to onRequest
-                OnboardingPermissionStatus.Partial -> R.string.onboarding_add_more to onRequest
-                OnboardingPermissionStatus.Blocked -> R.string.onboarding_open_settings to onOpenSettings
-                OnboardingPermissionStatus.Granted, OnboardingPermissionStatus.Unavailable -> null
-            }
             if (action != null) {
-                Row(Modifier.fillMaxWidth().padding(top = GallerySpacing.Sm), horizontalArrangement = Arrangement.End) {
-                    FilledTonalButton(
-                        onClick = action.second,
-                        enabled = enabled,
-                        modifier = Modifier.heightIn(min = 48.dp).testTag("onboarding-permission-$tag-action"),
-                    ) { Text(stringResource(action.first)) }
+                Spacer(Modifier.width(GallerySpacing.Md))
+                FilledTonalButton(
+                    onClick = action.second,
+                    enabled = enabled,
+                    contentPadding = PaddingValues(horizontal = GallerySpacing.Lg),
+                    modifier = Modifier.testTag("onboarding-permission-$tag-action"),
+                ) { Text(stringResource(action.first)) }
+            } else if (status == OnboardingPermissionStatus.Granted && statusText != null) {
+                Spacer(Modifier.width(GallerySpacing.Md))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        GalleryIcons.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(GallerySpacing.Xs))
+                    Text(statusText, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
     }
+}
+
+/** Rounded group that holds [PermissionRow]s separated by thin gaps, like grouped settings lists. */
+@Composable
+internal fun PermissionGroup(content: @Composable () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) { content() }
 }
 
 @Composable

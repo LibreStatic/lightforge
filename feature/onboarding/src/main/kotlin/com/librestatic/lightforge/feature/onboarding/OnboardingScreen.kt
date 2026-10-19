@@ -475,8 +475,8 @@ internal fun OnboardingHero(
 internal const val ShortHeroHeight = 96
 
 @Composable
-internal fun OnboardingHeadline(title: String, body: String) {
-    val short = LocalOnboardingShortWindow.current
+internal fun OnboardingHeadline(title: String, body: String, compact: Boolean = false) {
+    val short = LocalOnboardingShortWindow.current || compact
     Spacer(Modifier.height(if (short) GallerySpacing.Lg else GallerySpacing.Xxl))
     Text(
         title,
@@ -615,22 +615,21 @@ private fun PermissionsStep(
         shapeIndex = 2,
         container = MaterialTheme.colorScheme.secondaryContainer,
         content = MaterialTheme.colorScheme.onSecondaryContainer,
-        height = 160,
+        height = ShortHeroHeight,
     )
     OnboardingHeadline(
         stringResource(R.string.onboarding_permissions_title),
         stringResource(R.string.onboarding_permissions_body),
+        compact = true,
     )
     Spacer(Modifier.height(GallerySpacing.Lg))
-    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+    PermissionGroup {
         if (allFilesAccess != null) {
             PermissionRow(
                 icon = GalleryIcons.Folder,
                 title = stringResource(R.string.onboarding_permission_all_files_title),
                 body = stringResource(R.string.onboarding_permission_all_files_body),
                 status = allFilesStatus,
-                container = MaterialTheme.colorScheme.secondaryContainer,
-                content = MaterialTheme.colorScheme.onSecondaryContainer,
                 tag = "all-files",
                 onRequest = {
                     asked.mark(listOf(AllFilesAskKey))
@@ -644,8 +643,6 @@ private fun PermissionsStep(
             title = stringResource(R.string.onboarding_permission_media_title),
             body = stringResource(R.string.onboarding_permission_media_body),
             status = mediaStatus,
-            container = MaterialTheme.colorScheme.primaryContainer,
-            content = MaterialTheme.colorScheme.onPrimaryContainer,
             tag = "media",
             onRequest = {
                 if (mediaStatus == OnboardingPermissionStatus.Partial && Build.VERSION.SDK_INT >= 34) {
@@ -659,8 +656,6 @@ private fun PermissionsStep(
             title = stringResource(R.string.onboarding_permission_location_title),
             body = stringResource(R.string.onboarding_permission_location_body),
             status = locationStatus,
-            container = MaterialTheme.colorScheme.tertiaryContainer,
-            content = MaterialTheme.colorScheme.onTertiaryContainer,
             tag = "location",
             enabled = mediaStatus == OnboardingPermissionStatus.Granted || mediaStatus == OnboardingPermissionStatus.Partial,
             disabledHint = stringResource(R.string.onboarding_permission_location_needs_media),
@@ -674,20 +669,12 @@ private fun PermissionsStep(
                 title = stringResource(R.string.onboarding_permission_notifications_title),
                 body = stringResource(R.string.onboarding_permission_notifications_body),
                 status = notificationStatus,
-                container = MaterialTheme.colorScheme.secondaryContainer,
-                content = MaterialTheme.colorScheme.onSecondaryContainer,
                 tag = "notifications",
                 onRequest = { request(listOf(notificationPermission)) },
                 onOpenSettings = ::openSystemSettings,
             )
         }
     }
-    Spacer(Modifier.height(GallerySpacing.Md))
-    Text(
-        stringResource(R.string.onboarding_permissions_footer),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }
 
 @Composable
