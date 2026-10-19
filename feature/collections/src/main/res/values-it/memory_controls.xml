@@ -40,4 +40,6 @@
     <string name="memory_controls_analysis">Apri analisi locale</string>
     <string name="memory_controls_no_people">Nessuna persona locale disponibile. Puoi configurare l’analisi locale separatamente.</string>
     <string name="memory_controls_date_review">Questi giorni inclusi e il loro fuso salvato restano fissi quando cambia il fuso del dispositivo.</string>
+    <string name="memory_controls_add_dates_hint">Le foto di queste date non compaiono più nei Ricordi.</string>
+    <string name="memory_controls_add_person_hint">Le foto di questa persona non compaiono più nei Ricordi.</string>
 </resources>

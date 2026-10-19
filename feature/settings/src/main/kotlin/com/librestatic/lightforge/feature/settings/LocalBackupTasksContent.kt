@@ -1,7 +1,6 @@
 package com.librestatic.lightforge.feature.settings
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.heightIn
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -33,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 
 @Composable
 fun LocalBackupTasksContent(
@@ -72,27 +72,33 @@ fun LocalBackupTasksContent(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
-        Column(
-            Modifier.fillMaxSize()
-                .testTag("local-backup-tasks-screen")
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.local_backup_back)) }
-            Text(
-                stringResource(R.string.local_backup_tasks_title),
-                style = MaterialTheme.typography.headlineMedium,
+        Column(Modifier.fillMaxSize().testTag("local-backup-tasks-screen")) {
+            GalleryTopAppBar(
+                title = stringResource(R.string.local_backup_tasks_title),
+                onBack = onBack,
+                navigationContentDescription = stringResource(R.string.local_backup_back),
             )
+            if (tasks.isEmpty()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.local_backup_task_durable_hint))
+                    if (error) Text(stringResource(R.string.local_backup_task_action_failed))
+                }
+                GalleryEmptyState(
+                    title = stringResource(R.string.local_backup_tasks_empty),
+                    body = stringResource(R.string.local_backup_tasks_empty_body),
+                    icon = GalleryIcons.Checklist,
+                    hero = true,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
+            } else Column(
+                Modifier.weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
             Text(stringResource(R.string.local_backup_task_durable_hint))
             if (error) Text(stringResource(R.string.local_backup_task_action_failed))
-            if (tasks.isEmpty()) GalleryEmptyState(
-                title = stringResource(R.string.local_backup_tasks_empty),
-                body = stringResource(R.string.local_backup_tasks_empty_body),
-                icon = GalleryIcons.Checklist,
-                hero = true,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp),
-            )
             tasks.forEach { task ->
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainer,
@@ -189,6 +195,7 @@ fun LocalBackupTasksContent(
                         }
                     }
                 }
+            }
             }
         }
     }

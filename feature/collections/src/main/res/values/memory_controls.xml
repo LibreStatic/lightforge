@@ -40,4 +40,6 @@
     <string name="memory_controls_analysis">Open local analysis</string>
     <string name="memory_controls_no_people">No local people are available. You can configure on-device analysis separately.</string>
     <string name="memory_controls_date_review">These inclusive calendar days and their stored time zone remain fixed when the device time zone changes.</string>
+    <string name="memory_controls_add_dates_hint">Photos from these dates stop appearing in Memories.</string>
+    <string name="memory_controls_add_person_hint">Photos of this person stop appearing in Memories.</string>
 </resources>

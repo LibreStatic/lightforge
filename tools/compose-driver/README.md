@@ -82,7 +82,9 @@ Current previews: `PhotoEditorPreview`, `PhotoEditorLoadingPreview`, `EraserMode
 (`feature/picker`), `DesignSystemCataloguePreview`, `DesignSystemStatesPreview`, `SelectionBarPreview`
 (`core/designsystem`), `VideoEditorPreview`, `VideoFilmstripLoadingPreview`, `VideoOutputSettingsPreview`,
 `VideoEditorForcedAspectPreview` (`feature/videoeditor`),
-`CollageEditorPreview`, `GifEditorPreview` (`feature/collage`).
+`CollageEditorPreview`, `GifEditorPreview` (`feature/collage`), `SettingsPreview`,
+`SettingsDismissedWarningsPreview` (`feature/settings`), `PetIdentityPreview` (`feature/petrecognition`),
+`RemoteBackupPreview` (`feature/remotebackup`).
 
 ## Screenshot matrix
 

@@ -48,6 +48,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.testTag
@@ -146,7 +148,6 @@ fun AlbumContent(
     BoxWithConstraints(modifier.fillMaxSize()) {
         // The pane's own width, not the window's: beside the albums panel the grid is narrower.
         val wide = maxWidth >= 600.dp
-        val paneHeight = maxHeight
         val count = runCatching { SelectionReducer.count(selection, selectionQueryCount) }.getOrDefault(0)
         val header: @Composable () -> Unit = {
             AlbumHeader(
@@ -181,14 +182,14 @@ fun AlbumContent(
             else -> null
         }
         if (state != null) {
-            // The toolbar scrolls with the message, so nothing is cut off in a short landscape window.
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                header()
+            // The toolbar scrolls with the message, so nothing is cut off in a short landscape window;
+            // the message fills whatever the toolbar leaves of the viewport, so it stays centered.
+            HeaderAndFillingState(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), header) {
                 GalleryStateContent(
                     stringResource(state.first),
                     stringResource(state.second),
                     stringResource(state.third),
-                    Modifier.fillMaxWidth().heightIn(min = (paneHeight - 160.dp).coerceAtLeast(0.dp)),
+                    Modifier,
                     heroIcon = if (album.availability == AlbumAvailability.VolumeUnavailable) GalleryIcons.Warning else GalleryIcons.PhotoLibrary,
                 )
             }
@@ -550,4 +551,30 @@ private fun AlbumSort.label() = when (this) {
     AlbumSort.NameDescending -> R.string.album_sort_name_descending
     AlbumSort.SizeAscending -> R.string.album_sort_size_ascending
     AlbumSort.SizeDescending -> R.string.album_sort_size_descending
+}
+
+/**
+ * A scrolling [header] with a [state] below it that is at least as tall as the space the header
+ * leaves in the viewport. Apply this inside a vertical scroll that is also sized to the viewport:
+ * its minimum height is the viewport, so [state] centers its content in the remaining area and
+ * scrolls with the header only when the two together do not fit.
+ */
+@Composable
+private fun HeaderAndFillingState(
+    modifier: Modifier,
+    header: @Composable () -> Unit,
+    state: @Composable () -> Unit,
+) {
+    Layout(content = { Box { header() }; Box(propagateMinConstraints = true) { state() } }, modifier = modifier) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val headerPlaceable = measurables[0].measure(Constraints(minWidth = width, maxWidth = width))
+        val remaining = (constraints.minHeight - headerPlaceable.height).coerceAtLeast(0)
+        val statePlaceable = measurables[1].measure(
+            Constraints(minWidth = width, maxWidth = width, minHeight = remaining),
+        )
+        layout(width, maxOf(constraints.minHeight, headerPlaceable.height + statePlaceable.height)) {
+            headerPlaceable.place(0, 0)
+            statePlaceable.place(0, headerPlaceable.height)
+        }
+    }
 }

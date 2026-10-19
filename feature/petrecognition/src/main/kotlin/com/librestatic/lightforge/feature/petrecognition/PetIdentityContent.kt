@@ -17,7 +17,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -36,7 +38,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GallerySelectionAction
+import com.librestatic.lightforge.core.designsystem.GallerySelectionBar
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 private const val MegaByte = 1024 * 1024
@@ -131,10 +137,67 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
     val selectedVisible = observations.items.filter { it.id in selected }
     val selectedSpecies = selectedVisible.map { it.species }.distinct().singleOrNull()
     val selectionIsUnassigned = selected.isNotEmpty() && selectedVisible.size == selected.size && selectedVisible.all { it.identityId == null && !it.excluded }
+    val selectionCount = if (section == "groups") selectedGroups.size else selected.size
+    val clearSelection = { selected = emptySet(); selectedGroups = emptySet(); suggestions = emptyList() }
+    // Bulk actions live in the contextual selection bar, ordered by everyday use; the rest overflow.
+    val selectionActions = if (section == "groups") {
+        listOf(
+            GallerySelectionAction(stringResource(R.string.pet_merge), GalleryIcons.Link, { edit(PetEdit.Merge(selectedGroups.first(), selectedGroups.drop(1).toSet())) }, enabled = !working && selectedGroups.size >= 2, testTag = "pet-merge"),
+        )
+    } else buildList {
+        add(GallerySelectionAction(stringResource(R.string.pet_create), GalleryIcons.Plus, { name = ""; nameAction = "create" }, enabled = !working && selectionIsUnassigned && selectedSpecies != null && selectedSpecies != PetSpecies.Uncertain, testTag = "pet-create-group"))
+        if (section == "excluded") add(GallerySelectionAction(stringResource(R.string.pet_restore), GalleryIcons.RestoreFromTrash, { edit(PetEdit.Restore(selected)) }, enabled = !working && selected.isNotEmpty(), testTag = "pet-restore"))
+        else add(GallerySelectionAction(stringResource(R.string.pet_exclude), GalleryIcons.Archive, { edit(PetEdit.Exclude(selected)) }, enabled = !working && selected.isNotEmpty(), testTag = "pet-exclude"))
+        add(GallerySelectionAction(stringResource(R.string.pet_suggest), GalleryIcons.AutoAwesome, {
+            val observation = selectedVisible.single()
+            run { cancellation ->
+                cancellation.throwIfCanceled()
+                val embedding = requireNotNull(repository.observationEmbedding(observation.id, observation.modelFingerprint))
+                check(repository.isCurrent(observation.source))
+                suggestions = PetSimilarityRanking.suggest(repository, observation, embedding)
+                cancellation.throwIfCanceled()
+            }
+        }, enabled = !working && selectionIsUnassigned && selected.size == 1 && selectedSpecies != PetSpecies.Uncertain, testTag = "pet-suggest"))
+        if (group != null) add(GallerySelectionAction(stringResource(R.string.pet_split), GalleryIcons.SwapVert, { name = ""; nameAction = "split" }, enabled = !working && selected.isNotEmpty(), testTag = "pet-split"))
+        add(GallerySelectionAction(stringResource(R.string.pet_set_cat), GalleryIcons.Pet, { edit(PetEdit.SetSpecies(selected, PetSpecies.Cat)) }, enabled = !working && selectionIsUnassigned, inline = false, testTag = "pet-species-cat"))
+        add(GallerySelectionAction(stringResource(R.string.pet_set_dog), GalleryIcons.Pet, { edit(PetEdit.SetSpecies(selected, PetSpecies.Dog)) }, enabled = !working && selectionIsUnassigned, inline = false, testTag = "pet-species-dog"))
+    }
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface) {
-    LazyColumn(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.testTag("pet-identity-screen"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { TextButton(onClick = ::back, modifier = Modifier.testTag("pet-back")) { Text(stringResource(R.string.pet_back)) } }
-        item { Text(stringResource(R.string.pet_title), style = MaterialTheme.typography.headlineMedium) }
+    var moreOpen by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
+    GalleryTopAppBar(
+        title = stringResource(R.string.pet_title),
+        onBack = ::back,
+        navigationContentDescription = stringResource(R.string.pet_back),
+        actions = {
+            if (summary.enabled) {
+                IconButton(enabled = !working, onClick = { cursor = null; refresh++; clearSelection() }, modifier = Modifier.testTag("pet-refresh")) {
+                    Icon(GalleryIcons.Refresh, contentDescription = stringResource(R.string.pet_refresh))
+                }
+                IconButton(enabled = !working && summary.undoToken != null, onClick = {
+                    val expected = summary.revision; val token = summary.undoToken ?: return@IconButton
+                    run { check(repository.undo(expected, token).applied); selected = emptySet(); selectedGroups = emptySet() }
+                }, modifier = Modifier.testTag("pet-undo")) {
+                    Icon(GalleryIcons.Undo, contentDescription = stringResource(R.string.pet_undo))
+                }
+                Box {
+                    IconButton(onClick = { moreOpen = true }, modifier = Modifier.testTag("pet-more")) {
+                        Icon(GalleryIcons.More, contentDescription = stringResource(R.string.pet_more))
+                    }
+                    DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }, modifier = Modifier.semantics { testTagsAsResourceId = true }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.pet_remove), color = MaterialTheme.colorScheme.error) },
+                            enabled = !working,
+                            onClick = { moreOpen = false; removal = true },
+                            modifier = Modifier.testTag("pet-remove"),
+                        )
+                    }
+                }
+            }
+        },
+    )
+    Box(Modifier.weight(1f).fillMaxWidth()) {
+    LazyColumn(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.testTag("pet-identity-screen"), contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = if (selectionCount > 0) 160.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Text(stringResource(R.string.pet_explanation)) }
         if (error || analysis.failed) item { Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) { Text(stringResource(R.string.pet_error), Modifier.padding(12.dp).testTag("pet-error")) } }
         if (busy || analysis.running) item {
@@ -178,24 +241,31 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
                     OutlinedButton(onClick = { PetModelDownloadWorker.cancel(context) }, modifier = Modifier.testTag("pet-download-cancel")) { Text(stringResource(R.string.pet_download_cancel)) }
                 }
             }
-            else item { Button(enabled = !working, onClick = { error = false; scope.launch { PetModelDownloadWorker.enqueue(context) } }, modifier = Modifier.testTag("pet-download")) { Text(stringResource(R.string.pet_download)) } }
-            item { OutlinedButton(enabled = !working, onClick = { picker.launch(arrayOf("application/zip", "application/octet-stream")) }, modifier = Modifier.testTag("pet-import")) { Text(stringResource(R.string.pet_import)) } }
+            else item {
+                PetActionRow(R.string.pet_download, R.string.pet_download_summary, !working, "pet-download") { error = false; scope.launch { PetModelDownloadWorker.enqueue(context) } }
+            }
+            item { PetActionRow(R.string.pet_import, R.string.pet_import_summary, !working, "pet-import") { picker.launch(arrayOf("application/zip", "application/octet-stream")) } }
         } else item { Text(stringResource(R.string.pet_model_ready), Modifier.testTag("pet-model-ready")) }
         if (!summary.enabled) item {
-            Button(enabled = installed && !working, onClick = { val revision = summary.revision; run { cancellation ->
+            PetActionRow(R.string.pet_enable, R.string.pet_enable_summary, installed && !working, "pet-enable") { val revision = summary.revision; run { cancellation ->
                 withContext(Dispatchers.IO) { store.openEngine(cancellation).use { } }
                 check(repository.setAnalysisEnabled(revision, true, PetModelCatalog.Fingerprint))
-            } }, modifier = Modifier.testTag("pet-enable")) { Text(stringResource(R.string.pet_enable)) }
+            } }
         } else {
-            item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(enabled = !working && installed, onClick = { error = false; PetIdentityAnalysisRunner.start(context, repository) }, modifier = Modifier.testTag("pet-analyze")) { Text(stringResource(R.string.pet_analyze)) }
-            } }
-            item { OutlinedButton(enabled = !working, onClick = { removal = true }, modifier = Modifier.testTag("pet-remove")) { Text(stringResource(R.string.pet_remove)) } }
-            item { Column {
-                Row { TextButton(enabled = !working, onClick = { navigate("groups") }) { Text(stringResource(R.string.pet_groups)) }; TextButton(enabled = !working, onClick = { navigate("unassigned") }, modifier = Modifier.testTag("pet-review")) { Text(stringResource(R.string.pet_unassigned)) } }
-                Row { TextButton(enabled = !working, onClick = { navigate("all") }) { Text(stringResource(R.string.pet_all)) }; TextButton(enabled = !working, onClick = { navigate("excluded") }, modifier = Modifier.testTag("pet-excluded")) { Text(stringResource(R.string.pet_excluded)) } }
-            } }
-            item { TextButton(enabled = !working, onClick = { cursor = null; refresh++; selected = emptySet(); selectedGroups = emptySet() }, modifier = Modifier.testTag("pet-refresh")) { Text(stringResource(R.string.pet_refresh)) } }
+            item { PetActionRow(R.string.pet_analyze, R.string.pet_analyze_summary, !working && installed, "pet-analyze") { error = false; PetIdentityAnalysisRunner.start(context, repository) } }
+            item {
+                val sections = listOf(
+                    Triple("groups", R.string.pet_groups, "pet-groups"),
+                    Triple("unassigned", R.string.pet_unassigned, "pet-review"),
+                    Triple("all", R.string.pet_all, "pet-all"),
+                    Triple("excluded", R.string.pet_excluded, "pet-excluded"),
+                )
+                PrimaryScrollableTabRow(selectedTabIndex = sections.indexOfFirst { it.first == section }.coerceAtLeast(0), edgePadding = 0.dp) {
+                    sections.forEach { (key, label, tag) ->
+                        Tab(selected = key == section, enabled = !working, onClick = { navigate(key) }, text = { Text(stringResource(label)) }, modifier = Modifier.testTag(tag))
+                    }
+                }
+            }
             if (section == "groups") {
                 if (identities.items.isEmpty()) item { GalleryInlineEmpty(stringResource(R.string.pet_no_items)) }
                 items(identities.items, key = { it.id }) { identity ->
@@ -208,9 +278,7 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
                         }
                     }
                 }
-                item { Button(enabled = !working && selectedGroups.size >= 2, onClick = { edit(PetEdit.Merge(selectedGroups.first(), selectedGroups.drop(1).toSet())) }, modifier = Modifier.testTag("pet-merge")) { Text(stringResource(R.string.pet_merge)) } }
             } else {
-                item { Text(pluralStringResource(R.plurals.pet_selected, selected.size, selected.size)) }
                 if (observations.items.isEmpty()) item { GalleryInlineEmpty(stringResource(R.string.pet_no_items)) }
                 items(observations.items, key = { it.id }) { observation ->
                     Card(Modifier.fillMaxWidth().testTag("pet-observation-${observation.id}")) {
@@ -220,24 +288,6 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
                         }
                     }
                 }
-                item { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(enabled = !working && selectionIsUnassigned && selectedSpecies != null && selectedSpecies != PetSpecies.Uncertain, onClick = { name = ""; nameAction = "create" }, modifier = Modifier.testTag("pet-create-group")) { Text(stringResource(R.string.pet_create)) }
-                    OutlinedButton(enabled = !working && selectionIsUnassigned, onClick = { edit(PetEdit.SetSpecies(selected, PetSpecies.Cat)) }, modifier = Modifier.testTag("pet-species-cat")) { Text(stringResource(R.string.pet_set_cat)) }
-                    OutlinedButton(enabled = !working && selectionIsUnassigned, onClick = { edit(PetEdit.SetSpecies(selected, PetSpecies.Dog)) }, modifier = Modifier.testTag("pet-species-dog")) { Text(stringResource(R.string.pet_set_dog)) }
-                    OutlinedButton(enabled = !working && group != null && selected.isNotEmpty(), onClick = { name = ""; nameAction = "split" }, modifier = Modifier.testTag("pet-split")) { Text(stringResource(R.string.pet_split)) }
-                    OutlinedButton(enabled = !working && selected.isNotEmpty() && section != "excluded", onClick = { edit(PetEdit.Exclude(selected)) }, modifier = Modifier.testTag("pet-exclude")) { Text(stringResource(R.string.pet_exclude)) }
-                    OutlinedButton(enabled = !working && selected.isNotEmpty() && section == "excluded", onClick = { edit(PetEdit.Restore(selected)) }, modifier = Modifier.testTag("pet-restore")) { Text(stringResource(R.string.pet_restore)) }
-                    OutlinedButton(enabled = !working && selectionIsUnassigned && selected.size == 1 && selectedSpecies != PetSpecies.Uncertain, onClick = {
-                        val observation = selectedVisible.single()
-                        run { cancellation ->
-                            cancellation.throwIfCanceled()
-                            val embedding = requireNotNull(repository.observationEmbedding(observation.id, observation.modelFingerprint))
-                            check(repository.isCurrent(observation.source))
-                            suggestions = PetSimilarityRanking.suggest(repository, observation, embedding)
-                            cancellation.throwIfCanceled()
-                        }
-                    }, modifier = Modifier.testTag("pet-suggest")) { Text(stringResource(R.string.pet_suggest)) }
-                } }
                 items(suggestions, key = { "suggestion-${it.identityId}" }) { suggestion ->
                     Card { Column(Modifier.padding(12.dp)) {
                         Text(identities.items.firstOrNull { it.id == suggestion.identityId }?.name ?: suggestion.identityId)
@@ -248,8 +298,15 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
             }
             val next = if (section == "groups") identities.nextId else observations.nextId
             item { TextButton(enabled = !working && next != null, onClick = { cursor = next; selected = emptySet(); selectedGroups = emptySet(); suggestions = emptyList() }, modifier = Modifier.testTag("pet-next")) { Text(stringResource(R.string.pet_next)) } }
-            item { OutlinedButton(enabled = !working && summary.undoToken != null, onClick = { val expected = summary.revision; val token = summary.undoToken ?: return@OutlinedButton; run { check(repository.undo(expected, token).applied); selected = emptySet(); selectedGroups = emptySet() } }, modifier = Modifier.testTag("pet-undo")) { Text(stringResource(R.string.pet_undo)) } }
         }
+    }
+    if (summary.enabled && selectionCount > 0) GallerySelectionBar(
+        count = selectionCount.toLong(),
+        onClear = clearSelection,
+        actions = selectionActions,
+        modifier = Modifier.align(Alignment.BottomCenter),
+    )
+    }
     }
     }
     if (removal) AlertDialog(modifier = Modifier.semantics { testTagsAsResourceId = true }, onDismissRequest = { removal = false }, title = { Text(stringResource(R.string.pet_remove)) }, text = { Text(stringResource(R.string.pet_remove_detail)) }, confirmButton = {
@@ -266,6 +323,16 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
             }
         }, modifier = Modifier.testTag("pet-name-confirm")) { Text(stringResource(R.string.pet_confirm)) }
     }, dismissButton = { TextButton(onClick = { nameAction = null }) { Text(stringResource(R.string.pet_cancel)) } })
+}
+
+@Composable
+private fun PetActionRow(label: Int, summary: Int, enabled: Boolean, tag: String, onClick: () -> Unit) {
+    ListItem(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).testTag(tag),
+        supportingContent = { Text(stringResource(summary)) },
+    ) { Text(stringResource(label)) }
 }
 
 @Composable private fun speciesName(species: PetSpecies): String = stringResource(when (species) { PetSpecies.Cat -> R.string.pet_cat; PetSpecies.Dog -> R.string.pet_dog; PetSpecies.Uncertain -> R.string.pet_uncertain })

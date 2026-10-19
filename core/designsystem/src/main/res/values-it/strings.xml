@@ -17,4 +17,8 @@
     <!-- Media editors -->
     <string name="editor_slider_reset">Reimposta %1$s</string>
     <string name="editor_zoom_reset">Reimposta zoom</string>
+    <string name="gallery_load_error_title">Impossibile caricare</string>
+    <string name="gallery_load_error_body">Qualcosa è andato storto durante il caricamento. Verifica che i file siano disponibili e riprova.</string>
+    <string name="gallery_load_error_more">Impossibile caricare altri elementi.</string>
+    <string name="gallery_retry">Riprova</string>
 </resources>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_analysis_enable_people_summary">Raggruppa le foto della stessa persona. I volti restano su questo dispositivo.</string>
+    <string name="search_analysis_delete_summary">Cancella tutto ciò che l\'analisi ha salvato su questo dispositivo. Le foto non vengono toccate.</string>
+</resources>

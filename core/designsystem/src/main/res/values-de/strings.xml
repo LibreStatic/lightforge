@@ -16,4 +16,8 @@
     <!-- Media editors -->
     <string name="editor_slider_reset">%1$s zurücksetzen</string>
     <string name="editor_zoom_reset">Zoom zurücksetzen</string>
+    <string name="gallery_load_error_title">Laden nicht möglich</string>
+    <string name="gallery_load_error_body">Beim Laden ist etwas schiefgelaufen. Prüfe, ob die Dateien verfügbar sind, und versuche es erneut.</string>
+    <string name="gallery_load_error_more">Weitere Einträge konnten nicht geladen werden.</string>
+    <string name="gallery_retry">Erneut versuchen</string>
 </resources>

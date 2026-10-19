@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_summary_local_sharing">Send photos and videos straight to a nearby Android phone</string>
+    <string name="backup_summary_own_sync">Keep chosen folders in step with your own server</string>
+    <string name="backup_summary_offline_places">Look up place names without a connection</string>
+    <string name="backup_summary_remote_backup">Back up selected originals to your SFTP or SMB server</string>
+    <string name="backup_summary_local_backup">Save selected originals to this device or a USB drive, and restore them</string>
+    <string name="backup_summary_export">Save your settings and favorites to a file</string>
+    <string name="backup_summary_import">Load settings and favorites from a file you exported</string>
+    <string name="backup_summary_reset">Return every setting to its original value</string>
+    <string name="pet_hide_dog_summary">Remove dog labels from search and collections</string>
+    <string name="pet_hide_cat_summary">Remove cat labels from search and collections</string>
+    <string name="pet_restore_summary">Bring back labels you hid</string>
+    <string name="face_analysis_pause_summary">Stop analyzing in the background until you resume</string>
+    <string name="face_analysis_resume_summary">Continue analyzing your library in the background</string>
+    <string name="face_analysis_delete_summary">Erase every face and people result stored on this device</string>
+</resources>

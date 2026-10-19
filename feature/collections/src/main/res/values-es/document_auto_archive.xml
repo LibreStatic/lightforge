@@ -30,4 +30,5 @@
         <item quantity="many">Al menos %1$d días</item>
         <item quantity="other">Al menos %1$d días</item>
     </plurals>
+    <string name="document_auto_more_actions">Más opciones</string>
 </resources>

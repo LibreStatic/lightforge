@@ -65,4 +65,5 @@
         <item quantity="many">%1$d sélectionnés</item>
         <item quantity="other">%1$d sélectionnés</item>
     </plurals>
+    <string name="pet_more">Plus d\'options</string>
 </resources>

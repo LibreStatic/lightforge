@@ -17,4 +17,8 @@
     <!-- Media editors -->
     <string name="editor_slider_reset">Redefinir %1$s</string>
     <string name="editor_zoom_reset">Redefinir zoom</string>
+    <string name="gallery_load_error_title">Não foi possível carregar</string>
+    <string name="gallery_load_error_body">Algo correu mal ao carregar. Verifique se os arquivos estão disponíveis e tente novamente.</string>
+    <string name="gallery_load_error_more">Não foi possível carregar mais itens.</string>
+    <string name="gallery_retry">Tentar novamente</string>
 </resources>

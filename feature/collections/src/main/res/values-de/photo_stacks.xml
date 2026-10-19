@@ -40,4 +40,6 @@
     <string name="stacks_error">Die Aktion wurde nicht abgeschlossen. Prüfe, ob die Fotos verfügbar sind und nicht bereits zu einem anderen Stapel gehören.</string>
     <string name="stacks_create">Stapel erstellen</string>
     <string name="stacks_collection_hint">Ähnliche Fotos prüfen, ein Titelbild wählen und Gruppen auf diesem Gerät behalten.</string>
+    <string name="stacks_missing_title">Dieser Stapel ist nicht verfügbar</string>
+    <string name="stacks_more">Weitere Optionen</string>
 </resources>

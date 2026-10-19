@@ -42,6 +42,8 @@ dependencies {
     testImplementation(project(":feature:collage"))
     testImplementation(project(":feature:privatealbum"))
     testImplementation(project(":feature:folders"))
+    testImplementation(project(":feature:petrecognition"))
+    testImplementation(project(":feature:remotebackup"))
 
     testImplementation(libs.compose.driver)
     testImplementation(libs.robolectric)

@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
@@ -80,6 +81,25 @@ fun OwnSyncContent(
             navigationContentDescription = stringResource(R.string.own_sync_back),
             // The shell scaffold already placed this route below the status bar.
             windowInsets = WindowInsets(0, 0, 0, 0),
+            actions = {
+                IconButton(onClick = { creating = true }, modifier = Modifier.testTag("own-sync-create")) {
+                    Icon(GalleryIcons.Plus, contentDescription = stringResource(R.string.own_sync_create))
+                }
+                var menuOpen by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("own-sync-more")) {
+                        Icon(GalleryIcons.More, contentDescription = stringResource(R.string.own_sync_more))
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.own_sync_servers)) },
+                            onClick = { menuOpen = false; onManageServers() },
+                            leadingIcon = { Icon(GalleryIcons.Link, contentDescription = null) },
+                            modifier = Modifier.testTag("own-sync-servers"),
+                        )
+                    }
+                }
+            },
         )
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
         LazyColumn(
@@ -87,18 +107,7 @@ fun OwnSyncContent(
             contentPadding = readableListPadding(maxWidth),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                Text(stringResource(R.string.own_sync_scope))
-                Button(
-                    onClick = { creating = true },
-                    modifier = Modifier.testTag("own-sync-create"),
-                ) {
-                    Text(stringResource(R.string.own_sync_create))
-                }
-                TextButton(onClick = onManageServers) {
-                    Text(stringResource(R.string.own_sync_servers))
-                }
-            }
+            item { Text(stringResource(R.string.own_sync_scope)) }
             if (error)
                 item {
                     Surface(

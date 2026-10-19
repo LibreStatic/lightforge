@@ -469,7 +469,7 @@ class MemoryControlsAppDeviceTest {
             )
             capture("settings-local-backup")
             find(
-                    By.text(
+                    By.desc(
                         context.getString(com.librestatic.lightforge.feature.settings.R.string.local_backup_back)
                     )
                 )

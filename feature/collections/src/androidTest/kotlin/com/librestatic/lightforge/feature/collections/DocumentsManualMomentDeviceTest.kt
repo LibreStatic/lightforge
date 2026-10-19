@@ -66,8 +66,6 @@ class DocumentsManualMomentDeviceTest {
             }
             compose.onNodeWithContentDescription(name).assertIsOff().performClick().assertIsOn()
             compose.runOnIdle { assertTrue(delivered.isEmpty()); assertEquals(0, otherCallbacks) }
-            compose.onNodeWithTag("documents-list")
-                .performScrollToNode(hasTestTag("documents-create-memory"))
             compose.onNodeWithTag("documents-create-memory").assertIsDisplayed().assertIsEnabled().performClick()
             compose.runOnIdle {
                 assertEquals(listOf(listOf(key)), delivered)

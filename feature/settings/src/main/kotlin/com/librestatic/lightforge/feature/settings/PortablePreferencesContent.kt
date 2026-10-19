@@ -22,6 +22,7 @@ import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /**
@@ -78,17 +79,20 @@ fun PortablePreferencesContent(
             .semantics { testTagsAsResourceId = true }
             .testTag("portable-preferences-screen")
     ) {
+        Column(Modifier.fillMaxSize()) {
+        GalleryTopAppBar(
+            title = stringResource(R.string.portable_preferences_title),
+            onBack = { if (!applying) onBack() },
+            navigationContentDescription = stringResource(R.string.portable_preferences_back),
+        )
         Column(
-            Modifier.fillMaxSize()
+            Modifier.weight(1f)
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp)
                 .widthIn(max = 840.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                stringResource(R.string.portable_preferences_title),
-                style = MaterialTheme.typography.headlineMedium,
-            )
             Text(stringResource(R.string.portable_preferences_body))
             Surface(
                 color = MaterialTheme.colorScheme.secondaryContainer,
@@ -243,13 +247,7 @@ fun PortablePreferencesContent(
                         Text(stringResource(R.string.portable_preferences_reload))
                     }
             }
-            OutlinedButton(
-                onClick = onBack,
-                enabled = !applying,
-                modifier = Modifier.testTag("portable-preferences-back"),
-            ) {
-                Text(stringResource(R.string.portable_preferences_back))
-            }
+        }
         }
     }
     if (

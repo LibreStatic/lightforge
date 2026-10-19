@@ -1722,60 +1722,61 @@ private fun BackupSection(
     onOfflinePlaces: (() -> Unit)?,
     onLocalSharing: (() -> Unit)?,
 ) {
-    val cards = LocalSettingsCards.current
     SettingsCard {
-        if (onLocalSharing != null) SettingsActionRow(GalleryIcons.Share, stringResource(R.string.local_sharing_entry), Modifier.testTag("settings-local-sharing"), onLocalSharing)
-        if (onOwnSync != null) SettingsActionRow(GalleryIcons.Link, stringResource(R.string.own_sync_entry), Modifier.testTag("settings-own-sync"), onOwnSync)
-        if (onOfflinePlaces != null) SettingsActionRow(GalleryIcons.Place, stringResource(R.string.offline_places_entry), Modifier.testTag("settings-offline-places"), onOfflinePlaces)
-        if (onRemoteBackup != null) SettingsActionRow(GalleryIcons.Archive, stringResource(R.string.remote_backup_entry), Modifier.testTag("settings-remote-backup"), onRemoteBackup)
-        if (onLocalBackup != null) SettingsActionRow(GalleryIcons.Folder, stringResource(R.string.local_backup_title), Modifier.testTag("settings-local-backup"), onLocalBackup)
+        if (onLocalSharing != null) SettingsActionRow(GalleryIcons.Share, stringResource(R.string.local_sharing_entry), Modifier.testTag("settings-local-sharing"), stringResource(R.string.backup_summary_local_sharing), onClick = onLocalSharing)
+        if (onOwnSync != null) SettingsActionRow(GalleryIcons.Link, stringResource(R.string.own_sync_entry), Modifier.testTag("settings-own-sync"), stringResource(R.string.backup_summary_own_sync), onClick = onOwnSync)
+        if (onOfflinePlaces != null) SettingsActionRow(GalleryIcons.Place, stringResource(R.string.offline_places_entry), Modifier.testTag("settings-offline-places"), stringResource(R.string.backup_summary_offline_places), onClick = onOfflinePlaces)
+        if (onRemoteBackup != null) SettingsActionRow(GalleryIcons.Archive, stringResource(R.string.remote_backup_entry), Modifier.testTag("settings-remote-backup"), stringResource(R.string.backup_summary_remote_backup), onClick = onRemoteBackup)
+        if (onLocalBackup != null) SettingsActionRow(GalleryIcons.Folder, stringResource(R.string.local_backup_title), Modifier.testTag("settings-local-backup"), stringResource(R.string.backup_summary_local_backup), onClick = onLocalBackup)
     }
-    if (cards) {
-        SettingsCard {
-            SettingsActionRow(GalleryIcons.Share, stringResource(R.string.settings_export), onClick = onExportSettings)
-            SettingsActionRow(GalleryIcons.Download, stringResource(R.string.settings_import), onClick = onImportSettings)
-        }
-        SettingsCard {
-            SettingsActionRow(GalleryIcons.History, stringResource(R.string.settings_reset), onClick = onResetSettings)
-        }
-    } else {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-            OutlinedButton(onClick = onExportSettings, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.settings_export)) }
-            OutlinedButton(onClick = onImportSettings, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.settings_import)) }
-        }
-        TextButton(onClick = onResetSettings) { Text(stringResource(R.string.settings_reset)) }
+    SettingsCard {
+        SettingsActionRow(GalleryIcons.Share, stringResource(R.string.settings_export), summary = stringResource(R.string.backup_summary_export), onClick = onExportSettings)
+        SettingsActionRow(GalleryIcons.Download, stringResource(R.string.settings_import), summary = stringResource(R.string.backup_summary_import), onClick = onImportSettings)
+    }
+    SettingsCard {
+        SettingsActionRow(GalleryIcons.History, stringResource(R.string.settings_reset), summary = stringResource(R.string.backup_summary_reset), destructive = true, onClick = onResetSettings)
     }
 }
 
 /**
- * Navigation/action row for the two-pane detail. On phones the original outlined buttons are kept,
- * so the single-pane layout does not change.
+ * Navigation/action row: a headline with optional supporting text, never a bare button. A
+ * [destructive] row colors its headline with the error role.
  */
 @Composable
 private fun SettingsActionRow(
     icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
+    summary: String? = null,
+    destructive: Boolean = false,
     onClick: () -> Unit,
 ) {
-    if (!LocalSettingsCards.current) {
-        OutlinedButton(onClick = onClick, modifier = modifier.fillMaxWidth()) { Text(label) }
-        return
-    }
     ListItem(
         onClick = onClick,
         modifier = modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).heightIn(min = settingsRowMinHeight()),
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        colors = if (LocalSettingsCards.current) {
+            ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        } else ListItemDefaults.colors(),
         leadingContent = {
             Box(
-                Modifier.size(40.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                Modifier.size(40.dp).background(
+                    if (destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+                    CircleShape,
+                ),
                 contentAlignment = Alignment.Center,
-            ) { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer) }
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = if (destructive) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
         },
+        supportingContent = summary?.let { { Text(it) } },
         trailingContent = {
             Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
         },
-    ) { Text(label) }
+    ) { Text(label, color = if (destructive) MaterialTheme.colorScheme.error else androidx.compose.material3.LocalContentColor.current) }
 }
 
 @Composable
@@ -1927,16 +1928,25 @@ private fun AiAnalysisSection(
     } else {
         GalleryProgressSlot(state.status == AnalysisStatus.Running)
         Text(pluralStringResource(R.plurals.face_analysis_progress, state.completedItems.toInt(), state.completedItems))
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            GalleryExpressiveButton(onClick = if (state.paused) onResume else onPause) {
-                Text(stringResource(if (state.paused) R.string.face_analysis_resume else R.string.face_analysis_pause))
-            }
-            OutlinedButton(onClick = onAnalyzeAll) { Text(stringResource(R.string.face_analysis_all)) }
-        }
-        Text(stringResource(R.string.face_analysis_all_requirements), style = MaterialTheme.typography.bodySmall)
-        TextButton(onClick = onDeleteRequested) {
-            Text(stringResource(R.string.face_analysis_delete), color = MaterialTheme.colorScheme.error)
-        }
+        SettingsActionRow(
+            icon = if (state.paused) GalleryIcons.Play else GalleryIcons.Pause,
+            label = stringResource(if (state.paused) R.string.face_analysis_resume else R.string.face_analysis_pause),
+            summary = stringResource(if (state.paused) R.string.face_analysis_resume_summary else R.string.face_analysis_pause_summary),
+            onClick = if (state.paused) onResume else onPause,
+        )
+        SettingsActionRow(
+            icon = GalleryIcons.Analyze,
+            label = stringResource(R.string.face_analysis_all),
+            summary = stringResource(R.string.face_analysis_all_requirements),
+            onClick = onAnalyzeAll,
+        )
+        SettingsActionRow(
+            icon = GalleryIcons.Trash,
+            label = stringResource(R.string.face_analysis_delete),
+            summary = stringResource(R.string.face_analysis_delete_summary),
+            destructive = true,
+            onClick = onDeleteRequested,
+        )
     }
     Text(stringResource(R.string.pet_collections_title), style = MaterialTheme.typography.titleLarge)
     if (petCollectionsEnabled) {
@@ -1961,11 +1971,9 @@ private fun AiAnalysisSection(
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.testTag("pet_analysis_status"),
         )
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = onHideDogResults) { Text(stringResource(R.string.pet_hide_dog)) }
-            TextButton(onClick = onHideCatResults) { Text(stringResource(R.string.pet_hide_cat)) }
-        }
-        TextButton(onClick = onRestorePetResults) { Text(stringResource(R.string.pet_restore)) }
+        SettingsActionRow(GalleryIcons.Pet, stringResource(R.string.pet_hide_dog), summary = stringResource(R.string.pet_hide_dog_summary), onClick = onHideDogResults)
+        SettingsActionRow(GalleryIcons.Pet, stringResource(R.string.pet_hide_cat), summary = stringResource(R.string.pet_hide_cat_summary), onClick = onHideCatResults)
+        SettingsActionRow(GalleryIcons.History, stringResource(R.string.pet_restore), summary = stringResource(R.string.pet_restore_summary), onClick = onRestorePetResults)
     }
 }
 

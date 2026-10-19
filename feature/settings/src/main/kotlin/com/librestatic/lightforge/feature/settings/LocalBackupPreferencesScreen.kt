@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /** Keeps the archive session alive; only the operation UUID goes into parent SavedState. */
@@ -53,13 +54,18 @@ internal fun LocalBackupPreferencesScreen(
     } else {
         BackHandler(onBack = onBack)
         Surface(Modifier.fillMaxSize()) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(stringResource(R.string.portable_preferences_title), style = MaterialTheme.typography.headlineMedium)
-                TextButton(onClick = onBack) { Text(stringResource(R.string.portable_preferences_back)) }
-                if (failed) {
-                    Text(stringResource(R.string.local_backup_failed))
-                    OutlinedButton(onClick = { retry++ }) { Text(stringResource(R.string.portable_preferences_reload)) }
-                } else GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+            Column(Modifier.fillMaxSize()) {
+                GalleryTopAppBar(
+                    title = stringResource(R.string.portable_preferences_title),
+                    onBack = onBack,
+                    navigationContentDescription = stringResource(R.string.portable_preferences_back),
+                )
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    if (failed) {
+                        Text(stringResource(R.string.local_backup_failed))
+                        OutlinedButton(onClick = { retry++ }) { Text(stringResource(R.string.portable_preferences_reload)) }
+                    } else GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+                }
             }
         }
     }

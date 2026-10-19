@@ -2979,6 +2979,7 @@ internal fun ProductionGalleryApp(
                         val colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
                             contentColor = androidx.compose.material3.LocalContentColor.current,
                             disabledContentColor = androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.38f))
+                        BannerActions {
                         TextButton(colors = colors, onClick = { viewModel.verifiedMove.reviewInterruptedCopy() },
                             enabled = !moveState.busy && draft.destinationUri != null, modifier = Modifier.testTag("move-copy-review")) {
                             Text(stringResource(R.string.move_copy_review))
@@ -2987,6 +2988,7 @@ internal fun ProductionGalleryApp(
                             enabled = !moveState.busy) { Text(stringResource(R.string.move_verified_access)) }
                         TextButton(colors = colors, onClick = { showEndCopyTracking = true }, enabled = !moveState.busy,
                             modifier = Modifier.testTag("move-copy-end-tracking")) { Text(stringResource(R.string.move_verified_forget)) }
+                        }
                     }
                 }
                 if (showEndCopyTracking) AlertDialog(
@@ -3040,7 +3042,7 @@ internal fun ProductionGalleryApp(
                             contentColor = androidx.compose.material3.LocalContentColor.current,
                             disabledContentColor = androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.38f),
                         )
-                        Column {
+                        BannerActions {
                             if (banner.showReview) {
                                 TextButton(colors = moveButtonColors, onClick = { viewModel.verifiedMove.reviewUnreadable() },
                                     enabled = !moveState.busy, modifier = Modifier.testTag("verified-move-review")) {
@@ -5019,5 +5021,16 @@ private fun createMenuSections(
                 ),
             ),
         ),
+    )
+}
+
+/** Trailing, wrapping action row shared by the move banners; keeps their buttons from stacking full-width. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun BannerActions(content: @Composable androidx.compose.foundation.layout.FlowRowScope.() -> Unit) {
+    androidx.compose.foundation.layout.FlowRow(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        content = content,
     )
 }

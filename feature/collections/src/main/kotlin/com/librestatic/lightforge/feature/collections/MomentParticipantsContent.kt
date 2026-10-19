@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.designsystem.GalleryLoadErrorState
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryIconUser
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
@@ -124,12 +125,12 @@ fun MomentParticipantsContent(
 ) {
     if (snapshot == null) {
         Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
-            Column {
+            Column(Modifier.fillMaxSize()) {
                 GalleryTopAppBar(title = stringResource(R.string.moment_participants_title), onBack = onBack,
                     navigationContentDescription = stringResource(R.string.moment_participants_cancel))
                 if (loadFailed) {
-                    Text(stringResource(R.string.moment_participants_error), Modifier.padding(16.dp))
-                    TextButton(onClick = onReload) { Text(stringResource(R.string.moment_participants_retry)) }
+                    GalleryLoadErrorState(onReload, Modifier.weight(1f).fillMaxWidth(),
+                        body = stringResource(R.string.moment_participants_error))
                 } else GalleryIndeterminateProgressIndicator(Modifier.padding(16.dp))
             }
         }

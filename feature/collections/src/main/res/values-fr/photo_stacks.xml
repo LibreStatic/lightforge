@@ -40,4 +40,6 @@
     <string name="stacks_error">L’action n’a pas abouti. Vérifiez que les photos sont disponibles et ne font pas déjà partie d’une autre pile.</string>
     <string name="stacks_create">Créer une pile</string>
     <string name="stacks_collection_hint">Examinez les photos similaires, choisissez une couverture et conservez les groupes sur cet appareil.</string>
+    <string name="stacks_missing_title">Cette pile n\'est pas disponible</string>
+    <string name="stacks_more">Plus d’options</string>
 </resources>

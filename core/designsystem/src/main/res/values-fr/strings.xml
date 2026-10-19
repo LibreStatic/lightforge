@@ -17,4 +17,8 @@
     <!-- Media editors -->
     <string name="editor_slider_reset">Réinitialiser %1$s</string>
     <string name="editor_zoom_reset">Réinitialiser le zoom</string>
+    <string name="gallery_load_error_title">Chargement impossible</string>
+    <string name="gallery_load_error_body">Une erreur s\'est produite pendant le chargement. Vérifiez que les fichiers sont disponibles et réessayez.</string>
+    <string name="gallery_load_error_more">Impossible de charger plus d\'éléments.</string>
+    <string name="gallery_retry">Réessayer</string>
 </resources>

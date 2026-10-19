@@ -203,8 +203,23 @@ class SmartAlbumsContentDeviceTest {
     }
 
     private fun click(tag: String) {
-        scroll(tag)
-        compose.onNodeWithTag(tag).assertIsEnabled().performClick()
+        when (tag) {
+            // These actions live in the top bar or its overflow menu, not in the scrolling list.
+            "smart-create", "smart-edit", "smart-preview" -> {
+                compose.waitUntil(10_000) {
+                    compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+                }
+                compose.onNodeWithTag(tag).assertIsEnabled().performClick()
+            }
+            "smart-manage-exclusions", "smart-delete" -> {
+                compose.onNodeWithTag("smart-menu").performClick()
+                compose.onNodeWithTag(tag).assertIsEnabled().performClick()
+            }
+            else -> {
+                scroll(tag)
+                compose.onNodeWithTag(tag).assertIsEnabled().performClick()
+            }
+        }
     }
 
     private fun back() {

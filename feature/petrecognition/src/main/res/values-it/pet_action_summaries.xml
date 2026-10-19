@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_download_summary">Scarica una volta i modelli di riconoscimento sul dispositivo</string>
+    <string name="pet_import_summary">Carica un pacchetto di modelli già verificato, senza scaricare</string>
+    <string name="pet_enable_summary">Attiva il riconoscimento degli animali con i modelli installati</string>
+    <string name="pet_analyze_summary">Cerca gatti e cani nelle foto di questo dispositivo</string>
+</resources>

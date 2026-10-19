@@ -18,12 +18,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import android.text.format.Formatter
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.input.KeyboardType
@@ -160,41 +164,50 @@ fun RemoteBackupContent(
                     }
                 }
             item {
-                Text(
-                    stringResource(R.string.remote_profiles),
-                    style = MaterialTheme.typography.titleLarge,
-                )
-                OutlinedButton(
-                    onClick = {
-                        credentialsOnly = null
-                        editor = true
-                    },
-                    enabled = !busy,
-                ) {
-                    Text(stringResource(R.string.remote_add))
+                // The section header carries its own trailing action.
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.remote_profiles),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f).semantics { heading() },
+                    )
+                    TextButton(
+                        onClick = {
+                            credentialsOnly = null
+                            editor = true
+                        },
+                        enabled = !busy,
+                    ) {
+                        Text(stringResource(R.string.remote_add))
+                    }
                 }
             }
             items(profiles, key = { "profile-${it.id}" }) { profile ->
-                OutlinedButton(
+                val isSelected = selected?.id == profile.id
+                ListItem(
                     onClick = {
                         selectedId = profile.id
                         remoteEntries = null
                     },
-                    modifier = Modifier.fillMaxWidth().testTag("remote-profile-${profile.id}"),
                     enabled = !busy,
+                    modifier =
+                        Modifier.fillMaxWidth()
+                            .clip(MaterialTheme.shapes.large)
+                            .semantics { this.selected = isSelected }
+                            .testTag("remote-profile-${profile.id}"),
+                    supportingContent = { Text(profile.protocol.name + " · " + profile.host) },
+                    trailingContent = { RadioButton(selected = isSelected, onClick = null) },
                 ) {
-                    Text(
-                        (if (selected?.id == profile.id) "✓ " else "") +
-                            profile.name +
-                            " · " +
-                            profile.protocol.name +
-                            " · " +
-                            profile.host
-                    )
+                    Text(profile.name)
                 }
             }
             selected?.let { profile ->
                 item {
+                    Text(
+                        stringResource(R.string.remote_section_server),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.semantics { heading() },
+                    )
                     Text(
                         profile.protocol.name +
                             ": " +
@@ -207,20 +220,22 @@ fun RemoteBackupContent(
                             profile.share +
                             profile.root
                     )
-                    OutlinedButton(
+                    ListItem(
                         onClick = {
                             credentialsOnly = profile
                             editor = true
                         },
                         enabled = !busy,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large),
+                        supportingContent = { Text(stringResource(R.string.remote_credentials_summary)) },
                     ) {
                         Text(stringResource(R.string.remote_credentials))
                     }
-                    Button(
+                    ListItem(
                         onClick = { action { controller.testConnection(profile.id) } },
                         enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().testTag("remote-test"),
+                        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).testTag("remote-test"),
+                        supportingContent = { Text(stringResource(R.string.remote_test_summary)) },
                     ) {
                         Text(stringResource(R.string.remote_test))
                     }
@@ -254,10 +269,11 @@ fun RemoteBackupContent(
                                     RemoteFailure.IDENTITY_CHANGED.name,
                                 )
                         ) {
-                            OutlinedButton(
+                            ListItem(
                                 onClick = { trust = Triple(profile.id, key, false) },
                                 enabled = !busy,
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large),
+                                supportingContent = { Text(stringResource(R.string.remote_trust_summary)) },
                             ) {
                                 Text(stringResource(R.string.remote_trust))
                             }
@@ -270,14 +286,21 @@ fun RemoteBackupContent(
                                 probe!!.residuals.joinToString("\n"),
                             )
                         )
-                    OutlinedButton(
+                    Text(
+                        stringResource(R.string.remote_section_backup),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    ListItem(
                         onClick = { picker.launch(Unit) },
                         enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().testTag("remote-select-sources"),
+                        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).testTag("remote-select-sources"),
+                        supportingContent = {
+                            Text(pluralStringResource(R.plurals.remote_selected, sources.size, sources.size))
+                        },
                     ) {
                         Text(stringResource(R.string.remote_sources))
                     }
-                    Text(pluralStringResource(R.plurals.remote_selected, sources.size, sources.size))
                     if (controller.organizationAvailable)
                         LabelledCheck(
                             organization,
@@ -296,12 +319,13 @@ fun RemoteBackupContent(
                     ) {
                         Text(stringResource(R.string.remote_prepare))
                     }
-                    OutlinedButton(
+                    ListItem(
                         onClick = {
                             action { remoteEntries = controller.listArchives(profile.id) }
                         },
                         enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().testTag("remote-list"),
+                        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).testTag("remote-list"),
+                        supportingContent = { Text(stringResource(R.string.remote_list_summary)) },
                     ) {
                         Text(stringResource(R.string.remote_list))
                     }

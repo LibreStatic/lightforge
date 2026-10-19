@@ -262,18 +262,21 @@ private fun GifProperties(ui: CreationGifEditorUi, actions: CreationGifEditorAct
                 Column(Modifier.padding(12.dp).testTag("creation-gif-recovery")) {
                     Text(stringResource(message))
                     if (ui.showRecoveryActions) {
-                        TextButton(
-                            onClick = actions.onCheckPublication, modifier = Modifier.testTag("creation-gif-check-publication"),
-                            colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
-                        ) { Text(stringResource(R.string.gif_publication_check)) }
-                        if (ui.showDiscard) TextButton(
-                            onClick = actions.onDiscard, modifier = Modifier.testTag("creation-gif-discard-publication"),
-                            colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
-                        ) { Text(stringResource(R.string.gif_publication_discard)) }
-                        if (ui.showKeepEditing) TextButton(
-                            onClick = actions.onKeepEditing, modifier = Modifier.testTag("creation-gif-keep-editing"),
-                            colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
-                        ) { Text(stringResource(R.string.gif_publication_keep_editing)) }
+                        // Banner style: the actions trail the message and wrap on narrow widths.
+                        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(
+                                onClick = actions.onCheckPublication, modifier = Modifier.testTag("creation-gif-check-publication"),
+                                colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                            ) { Text(stringResource(R.string.gif_publication_check)) }
+                            if (ui.showDiscard) TextButton(
+                                onClick = actions.onDiscard, modifier = Modifier.testTag("creation-gif-discard-publication"),
+                                colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                            ) { Text(stringResource(R.string.gif_publication_discard)) }
+                            if (ui.showKeepEditing) TextButton(
+                                onClick = actions.onKeepEditing, modifier = Modifier.testTag("creation-gif-keep-editing"),
+                                colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                            ) { Text(stringResource(R.string.gif_publication_keep_editing)) }
+                        }
                     }
                 }
             }

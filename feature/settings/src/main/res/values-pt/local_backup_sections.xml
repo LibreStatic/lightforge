@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="local_backup_section_create">Criar cópia de segurança</string>
+    <string name="local_backup_section_restore">Restaurar</string>
+    <string name="local_backup_open_summary">Escolha um ficheiro de cópia. É verificado antes de restaurar seja o que for.</string>
+</resources>

@@ -40,4 +40,6 @@
     <string name="memory_controls_analysis">Lokale Analyse öffnen</string>
     <string name="memory_controls_no_people">Keine lokalen Personen verfügbar. Du kannst die lokale Analyse separat einrichten.</string>
     <string name="memory_controls_date_review">Diese eingeschlossenen Tage und ihre gespeicherte Zeitzone bleiben bei einer Änderung der Gerätezeitzone unverändert.</string>
+    <string name="memory_controls_add_dates_hint">Fotos aus diesem Zeitraum erscheinen nicht mehr in den Erinnerungen.</string>
+    <string name="memory_controls_add_person_hint">Fotos dieser Person erscheinen nicht mehr in den Erinnerungen.</string>
 </resources>

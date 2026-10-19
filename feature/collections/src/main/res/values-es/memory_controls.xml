@@ -40,4 +40,6 @@
     <string name="memory_controls_analysis">Abrir análisis local</string>
     <string name="memory_controls_no_people">No hay personas locales disponibles. Puedes configurar el análisis local por separado.</string>
     <string name="memory_controls_date_review">Estos días inclusive y su zona horaria guardada no cambian al cambiar la zona del dispositivo.</string>
+    <string name="memory_controls_add_dates_hint">Las fotos de estas fechas dejan de aparecer en Recuerdos.</string>
+    <string name="memory_controls_add_person_hint">Las fotos de esta persona dejan de aparecer en Recuerdos.</string>
 </resources>

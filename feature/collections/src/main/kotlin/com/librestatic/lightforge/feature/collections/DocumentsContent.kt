@@ -3,6 +3,8 @@ package com.librestatic.lightforge.feature.collections
 import android.content.ClipData
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
+import com.librestatic.lightforge.core.designsystem.GalleryLoadErrorRow
+import com.librestatic.lightforge.core.designsystem.GalleryLoadErrorState
 import android.content.ClipboardManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -146,66 +148,83 @@ fun DocumentsContent(
                 )
             }
         }
-        if (selection.isNotEmpty()) {
-            if (onCreateMemory != null) OutlinedButton(
-                enabled = !busy && selection.size in 1..120,
-                onClick = { onCreateMemory(selection.map { it.mediaKey() }) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("documents-create-memory"),
-            ) { Text(stringResource(R.string.manual_moment_title)) }
-
-            Button(
-                enabled = !busy,
-                onClick = {
-                    mutate {
-                        onPdf(
-                            repository.pdfKeys(selection.map { it.mediaKey() })
-                        )
-                        selection = arrayListOf()
-                    }
-                },
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .testTag("documents-create-pdf"),
-            ) {
-                Text(
-                    stringResource(
-                        R.string.documents_prepare_pdf,
-                        selection.size,
-                    )
-                )
-            }
-            TextButton(
-                onClick = { selection = arrayListOf() },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.documents_clear_selection))
-            }
-        } else {
-            DocumentActionButton(
-                wide,
-                com.librestatic.lightforge.core.designsystem.GalleryIcons.PictureAsPdf,
-                stringResource(R.string.documents_studio),
-                onClick = onPdfStudio,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            )
-        }
-        DocumentActionButton(
-            wide,
-            com.librestatic.lightforge.core.designsystem.GalleryIcons.Archive,
-            stringResource(R.string.document_auto_title),
-            onClick = { showAutoArchive = true },
-            modifier =
-                Modifier.fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .testTag("documents-auto-archive"),
-        )
         Text(
             stringResource(R.string.documents_selection_hint),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(vertical = 6.dp),
         )
     }
+    var showMore by remember { mutableStateOf(false) }
+    // Screen-level actions live in the top bar; they do not apply to a focused document.
+    val topBarActions: @Composable RowScope.() -> Unit = {
+        if (focused == null) {
+            IconButton(
+                onClick = onPdfStudio,
+                modifier = Modifier.testTag("documents-pdf-studio"),
+            ) {
+                Icon(GalleryIcons.PictureAsPdf, contentDescription = stringResource(R.string.documents_studio))
+            }
+            Box {
+                IconButton(
+                    onClick = { showMore = true },
+                    modifier = Modifier.testTag("documents-more"),
+                ) {
+                    Icon(GalleryIcons.More, contentDescription = stringResource(R.string.documents_more_actions))
+                }
+                DropdownMenu(expanded = showMore, onDismissRequest = { showMore = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.document_auto_title)) },
+                        leadingIcon = { Icon(GalleryIcons.Archive, contentDescription = null) },
+                        onClick = {
+                            showMore = false
+                            showAutoArchive = true
+                        },
+                        modifier =
+                            Modifier.semantics { testTagsAsResourceId = true }
+                                .testTag("documents-auto-archive"),
+                    )
+                }
+            }
+        }
+    }
+    val selectionBarVisible = focused == null && selection.isNotEmpty()
+    val selectionBar: @Composable BoxScope.() -> Unit = {
+        if (selectionBarVisible) {
+            val pdfLabel = stringResource(R.string.documents_prepare_pdf, selection.size)
+            val momentLabel = stringResource(R.string.manual_moment_title)
+            com.librestatic.lightforge.core.designsystem.GallerySelectionBar(
+                count = selection.size.toLong(),
+                onClear = { selection = arrayListOf() },
+                clearLabel = stringResource(R.string.documents_clear_selection),
+                actions =
+                    listOfNotNull(
+                        com.librestatic.lightforge.core.designsystem.GallerySelectionAction(
+                            label = pdfLabel,
+                            icon = GalleryIcons.PictureAsPdf,
+                            onClick = {
+                                mutate {
+                                    onPdf(repository.pdfKeys(selection.map { it.mediaKey() }))
+                                    selection = arrayListOf()
+                                }
+                            },
+                            enabled = !busy,
+                            testTag = "documents-create-pdf",
+                        ),
+                        onCreateMemory?.let { create ->
+                            com.librestatic.lightforge.core.designsystem.GallerySelectionAction(
+                                label = momentLabel,
+                                icon = GalleryIcons.AutoAwesome,
+                                onClick = { create(selection.map { it.mediaKey() }) },
+                                enabled = !busy && selection.size in 1..120,
+                                testTag = "documents-create-memory",
+                            )
+                        },
+                    ),
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+    }
+    val listBottomPadding = if (selectionBarVisible) 160.dp else 16.dp
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -217,6 +236,7 @@ fun DocumentsContent(
                     title = stringResource(R.string.documents_title),
                     onBack = onBack,
                     navigationContentDescription = stringResource(R.string.documents_back),
+                    actions = topBarActions,
                     windowInsets = WindowInsets(0, 0, 0, 0),
                 )
                 Row(Modifier.weight(1f).padding(horizontal = 16.dp)) {
@@ -224,36 +244,36 @@ fun DocumentsContent(
                         Modifier.width(360.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(end = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) { controls() }
-                    LazyVerticalGrid(
+                    val stateOnly = rows.itemCount == 0 &&
+                        (rows.loadState.refresh is LoadState.Error || rows.loadState.refresh is LoadState.NotLoading)
+                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                    Column(Modifier.fillMaxSize()) {
+                    Text(
+                        stringResource(category.label()) + " · " + rows.itemCount,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 4.dp).semantics { heading() },
+                    )
+                    if (stateOnly && rows.loadState.refresh is LoadState.Error)
+                        GalleryLoadErrorState({ rows.retry() }, Modifier.weight(1f).fillMaxWidth().testTag("documents-error"))
+                    else if (stateOnly)
+                        GalleryEmptyState(
+                            title = stringResource(R.string.documents_empty_title),
+                            body = stringResource(R.string.documents_empty_body),
+                            icon = GalleryIcons.Description,
+                            hero = true,
+                            modifier = Modifier.weight(1f).fillMaxWidth().testTag("documents-empty"),
+                        )
+                    else LazyVerticalGrid(
                         GridCells.Adaptive(260.dp),
-                        Modifier.weight(1f).fillMaxHeight().testTag("documents-list"),
+                        Modifier.weight(1f).fillMaxWidth().testTag("documents-list"),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 16.dp),
+                        contentPadding = PaddingValues(bottom = listBottomPadding),
                     ) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            Text(
-                                stringResource(category.label()) + " · " + rows.itemCount,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(vertical = 4.dp).semantics { heading() },
-                            )
-                        }
                         if (rows.loadState.refresh is LoadState.Loading && rows.itemCount == 0)
                             item(span = { GridItemSpan(maxLineSpan) }) { GalleryIndeterminateProgressIndicator() }
                         if (rows.loadState.refresh is LoadState.Error)
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                TextButton(onClick = { rows.retry() }) { Text(stringResource(R.string.documents_retry)) }
-                            }
-                        if (rows.itemCount == 0 && rows.loadState.refresh is LoadState.NotLoading)
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                GalleryEmptyState(
-                                    title = stringResource(R.string.documents_empty_title),
-                                    body = stringResource(R.string.documents_empty_body),
-                                    icon = GalleryIcons.Description,
-                                    hero = true,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp).testTag("documents-empty"),
-                                )
-                            }
+                            item(span = { GridItemSpan(maxLineSpan) }) { GalleryLoadErrorRow({ rows.retry() }) }
                         items(rows.itemCount, key = rows.itemKey { it.key().saved() }) { index ->
                             rows[index]?.let { row ->
                                 val id = row.key().saved()
@@ -303,27 +323,51 @@ fun DocumentsContent(
                         if (rows.loadState.append is LoadState.Loading)
                             item(span = { GridItemSpan(maxLineSpan) }) { GalleryIndeterminateProgressIndicator() }
                         if (rows.loadState.append is LoadState.Error)
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                TextButton(onClick = { rows.retry() }) { Text(stringResource(R.string.documents_retry)) }
-                            }
+                            item(span = { GridItemSpan(maxLineSpan) }) { GalleryLoadErrorRow({ rows.retry() }) }
+                    }
+                    }
+                    selectionBar()
                     }
                 }
             }
             return@Scaffold
         }
-        Column(Modifier.padding(padding).fillMaxSize()) {
+        Box(Modifier.padding(padding).fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
         com.librestatic.lightforge.core.designsystem.GalleryTopAppBar(
             title = stringResource(R.string.documents_title),
             onBack = { if (focused == null) onBack() else focused = null },
             navigationContentDescription = stringResource(R.string.documents_back),
+            actions = topBarActions,
             windowInsets = WindowInsets(0, 0, 0, 0),
         )
         Column(Modifier.weight(1f).fillMaxWidth().widthIn(max = 1200.dp).padding(horizontal = 16.dp)) {
             if (focused == null) {
-                LazyColumn(
+                val stateOnly = rows.itemCount == 0 &&
+                    (rows.loadState.refresh is LoadState.Error || rows.loadState.refresh is LoadState.NotLoading)
+                // The controls take their own height (capped so the state stays visible) and the state
+                // fills everything below them, so it centers in the leftover space.
+                if (stateOnly) BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    val controlsMax = maxHeight * 0.6f
+                    Column(Modifier.fillMaxSize()) {
+                        Column(Modifier.heightIn(max = controlsMax).verticalScroll(rememberScrollState()).testTag("documents-list")) {
+                            controls()
+                        }
+                        if (rows.loadState.refresh is LoadState.Error)
+                            GalleryLoadErrorState({ rows.retry() }, Modifier.weight(1f).fillMaxWidth().testTag("documents-error"))
+                        else
+                            GalleryEmptyState(
+                                title = stringResource(R.string.documents_empty_title),
+                                body = stringResource(R.string.documents_empty_body),
+                                icon = GalleryIcons.Description,
+                                hero = true,
+                                modifier = Modifier.weight(1f).fillMaxWidth().testTag("documents-empty"),
+                            )
+                    }
+                } else LazyColumn(
                     Modifier.weight(1f).testTag("documents-list"),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp),
+                    contentPadding = PaddingValues(bottom = listBottomPadding),
                 ) {
                     item {
                         Column { controls() }
@@ -331,18 +375,7 @@ fun DocumentsContent(
                     if (rows.loadState.refresh is LoadState.Loading && rows.itemCount == 0)
                         item { GalleryIndeterminateProgressIndicator() }
                     if (rows.loadState.refresh is LoadState.Error)
-                        item {
-                            TextButton(onClick = { rows.retry() }) {
-                                Text(stringResource(R.string.documents_retry))
-                            }
-                        }
-                    if (rows.itemCount == 0 && rows.loadState.refresh is LoadState.NotLoading)
-                        item {
-                            Text(
-                                stringResource(R.string.documents_empty),
-                                Modifier.padding(vertical = 24.dp),
-                            )
-                        }
+                        item { GalleryLoadErrorRow({ rows.retry() }) }
                     items(rows.itemCount, key = rows.itemKey { it.key().saved() }) { index ->
                         rows[index]?.let { row ->
                             val id = row.key().saved()
@@ -404,11 +437,7 @@ fun DocumentsContent(
                     if (rows.loadState.append is LoadState.Loading)
                         item { GalleryIndeterminateProgressIndicator() }
                     if (rows.loadState.append is LoadState.Error)
-                        item {
-                            TextButton(onClick = { rows.retry() }) {
-                                Text(stringResource(R.string.documents_retry))
-                            }
-                        }
+                        item { GalleryLoadErrorRow({ rows.retry() }) }
                 }
             } else {
                 val row = detail
@@ -553,6 +582,8 @@ fun DocumentsContent(
             }
         }
         }
+        selectionBar()
+        }
     }
     }
 }
@@ -594,42 +625,5 @@ internal fun DocumentImage(
             }
         else
             Image(image.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Fit)
-    }
-}
-
-/** Primary document actions: tonal cards in the wide panel so they outweigh the filter chips. */
-@Composable
-private fun DocumentActionButton(
-    tonal: Boolean,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    onClick: () -> Unit,
-    modifier: Modifier,
-) {
-    if (!tonal) {
-        OutlinedButton(onClick = onClick, modifier = modifier) { Text(title) }
-        return
-    }
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Surface(
-                shape = androidx.compose.foundation.shape.CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            ) {
-                Icon(icon, null, Modifier.padding(10.dp).size(24.dp))
-            }
-            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            Icon(com.librestatic.lightforge.core.designsystem.GalleryIcons.ChevronForward, null)
-        }
     }
 }

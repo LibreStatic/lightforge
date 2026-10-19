@@ -414,10 +414,10 @@ class PortablePhotoRecipeBackupAppDeviceTest {
                     assertEquals(operations, restoredRecipe.operations)
                     assertEquals(8, restoredRecipe.revision)
                     assertEquals(restored, restoredRecipe.source)
-                    textAction(com.librestatic.lightforge.feature.settings.R.string.local_backup_tasks_title)
+                    action(description = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_tasks_title))
                     reveal(By.text(archiveName), "owned-task-visible")
                     capture("restored-task")
-                    textAction(com.librestatic.lightforge.feature.settings.R.string.local_backup_back)
+                    action(description = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_back))
                     // Both routes expose the same Back label: wait until the Tasks tree is
                     // replaced.
                     await("returned-to-local-backup") {
@@ -427,7 +427,7 @@ class PortablePhotoRecipeBackupAppDeviceTest {
                             )
                         )
                     }
-                    textAction(com.librestatic.lightforge.feature.settings.R.string.local_backup_back)
+                    action(description = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_back))
                     // Settings is now the verified parent; system Back has no text/IME ambiguity.
                     await("settings-parent") {
                         visible(

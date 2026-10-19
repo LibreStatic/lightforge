@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_download_summary">Lädt die Erkennungsmodelle einmalig auf das Gerät</string>
+    <string name="pet_import_summary">Lädt ein bereits geprüftes Modellpaket, ohne Download</string>
+    <string name="pet_enable_summary">Aktiviert die Tiererkennung mit den installierten Modellen</string>
+    <string name="pet_analyze_summary">Sucht Katzen und Hunde in den Fotos auf diesem Gerät</string>
+</resources>

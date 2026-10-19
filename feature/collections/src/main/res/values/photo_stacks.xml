@@ -40,4 +40,6 @@
     <string name="stacks_error">The stack action did not finish. Check that the photos are available and not already in another stack.</string>
     <string name="stacks_create">Create stack</string>
     <string name="stacks_collection_hint">Review similar photos, choose a cover and keep your groups on this device.</string>
+    <string name="stacks_missing_title">This stack isn\'t available</string>
+    <string name="stacks_more">More options</string>
 </resources>

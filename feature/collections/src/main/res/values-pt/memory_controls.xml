@@ -40,4 +40,6 @@
     <string name="memory_controls_analysis">Abrir análise local</string>
     <string name="memory_controls_no_people">Nenhuma pessoa local disponível. Você pode configurar a análise local separadamente.</string>
     <string name="memory_controls_date_review">Estes dias inclusivos e seu fuso salvo permanecem fixos quando o fuso do dispositivo muda.</string>
+    <string name="memory_controls_add_dates_hint">As fotos dessas datas deixam de aparecer nas Memórias.</string>
+    <string name="memory_controls_add_person_hint">As fotos desta pessoa deixam de aparecer nas Memórias.</string>
 </resources>

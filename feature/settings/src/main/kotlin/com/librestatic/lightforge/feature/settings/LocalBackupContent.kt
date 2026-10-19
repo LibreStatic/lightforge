@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -22,6 +23,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -37,11 +41,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
@@ -55,7 +61,9 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 
 /** A complete originals-only workflow; organization/preferences are deliberately not implied. */
 @Composable fun LocalBackupContent(onBack: () -> Unit) = LocalBackupContent(null, onBack)
@@ -331,9 +339,29 @@ fun LocalBackupContent(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
+        Column(Modifier.fillMaxSize().testTag("local-backup-screen")) {
+        GalleryTopAppBar(
+            title = stringResource(R.string.local_backup_title),
+            onBack = { if (busy) confirmCancel = true else onBack() },
+            navigationContentDescription = stringResource(R.string.local_backup_back),
+            actions = {
+                if (taskController != null) {
+                    IconButton(
+                        onClick = onOpenTasks,
+                        enabled = !busy,
+                        modifier = Modifier.testTag("local-backup-tasks-open"),
+                    ) {
+                        Icon(
+                            GalleryIcons.Checklist,
+                            contentDescription = stringResource(R.string.local_backup_tasks_title),
+                        )
+                    }
+                }
+            },
+        )
         Column(
-            Modifier.fillMaxSize()
-                .testTag("local-backup-screen")
+            Modifier.weight(1f)
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -342,13 +370,6 @@ fun LocalBackupContent(
                 Modifier.widthIn(max = 720.dp).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                TextButton(onClick = { if (busy) confirmCancel = true else onBack() }) {
-                    Text(stringResource(R.string.local_backup_back))
-                }
-                Text(
-                    stringResource(R.string.local_backup_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                )
                 Text(
                     stringResource(
                         if (organizationPort == null) R.string.local_backup_scope
@@ -358,23 +379,19 @@ fun LocalBackupContent(
                 Text(stringResource(R.string.local_backup_local_hint))
                 if (taskController != null) {
                     Text(stringResource(R.string.local_backup_task_durable_hint))
-                    OutlinedButton(
-                        onClick = onOpenTasks,
-                        enabled = !busy,
-                        modifier = Modifier.fillMaxWidth().testTag("local-backup-tasks-open"),
-                    ) {
-                        Text(stringResource(R.string.local_backup_tasks_title))
-                    }
                 }
                 if (interrupted) Text(stringResource(R.string.local_backup_interrupted))
-                OutlinedButton(
+                Text(
+                    stringResource(R.string.local_backup_section_create),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.semantics { heading() },
+                )
+                ListItem(
                     onClick = { chooseFiles.launch(arrayOf("*/*")) },
                     enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().testTag("local-backup-select"),
-                ) {
-                    Text(stringResource(R.string.local_backup_select))
-                }
-                Text(stringResource(R.string.local_backup_selected, selected.size))
+                    modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).testTag("local-backup-select"),
+                    supportingContent = { Text(stringResource(R.string.local_backup_selected, selected.size)) },
+                ) { Text(stringResource(R.string.local_backup_select)) }
                 if (organizationPort != null)
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
@@ -392,15 +409,19 @@ fun LocalBackupContent(
                 ) {
                     Text(stringResource(R.string.local_backup_create))
                 }
-                OutlinedButton(
+                Text(
+                    stringResource(R.string.local_backup_section_restore),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.semantics { heading() },
+                )
+                ListItem(
                     onClick = {
                         openBackup.launch(arrayOf("application/zip", "application/octet-stream"))
                     },
                     enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().testTag("local-backup-open"),
-                ) {
-                    Text(stringResource(R.string.local_backup_open))
-                }
+                    modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).testTag("local-backup-open"),
+                    supportingContent = { Text(stringResource(R.string.local_backup_open_summary)) },
+                ) { Text(stringResource(R.string.local_backup_open)) }
                 if (busy) {
                     GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                     progress?.let {
@@ -507,6 +528,7 @@ fun LocalBackupContent(
                     }
                 }
             }
+        }
         }
     }
     if (confirmRestore)

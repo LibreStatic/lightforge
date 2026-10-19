@@ -155,7 +155,7 @@ class PortablePreferencesContentDeviceTest {
                     .put("realDataStore", true)
                     .put("onlyPresentationApplied", true),
             )
-            click("portable-preferences-back")
+            compose.onNodeWithContentDescription(context.getString(R.string.portable_preferences_back)).performClick()
             assertTrue(back)
         } catch (failure: Throwable) {
             runCatching { capture("$name-failure") }

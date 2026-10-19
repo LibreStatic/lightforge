@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_analysis_enable_people_summary">Fotos derselben Person gruppieren. Gesichter bleiben auf diesem Gerät.</string>
+    <string name="search_analysis_delete_summary">Löscht alles, was die Analyse auf diesem Gerät gespeichert hat. Ihre Fotos bleiben unberührt.</string>
+</resources>

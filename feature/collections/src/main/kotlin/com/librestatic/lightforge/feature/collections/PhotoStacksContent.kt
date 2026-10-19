@@ -30,6 +30,9 @@ import androidx.paging.compose.itemKey
 import com.librestatic.lightforge.core.data.*
 import com.librestatic.lightforge.core.database.*
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryLoadErrorRow
+import com.librestatic.lightforge.core.designsystem.GalleryLoadErrorState
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.thumbnail.*
 import kotlinx.coroutines.CancellationException
@@ -117,9 +120,41 @@ fun PhotoStacksContent(
                     photo.media.mediaStoreId == stack?.coverMediaStoreId
         } ?: photos.firstOrNull()
     val selected = photos.firstOrNull { it.key().stackKey() == selectedKey } ?: cover
-    LaunchedEffect(comparing) { if (comparing) listState.animateScrollToItem(2) }
-    LaunchedEffect(renaming) {
-        if (renaming) listState.animateScrollToItem(if (selected != null && cover != null) 5 else 2)
+    LaunchedEffect(comparing) { if (comparing) listState.animateScrollToItem(1) }
+    if (renaming && stack != null) {
+        val current = stack!!
+        AlertDialog(
+            onDismissRequest = { renaming = false },
+            title = { Text(stringResource(R.string.stacks_rename)) },
+            text = {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it.take(80) },
+                    label = { Text(stringResource(R.string.stacks_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("stack-rename-field"),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    modifier = Modifier.testTag("stack-rename-save"),
+                    enabled = !busy,
+                    onClick = {
+                        mutate {
+                            repository.rename(current.stackId, current.revision, title)
+                            renaming = false
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.stacks_save_name))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { renaming = false }) {
+                    Text(stringResource(R.string.stacks_cancel))
+                }
+            },
+        )
     }
     if (confirmDissolve && stack != null) {
         val current = stack!!
@@ -149,98 +184,177 @@ fun PhotoStacksContent(
             },
         )
     }
+    val home = stackId == null && preview == null
+    val load =
+        when (tab) {
+            1 -> suggestions.loadState
+            2 -> separated.loadState
+            else -> saved.loadState
+        }
+    val count =
+        when (tab) {
+            1 -> suggestions.itemCount
+            2 -> separated.itemCount
+            else -> saved.itemCount
+        }
+    val retry: () -> Unit = {
+        when (tab) {
+            1 -> suggestions.retry()
+            2 -> separated.retry()
+            else -> saved.retry()
+        }
+    }
     Scaffold(
+        topBar = {
+            GalleryTopAppBar(
+                title = stringResource(R.string.stacks_title),
+                subtitle = stringResource(R.string.stacks_local),
+                onBack = { if (!busy) back() },
+                navigationContentDescription = stringResource(R.string.stacks_back),
+                windowInsets = WindowInsets(0, 0, 0, 0),
+                actions = {
+                    if (!home && selected != null && cover != null) {
+                        IconButton(
+                            enabled = photos.size >= 2,
+                            onClick = {
+                                comparing = !comparing
+                                zoom = 1f
+                            },
+                            modifier = Modifier.testTag("stack-compare"),
+                        ) {
+                            Icon(
+                                GalleryIcons.SwapHoriz,
+                                contentDescription = stringResource(R.string.stacks_compare),
+                            )
+                        }
+                        val current = stack
+                        if (current != null) {
+                            var menuOpen by remember { mutableStateOf(false) }
+                            Box {
+                                IconButton(
+                                    onClick = { menuOpen = true },
+                                    modifier = Modifier.testTag("stack-menu"),
+                                ) {
+                                    Icon(
+                                        GalleryIcons.More,
+                                        contentDescription = stringResource(R.string.stacks_more),
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = menuOpen,
+                                    onDismissRequest = { menuOpen = false },
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.stacks_separate)) },
+                                        enabled = !busy,
+                                        onClick = {
+                                            menuOpen = false
+                                            mutate {
+                                                val remains =
+                                                    repository.separate(
+                                                        current.stackId,
+                                                        current.revision,
+                                                        selected.key(),
+                                                    )
+                                                selectedKey = null
+                                                comparing = false
+                                                if (!remains) home()
+                                            }
+                                        },
+                                        modifier = Modifier.testTag("stack-separate"),
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.stacks_rename)) },
+                                        onClick = {
+                                            menuOpen = false
+                                            title = current.title.orEmpty()
+                                            renaming = true
+                                        },
+                                        modifier = Modifier.testTag("stack-rename"),
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.stacks_unstack)) },
+                                        enabled = !busy,
+                                        onClick = {
+                                            menuOpen = false
+                                            confirmDissolve = true
+                                        },
+                                        modifier = Modifier.testTag("stack-unstack"),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+            )
+        },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         modifier = modifier.testTag("photo-stacks-screen").semantics { testTagsAsResourceId = true },
     ) { padding ->
+        Column(Modifier.padding(padding).fillMaxSize()) {
+        if (home)
+            Column(
+                Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                            R.string.stacks_saved,
+                            R.string.stacks_suggested,
+                            R.string.stacks_separated,
+                        )
+                        .forEachIndexed { index, label ->
+                            FilterChip(
+                                selected = tab == index,
+                                onClick = {
+                                    tab = index
+                                    error = null
+                                },
+                                label = { Text(stringResource(label)) },
+                            )
+                        }
+                }
+                Text(
+                    stringResource(
+                        if (tab == 1) R.string.stacks_suggestions_hint
+                        else if (tab == 2) R.string.stacks_separated_hint
+                        else R.string.stacks_create_hint
+                    )
+                )
+                if (tab == 1)
+                    TextButton(onClick = onAnalysis, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.stacks_analysis))
+                    }
+            }
+        if (home && load.refresh is LoadState.Error && count == 0)
+            GalleryLoadErrorState(retry, Modifier.weight(1f).fillMaxWidth().testTag("photo-stacks-error"))
+        else if (home && load.refresh is LoadState.NotLoading && count == 0)
+            GalleryEmptyState(
+                title = stringResource(R.string.stacks_empty),
+                body = stringResource(R.string.stacks_empty_body),
+                icon = GalleryIcons.Layers,
+                hero = true,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            )
+        else if (stackId != null && preview == null && stack == null)
+            GalleryEmptyState(
+                title = stringResource(R.string.stacks_missing_title),
+                body = stringResource(R.string.stacks_unavailable),
+                icon = GalleryIcons.Layers,
+                actionLabel = stringResource(R.string.stacks_saved),
+                onAction = { home() },
+                modifier = Modifier.weight(1f).fillMaxWidth().testTag("photo-stacks-missing"),
+            )
+        else
         LazyColumn(
-            Modifier.padding(padding).fillMaxSize().testTag("photo-stacks-list"),
+            Modifier.weight(1f).fillMaxWidth().testTag("photo-stacks-list"),
             state = listState,
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                TextButton(onClick = { back() }, enabled = !busy) {
-                    Text(stringResource(R.string.stacks_back))
-                }
-                Text(
-                    stringResource(R.string.stacks_title),
-                    style = MaterialTheme.typography.headlineLarge,
-                    modifier = Modifier.semantics { heading() },
-                )
-                Text(
-                    stringResource(R.string.stacks_local),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            if (stackId == null && preview == null) {
-                item {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(
-                                R.string.stacks_saved,
-                                R.string.stacks_suggested,
-                                R.string.stacks_separated,
-                            )
-                            .forEachIndexed { index, label ->
-                                FilterChip(
-                                    selected = tab == index,
-                                    onClick = {
-                                        tab = index
-                                        error = null
-                                    },
-                                    label = { Text(stringResource(label)) },
-                                )
-                            }
-                    }
-                    Text(
-                        stringResource(
-                            if (tab == 1) R.string.stacks_suggestions_hint
-                            else if (tab == 2) R.string.stacks_separated_hint
-                            else R.string.stacks_create_hint
-                        )
-                    )
-                    if (tab == 1)
-                        TextButton(onClick = onAnalysis, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.stacks_analysis))
-                        }
-                }
-                val load =
-                    when (tab) {
-                        1 -> suggestions.loadState
-                        2 -> separated.loadState
-                        else -> saved.loadState
-                    }
-                val count =
-                    when (tab) {
-                        1 -> suggestions.itemCount
-                        2 -> separated.itemCount
-                        else -> saved.itemCount
-                    }
+            if (home) {
                 if (load.refresh is LoadState.Loading && count == 0) item { GalleryIndeterminateProgressIndicator() }
-                if (load.refresh is LoadState.NotLoading && count == 0)
-                    item {
-                        GalleryEmptyState(
-                            title = stringResource(R.string.stacks_empty),
-                            body = stringResource(R.string.stacks_empty_body),
-                            icon = GalleryIcons.Layers,
-                            hero = true,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp),
-                        )
-                    }
-                if (load.refresh is LoadState.Error || load.append is LoadState.Error)
-                    item {
-                        TextButton(
-                            onClick = {
-                                when (tab) {
-                                    1 -> suggestions.retry()
-                                    2 -> separated.retry()
-                                    else -> saved.retry()
-                                }
-                            }
-                        ) {
-                            Text(stringResource(R.string.stacks_retry))
-                        }
-                    }
+                if (load.append is LoadState.Error) item { GalleryLoadErrorRow(retry) }
                 when (tab) {
                     0 ->
                         items(saved.itemCount, key = saved.itemKey { it.stack.stackId }) { index ->
@@ -548,87 +662,8 @@ fun PhotoStacksContent(
                             ) {
                                 Text(stringResource(R.string.stacks_choose_cover))
                             }
-                        OutlinedButton(
-                            enabled = photos.size >= 2,
-                            onClick = {
-                                comparing = !comparing
-                                zoom = 1f
-                            },
-                            modifier = Modifier.fillMaxWidth().testTag("stack-compare"),
-                        ) {
-                            Text(stringResource(R.string.stacks_compare))
-                        }
-                        if (stack != null) {
-                            val current = stack!!
-                            TextButton(
-                                enabled = !busy,
-                                onClick = {
-                                    mutate {
-                                        val remains =
-                                            repository.separate(
-                                                current.stackId,
-                                                current.revision,
-                                                selected.key(),
-                                            )
-                                        selectedKey = null
-                                        comparing = false
-                                        if (!remains) home()
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().testTag("stack-separate"),
-                            ) {
-                                Text(stringResource(R.string.stacks_separate))
-                            }
-                        }
                     }
                 }
-                if (stack != null)
-                    item {
-                        val current = stack!!
-                        if (renaming) {
-                            OutlinedTextField(
-                                value = title,
-                                onValueChange = { title = it.take(80) },
-                                label = { Text(stringResource(R.string.stacks_name)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Button(
-                                enabled = !busy,
-                                onClick = {
-                                    mutate {
-                                        repository.rename(current.stackId, current.revision, title)
-                                        renaming = false
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(stringResource(R.string.stacks_save_name))
-                            }
-                        } else
-                            TextButton(
-                                onClick = {
-                                    title = current.title.orEmpty()
-                                    renaming = true
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(stringResource(R.string.stacks_rename))
-                            }
-                        OutlinedButton(
-                            enabled = !busy,
-                            onClick = { confirmDissolve = true },
-                            modifier = Modifier.fillMaxWidth().testTag("stack-unstack"),
-                        ) {
-                            Text(stringResource(R.string.stacks_unstack))
-                        }
-                    }
-                if (stackId != null && stack == null)
-                    item {
-                        TextButton(onClick = { home() }) {
-                            Text(stringResource(R.string.stacks_saved))
-                        }
-                    }
             }
             error?.let { id ->
                 item {
@@ -639,6 +674,7 @@ fun PhotoStacksContent(
                 }
             }
             item { GalleryProgressSlot(busy) }
+        }
         }
     }
 }
