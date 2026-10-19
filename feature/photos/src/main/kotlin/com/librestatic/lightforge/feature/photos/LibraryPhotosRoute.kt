@@ -62,6 +62,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
 
 data class PhotoHighlightUi(
     val id: String,
@@ -449,46 +452,46 @@ private fun PhotosOverflowMenu(
         GalleryExpressiveIconButton(onClick = { expanded = true }, modifier = Modifier.testTag("photos_overflow")) {
             Icon(GalleryIcons.More, contentDescription = stringResource(R.string.photos_more_options))
         }
-        androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            androidx.compose.material3.DropdownMenuItem(
-                text = { Text(stringResource(R.string.photos_menu_device_folders)) },
-                leadingIcon = { Icon(GalleryIcons.Folder, contentDescription = null) },
+        GalleryDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            GalleryMenuItem(
+                text = stringResource(R.string.photos_menu_device_folders),
+                icon = GalleryIcons.Folder,
                 onClick = { expanded = false; onOpenDeviceFolders() },
             )
+            if (onGroupingChange != null || canShowHidden) GalleryMenuDivider()
             if (onGroupingChange != null) {
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(stringResource(R.string.photos_menu_group)) },
-                    leadingIcon = { Icon(GalleryIcons.ViewList, contentDescription = null) },
+                GalleryMenuItem(
+                    text = stringResource(R.string.photos_menu_group),
                     onClick = { expanded = false; groupingOpen = true },
-                    modifier = Modifier.testTag("photos_group"),
+                    testTag = "photos_group",
                 )
             }
             if (canShowHidden) {
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(stringResource(R.string.photos_menu_show_hidden)) },
-                    leadingIcon = { Icon(GalleryIcons.Lock, contentDescription = null) },
-                    trailingIcon = if (showHidden) {
-                        { Icon(GalleryIcons.Check, contentDescription = stringResource(R.string.photos_menu_checked)) }
-                    } else null,
+                GalleryMenuItem(
+                    text = stringResource(R.string.photos_menu_show_hidden),
+                    icon = GalleryIcons.Lock,
+                    checked = showHidden,
+                    checkedDescription = stringResource(R.string.photos_menu_checked),
                     onClick = { expanded = false; onShowHiddenChange(!showHidden) },
-                    modifier = Modifier.testTag("photos_show_hidden"),
+                    testTag = "photos_show_hidden",
                 )
             }
-            androidx.compose.material3.DropdownMenuItem(
-                text = { Text(stringResource(R.string.photos_menu_settings)) },
-                leadingIcon = { Icon(GalleryIcons.Settings, contentDescription = null) },
+            GalleryMenuDivider()
+            GalleryMenuItem(
+                text = stringResource(R.string.photos_menu_settings),
+                icon = GalleryIcons.Settings,
                 onClick = { expanded = false; onOpenSettings() },
             )
         }
-        androidx.compose.material3.DropdownMenu(expanded = groupingOpen, onDismissRequest = { groupingOpen = false }) {
+        GalleryDropdownMenu(expanded = groupingOpen, onDismissRequest = { groupingOpen = false }) {
             PhotosGrouping.entries.forEach { option ->
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(stringResource(option.labelRes)) },
-                    trailingIcon = if (option == grouping) {
-                        { Icon(GalleryIcons.Check, contentDescription = stringResource(R.string.photos_menu_checked)) }
-                    } else null,
+                GalleryMenuItem(
+                    text = stringResource(option.labelRes),
+                    checked = option == grouping,
+                    radio = true,
+                    checkedDescription = stringResource(R.string.photos_menu_checked),
                     onClick = { groupingOpen = false; onGroupingChange?.invoke(option) },
-                    modifier = Modifier.testTag("photos_group_${option.name.lowercase()}"),
+                    testTag = "photos_group_${option.name.lowercase()}",
                 )
             }
         }

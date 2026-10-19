@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +33,8 @@ import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
 import com.librestatic.lightforge.core.designsystem.GalleryHeights
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 
 /**
  * The Photos filter row: what to show (multi-select chips), how it is ordered (a sort menu) and, on wide
@@ -117,18 +117,17 @@ private fun SortMenu(sort: PhotosSort, onSortChange: (PhotosSort) -> Unit, showL
                 Icon(GalleryIcons.Sort, contentDescription = description)
             }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        GalleryDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             PhotosSort.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(stringResource(option.labelRes)) },
+                GalleryMenuItem(
+                    text = stringResource(option.labelRes),
+                    checked = option == sort,
+                    radio = true,
                     onClick = {
                         expanded = false
                         onSortChange(option)
                     },
-                    trailingIcon = if (option == sort) {
-                        { Icon(GalleryIcons.Check, contentDescription = null) }
-                    } else null,
-                    modifier = Modifier.testTag("photos_sort_${option.name.lowercase()}"),
+                    testTag = "photos_sort_${option.name.lowercase()}",
                 )
             }
         }
