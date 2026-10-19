@@ -1,9 +1,11 @@
 package com.librestatic.lightforge
 
 import com.librestatic.lightforge.core.mediastore.HiddenMediaKind
+import com.librestatic.lightforge.core.mediastore.AnimatedImageSniffer
 import com.librestatic.lightforge.core.mediastore.HiddenMediaRow
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.MediaKind
+import com.librestatic.lightforge.core.model.RawFormats
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.preferences.FolderSelectionMode
 import com.librestatic.lightforge.core.preferences.FolderSelectionPolicy
@@ -15,9 +17,6 @@ import com.librestatic.lightforge.feature.folders.normalizedFolderPath
 // Advanced storage mode: hidden items (inside a .nomedia folder) are not in the library, so Photos reads them
 // from the live file scan and merges the ones the user asked for into the timeline.
 
-private val RawExtensions = setOf("dng", "cr2", "cr3", "nef", "arw", "orf", "rw2", "raf", "pef", "srw")
-private val AnimatedMimes = setOf("image/gif", "image/webp", "image/avif", "image/heif", "image/heic")
-
 /** What the timeline rules need to know about one hidden file. */
 internal data class HiddenFacts(
     val volumeName: String,
@@ -25,10 +24,45 @@ internal data class HiddenFacts(
     val displayName: String,
     val mimeType: String,
     val isVideo: Boolean,
+    /** Set from the file header, as the index does for library items; only read when the Animated chip is on. */
+    val animated: Boolean = false,
 )
 
-internal fun HiddenMediaRow.timelineFacts() =
-    HiddenFacts(volumeName, relativePath, displayName, mimeType, kind == HiddenMediaKind.Video)
+internal fun HiddenMediaRow.timelineFacts(animated: Boolean = false) =
+    HiddenFacts(volumeName, relativePath, displayName, mimeType, kind == HiddenMediaKind.Video, animated)
+
+/**
+ * Tells animated hidden images apart by their header, like the index does for library rows (GIF by type, WebP,
+ * APNG, AVIF and HEIF sequences by their markers). Answers are cached per file for the process.
+ */
+internal class HiddenAnimatedProbe(private val resolver: android.content.ContentResolver) {
+    private val cache = java.util.concurrent.ConcurrentHashMap<Pair<String, Long>, Boolean>()
+
+    fun isAnimated(row: HiddenMediaRow): Boolean {
+        if (row.kind != HiddenMediaKind.Image) return false
+        if (AnimatedImageSniffer.isAnimatedByMime(row.mimeType)) return true
+        if (!AnimatedImageSniffer.needsHeader(row.mimeType)) return false
+        return cache.getOrPut(row.volumeName to row.mediaStoreId) {
+            val header = try {
+                resolver.openInputStream(row.contentUri)?.use { input ->
+                    val buffer = ByteArray(AnimatedImageSniffer.HeaderBytes)
+                    var read = 0
+                    while (read < buffer.size) {
+                        val count = input.read(buffer, read, buffer.size - read)
+                        if (count < 0) break
+                        read += count
+                    }
+                    buffer.copyOf(read)
+                }
+            } catch (_: java.io.IOException) {
+                null
+            } catch (_: RuntimeException) {
+                null
+            }
+            header != null && AnimatedImageSniffer.isAnimated(row.mimeType, header)
+        }
+    }
+}
 
 /** `volume|path/` of the folder holding the file, the identity the "show even if hidden" rule is stored under. */
 internal fun HiddenFacts.folderIdentity(): String = "$volumeName|${normalizedFolderPath(relativePath)}"
@@ -43,8 +77,8 @@ private fun HiddenFacts.matches(filter: LibraryFilter): Boolean = when (filter) 
     LibraryFilter.All -> true
     LibraryFilter.Videos -> isVideo
     LibraryFilter.Images -> !isVideo
-    LibraryFilter.Animated -> !isVideo && mimeType.lowercase() in AnimatedMimes
-    LibraryFilter.Raw -> !isVideo && displayName.substringAfterLast('.', "").lowercase() in RawExtensions
+    LibraryFilter.Animated -> !isVideo && animated
+    LibraryFilter.Raw -> !isVideo && RawFormats.isRaw(mimeType, displayName)
 }
 
 /**

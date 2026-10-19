@@ -223,7 +223,7 @@ with folders (7.8), dimming excluded folders with an Exclude/Include shortcut (7
 restored scroll position and reopening the last folder, also after process death (7.12). The Photos
 tab (6.13 P1) has multi-select type chips, a grouping control (day, month, year, none), the temporary
 show-hidden toggle in its overflow, and hidden items merged into the timeline; a hidden folder can
-carry the "Show in Photos even if hidden" rule. Hidden items in Photos open in an external viewer and
+carry the "Show in Photos even if hidden" rule. Hidden items in Photos carry a hidden badge, follow the library order including the grouping, and the Raw and Animated chips apply to them as to library items (Animated reads the file header). They open in an external viewer and
 cannot be selected or edited, because they are not in the library.
 
 Not built: tree pane, drag and drop and keyboard navigation on large screens (7.11); rewriting album covers, pins and other path-keyed

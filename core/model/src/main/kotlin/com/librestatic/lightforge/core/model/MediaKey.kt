@@ -63,7 +63,8 @@ sealed interface TimelineEntry {
 
     data class Media(val value: TimelineMedia) : TimelineEntry {
         override val stableKey: String =
-            value.stack?.let { "stack:${it.id}" } ?: "media:${value.key.volumeName}:${value.key.mediaStoreId}"
+            value.stack?.let { "stack:${it.id}" }
+                ?: "${if (value.isHiddenOverlay) "hidden" else "media"}:${value.key.volumeName}:${value.key.mediaStoreId}"
     }
 }
 

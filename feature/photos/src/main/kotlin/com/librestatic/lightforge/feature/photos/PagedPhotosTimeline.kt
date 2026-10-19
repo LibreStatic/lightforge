@@ -623,6 +623,21 @@ private fun TimelineThumbnail(
             isVideo = isVideo,
             modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
         )
+        if (entry.value.isHiddenOverlay) {
+            // Not in the library: it comes from a hidden folder, so say so on the tile.
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.align(Alignment.BottomStart).padding(6.dp).testTag("hidden_item_badge"),
+            ) {
+                androidx.compose.material3.Icon(
+                    GalleryIcons.VisibilityOff,
+                    contentDescription = stringResource(R.string.timeline_hidden_item),
+                    modifier = Modifier.padding(4.dp).size(14.dp),
+                )
+            }
+        }
         if (isVideo) {
             VideoDurationBadge(
                 durationMillis = entry.value.durationMillis,

@@ -2,6 +2,7 @@ package com.librestatic.lightforge.core.data
 
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.MediaKind
+import com.librestatic.lightforge.core.model.TimelineEntry
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.preferences.LibrarySettings
 import com.librestatic.lightforge.core.preferences.LibrarySort
@@ -55,6 +56,25 @@ class HiddenTimelineMergeTest {
         val bySize = LibrarySettings(sort = LibrarySort.Size, ascending = false)
         val bySizeRows = listOf(media(1, 0, size = 900), media(2, 0, size = 100))
         assertEquals(listOf(1L, 100, 2), merged(bySizeRows, listOf(media(100, 0, size = 500)), bySize))
+    }
+
+    @Test fun `grouping orders by date group first so a non-date sort never repeats a header`() {
+        val day = 86_400_000L
+        val bySize = LibrarySettings(sort = LibrarySort.Size, ascending = false, grouping = com.librestatic.lightforge.core.preferences.LibraryGrouping.Day)
+        val order = hiddenOrder(bySize, java.time.ZoneOffset.UTC)
+        // Library rows as the query returns them: newest day first, largest first inside a day.
+        val rows = listOf(media(1, 3 * day, size = 10), media(2, 3 * day + 5, size = 5), media(3, day, size = 99))
+        assertEquals(rows, rows.sortedWith(order))
+        // A big hidden file from an older day must not jump above the newer day's rows.
+        val hidden = media(100, day + 7, size = 1_000)
+        val all = (rows + hidden).sortedWith(order)
+        assertEquals(listOf(1L, 2, 100, 3), all.map { it.key.mediaStoreId })
+    }
+
+    @Test fun `an overlay item never shares a stable key with a library item of the same id`() {
+        val library = TimelineEntry.Media(media(7, 1))
+        val hidden = TimelineEntry.Media(media(7, 1).copy(isHiddenOverlay = true))
+        org.junit.Assert.assertNotEquals(library.stableKey, hidden.stableKey)
     }
 
     @Test fun `an empty library still lists every hidden item once`() {

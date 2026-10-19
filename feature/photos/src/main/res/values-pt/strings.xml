@@ -73,4 +73,5 @@
     <string name="photos_group_month">Mês</string>
     <string name="photos_group_year">Ano</string>
     <string name="photos_group_none">Sem agrupamento</string>
+    <string name="timeline_hidden_item">Item oculto</string>
 </resources>

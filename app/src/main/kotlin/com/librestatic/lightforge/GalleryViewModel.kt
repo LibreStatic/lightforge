@@ -9,6 +9,8 @@ import android.app.Application
 import android.content.Context
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
 import com.librestatic.lightforge.core.mediastore.HiddenMediaRow
+import com.librestatic.lightforge.core.preferences.LibraryFilter
+import com.librestatic.lightforge.core.preferences.activeFilters
 import com.librestatic.lightforge.feature.folders.FolderLocation
 import com.librestatic.lightforge.feature.folders.PickPurpose
 import android.graphics.Bitmap
@@ -661,6 +663,8 @@ class GalleryViewModel @Inject constructor(
      * Hidden items read live from disk (advanced storage mode), already narrowed to what Photos shows: everything
      * while hidden items are shown, else the folders with the "show even if hidden" rule. Empty with the mode off.
      */
+    private val hiddenAnimatedProbe by lazy { HiddenAnimatedProbe(getApplication<Application>().contentResolver) }
+
     private val hiddenOverlayRows: kotlinx.coroutines.flow.StateFlow<List<com.librestatic.lightforge.core.mediastore.HiddenMediaRow>> by lazy {
         combine(
             advancedStatus.status.map { it.active to it.showHidden }.distinctUntilChanged(),
@@ -672,10 +676,15 @@ class GalleryViewModel @Inject constructor(
                 } else {
                     kotlinx.coroutines.flow.merge(flowOf(Unit), mediaStoreChanged())
                         .mapLatest { advancedStorage.queryHiddenMedia() }
-                        .flowOn(Dispatchers.IO)
                         .combine(gallerySettings.map { it.library }.distinctUntilChanged()) { rows, library ->
-                            hiddenRowsForTimeline(rows, HiddenMediaRow::timelineFacts, showAll, rules, library)
+                            val sniff = LibraryFilter.Animated in library.activeFilters()
+                            hiddenRowsForTimeline(
+                                rows,
+                                { row -> row.timelineFacts(animated = sniff && hiddenAnimatedProbe.isAnimated(row)) },
+                                showAll, rules, library,
+                            )
                         }
+                        .flowOn(Dispatchers.IO)
                 }
             }
             .distinctUntilChanged()

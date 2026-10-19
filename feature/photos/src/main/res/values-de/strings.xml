@@ -70,4 +70,5 @@
     <string name="photos_group_month">Monat</string>
     <string name="photos_group_year">Jahr</string>
     <string name="photos_group_none">Keine Gruppierung</string>
+    <string name="timeline_hidden_item">Ausgeblendetes Element</string>
 </resources>

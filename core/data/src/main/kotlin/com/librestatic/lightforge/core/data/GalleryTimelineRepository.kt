@@ -130,7 +130,7 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
                 plainRows.map { data -> data.map { it.toTimelineMedia() } }
             }
         return rows.map { data ->
-            val media = mergeHidden(data, hidden, settings).map { TimelineEntry.Media(it) as TimelineEntry }
+            val media = mergeHidden(data, hidden, settings, zoneId).map { TimelineEntry.Media(it) as TimelineEntry }
             if (settings.grouping == LibraryGrouping.None) media
             else
                 media.insertSeparators { before: TimelineEntry?, after: TimelineEntry? ->
