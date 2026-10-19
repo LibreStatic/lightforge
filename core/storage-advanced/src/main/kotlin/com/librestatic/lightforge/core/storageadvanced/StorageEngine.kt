@@ -371,7 +371,38 @@ internal class StorageEngine(
     /** Whether [path] exists inside a mounted volume; false for anything the engine would refuse. */
     fun exists(path: String): Boolean = validated(path)?.exists() == true
 
-    // Dot-prefixed hides are not created any more (ADR-046); records from earlier builds are still undone below.
+    /**
+     * Hides one media file by giving it a dot-prefixed name (`IMG.jpg` becomes `.IMG.jpg`), which
+     * MediaStore lists as hidden. The new path is recorded ([HiddenKind.DotPrefix]) so [unhide] can undo
+     * it. Folders are refused (a `.nomedia` hides those), as are names that already start with a dot and
+     * an existing target.
+     */
+    fun hideWithDotPrefix(path: String): AdvancedResult {
+        if (!isGranted()) return AdvancedResult.NotGranted
+        val source = validatedFolder(path) ?: return INVALID
+        if (!source.exists()) return AdvancedResult.Failed("Not found")
+        if (!source.isFile) return AdvancedResult.Failed("Only files can be hidden by name")
+        if (source.name.startsWith(".")) return AdvancedResult.Failed("Already hidden")
+        val parent = source.parentFile ?: return INVALID
+        val target = File(parent, "." + source.name)
+        if (!validName(target.name)) return AdvancedResult.Failed("Invalid name")
+        val createdAt = clock()
+        when (val outcome = renameOne(source.path, target.path)) {
+            is Moved -> scan(listOf(outcome.from.path, outcome.to.path))
+            else -> return outcome.asFailure()
+        }
+        return try {
+            val entries = registry.read().filterNot { it.absolutePath == target.path }
+            registry.write(entries + HiddenEntry(target.path, HiddenKind.DotPrefix, createdAt))
+            AdvancedResult.Done
+        } catch (e: Exception) {
+            // Without the record the hide could not be undone from the app: put the name back.
+            runCatching { renameFile(target, source) }
+            scan(listOf(source.path, target.path))
+            AdvancedResult.Failed(e.message ?: "Could not record hide")
+        }
+    }
+
     private fun undoDotPrefix(hidden: File, entry: HiddenEntry, entries: List<HiddenEntry>): AdvancedResult {
         val forget = { registry.write(entries - entry) }
         // Renamed or deleted behind our back: the hide is already resolved.
@@ -565,6 +596,30 @@ internal class StorageEngine(
         return AdvancedResult.Done
     }
 
+    /**
+     * Asks the media scanner to index every photo and video under [path] (recursively), which adds the
+     * ones MediaStore skipped, such as a folder outside the usual media locations. Returns how many files
+     * were handed to the scanner, or null when the folder is refused or the permission is gone. Pending
+     * and trashed placeholders and the Android data and obb trees are never scanned.
+     */
+    fun scanTree(path: String): Int? {
+        if (!isGranted()) return null
+        val root = validated(path) ?: return null
+        if (!root.isDirectory) return null
+        val files = ArrayList<String>()
+        root.walkTopDown()
+            .onEnter { dir -> dir == root || validated(dir.path) != null }
+            .forEach { file ->
+                if (files.size < MAX_SCAN_FILES && file.isFile && isMediaName(file.name) &&
+                    !file.name.startsWith(PENDING_PREFIX) && !file.name.startsWith(TRASHED_PREFIX)
+                ) {
+                    files += file.path
+                }
+            }
+        files.chunked(SCAN_CHUNK).forEach { scan(it) }
+        return files.size
+    }
+
     /** Immediate sub-folders, sorted by name; Android/data and Android/obb are never listed. */
     fun listDirectories(path: String): List<DirectoryEntry> {
         val dir = validated(path, allowRoot = true) ?: return emptyList()
@@ -657,6 +712,8 @@ internal class StorageEngine(
         const val TRASHED_PREFIX = ".trashed-"
         private const val PARTIAL_SUFFIX = ".lightforge-copy.part"
         private const val COPY_BUFFER_BYTES = 128 * 1024
+        private const val MAX_SCAN_FILES = 50_000
+        private const val SCAN_CHUNK = 500
 
         /** Filesystems store mtime with up to 2 s granularity (FAT); the marker may read slightly older. */
         const val MTIME_TOLERANCE_MILLIS = 2_000L

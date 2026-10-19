@@ -554,6 +554,57 @@ class StorageEngineTest {
         assertTrue(File(volumeA, "Pictures/Other").isDirectory)
     }
 
+    @Test fun aFileHiddenByNameIsRecordedAndUnhideRestoresIt() {
+        val e = engine()
+        val file = File(dir("Pictures"), "a.jpg").apply { writeText("x") }
+        val hidden = File(file.parentFile, ".a.jpg")
+        assertEquals(AdvancedResult.Done, e.hideWithDotPrefix(file.path))
+        assertTrue(!file.exists() && hidden.isFile)
+        assertEquals(listOf(hidden.path), e.hiddenByApp().map { it.absolutePath })
+        assertEquals(AdvancedResult.Done, e.unhide(hidden.path))
+        assertTrue(file.isFile && !hidden.exists() && e.hiddenByApp().isEmpty())
+    }
+
+    @Test fun hidingByNameRefusesFoldersHiddenNamesTakenTargetsAndMissingPermission() {
+        val e = engine()
+        val folder = dir("Pictures/Trip")
+        assertTrue(e.hideWithDotPrefix(folder.path) is AdvancedResult.Failed)
+        assertTrue(folder.isDirectory)
+        val dotted = File(dir("Pictures"), ".b.jpg").apply { writeText("x") }
+        assertTrue(e.hideWithDotPrefix(dotted.path) is AdvancedResult.Failed)
+        val file = File(dir("Pictures"), "c.jpg").apply { writeText("x") }
+        File(file.parentFile, ".c.jpg").writeText("y")
+        assertTrue(e.hideWithDotPrefix(file.path) is AdvancedResult.Failed)
+        assertTrue(file.isFile && e.hiddenByApp().isEmpty())
+        granted = false
+        assertEquals(AdvancedResult.NotGranted, e.hideWithDotPrefix(file.path))
+    }
+
+    @Test fun scanTreeHandsEveryMediaFileUnderTheFolderToTheScanner() {
+        val e = engine()
+        val root = dir("Scans")
+        File(root, "a.jpg").writeText("x")
+        File(dir("Scans/Deep/Er"), "b.MP4").writeText("x")
+        File(root, "notes.txt").writeText("x")
+        File(root, ".trashed-1-c.jpg").writeText("x")
+        scans.clear()
+        assertEquals(2, e.scanTree(root.path))
+        assertEquals(
+            setOf(File(root, "a.jpg").path, File(root, "Deep/Er/b.MP4").path),
+            scans.flatten().toSet(),
+        )
+    }
+
+    @Test fun scanTreeRefusesMissingFoldersFilesOutsideVolumesAndMissingPermission() {
+        val e = engine()
+        val file = File(dir("Scans"), "a.jpg").apply { writeText("x") }
+        assertEquals(null, e.scanTree(file.path))
+        assertEquals(null, e.scanTree(File(volumeA, "Nope").path))
+        assertEquals(null, e.scanTree("/etc"))
+        granted = false
+        assertEquals(null, e.scanTree(file.parent!!))
+    }
+
     @Test fun existsOnlySeesPathsInsideMountedVolumes() {
         val e = engine()
         val f = File(dir("Pictures"), "a.jpg").apply { writeText("x") }

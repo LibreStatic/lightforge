@@ -75,6 +75,20 @@ interface AdvancedStorage {
     /** Whether [absolutePath] exists inside a mounted volume; false when unsupported, not granted or refused. */
     suspend fun pathExists(absolutePath: String): Boolean = false
 
+    /**
+     * Asks the media scanner to index the photos and videos under [absolutePath], recursively; this is how
+     * a folder MediaStore does not list is added to the library. Returns the number of files handed to the
+     * scanner, or null when unsupported, not granted or refused.
+     */
+    suspend fun scanFolderTree(absolutePath: String): Int? = null
+
+    /**
+     * Hides one media file by renaming it with a leading dot (`IMG.jpg` becomes `.IMG.jpg`) and records it
+     * ([HiddenKind.DotPrefix]) so [unhideFolder] can rename it back. The recorded path is the hidden one.
+     * Folders are refused: a `.nomedia` hides those.
+     */
+    suspend fun hideWithDotPrefix(absolutePath: String): AdvancedResult = AdvancedResult.Unsupported
+
     /** Deletes files (one result each, one scan). A file that is already gone counts as [AdvancedResult.Done]. */
     suspend fun deleteFiles(absolutePaths: List<String>): List<AdvancedResult> =
         absolutePaths.map { AdvancedResult.Unsupported }

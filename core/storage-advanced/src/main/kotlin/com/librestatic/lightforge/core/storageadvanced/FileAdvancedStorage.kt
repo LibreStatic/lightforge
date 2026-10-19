@@ -126,6 +126,12 @@ class FileAdvancedStorage(context: Context, private val recoveryOnly: Boolean = 
     override suspend fun pathExists(absolutePath: String): Boolean =
         unguardedValue { engine.exists(absolutePath) } ?: false
 
+    override suspend fun scanFolderTree(absolutePath: String): Int? =
+        unguardedValue { engine.scanTree(absolutePath) }
+
+    override suspend fun hideWithDotPrefix(absolutePath: String): AdvancedResult =
+        guarded { engine.hideWithDotPrefix(absolutePath) }
+
     override suspend fun deleteFiles(absolutePaths: List<String>): List<AdvancedResult> =
         mutex.withLock {
             if (!isGranted()) return@withLock absolutePaths.map { AdvancedResult.NotGranted }
