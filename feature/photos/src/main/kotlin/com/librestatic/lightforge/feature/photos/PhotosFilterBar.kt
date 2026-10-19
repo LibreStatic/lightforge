@@ -35,6 +35,8 @@ import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
 import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuIcons
+import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
  * The Photos filter row: what to show (multi-select chips), how it is ordered (a sort menu) and, on wide
@@ -121,6 +123,7 @@ private fun SortMenu(sort: PhotosSort, onSortChange: (PhotosSort) -> Unit, showL
             PhotosSort.entries.forEach { option ->
                 GalleryMenuItem(
                     text = stringResource(option.labelRes),
+                    icon = option.icon,
                     checked = option == sort,
                     radio = true,
                     onClick = {
@@ -141,6 +144,15 @@ private val PhotosFilter.labelRes: Int
         PhotosFilter.Videos -> R.string.photos_filter_videos
         PhotosFilter.Animated -> R.string.photos_filter_animated
         PhotosFilter.Raw -> R.string.photos_filter_raw
+    }
+
+private val PhotosSort.icon: ImageVector
+    get() = when (this) {
+        PhotosSort.Newest -> GalleryMenuIcons.SortNewest
+        PhotosSort.Oldest -> GalleryMenuIcons.SortOldest
+        PhotosSort.RecentlyModified -> GalleryMenuIcons.SortRecentlyModified
+        PhotosSort.Name -> GalleryMenuIcons.SortName
+        PhotosSort.Largest -> GalleryMenuIcons.SortLargest
     }
 
 private val PhotosSort.labelRes: Int

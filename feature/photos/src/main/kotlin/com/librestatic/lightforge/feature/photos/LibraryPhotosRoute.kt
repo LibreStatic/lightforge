@@ -65,6 +65,8 @@ import kotlinx.coroutines.delay
 import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
 import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
+import com.librestatic.lightforge.core.designsystem.GalleryMenuIcons
+import androidx.compose.ui.graphics.vector.ImageVector
 
 data class PhotoHighlightUi(
     val id: String,
@@ -462,6 +464,7 @@ private fun PhotosOverflowMenu(
             if (onGroupingChange != null) {
                 GalleryMenuItem(
                     text = stringResource(R.string.photos_menu_group),
+                    icon = GalleryMenuIcons.GroupBy,
                     onClick = { expanded = false; groupingOpen = true },
                     testTag = "photos_group",
                 )
@@ -487,6 +490,7 @@ private fun PhotosOverflowMenu(
             PhotosGrouping.entries.forEach { option ->
                 GalleryMenuItem(
                     text = stringResource(option.labelRes),
+                    icon = option.icon,
                     checked = option == grouping,
                     radio = true,
                     checkedDescription = stringResource(R.string.photos_menu_checked),
@@ -497,6 +501,14 @@ private fun PhotosOverflowMenu(
         }
     }
 }
+
+private val PhotosGrouping.icon: ImageVector
+    get() = when (this) {
+        PhotosGrouping.Day -> GalleryMenuIcons.GroupDay
+        PhotosGrouping.Month -> GalleryMenuIcons.GroupMonth
+        PhotosGrouping.Year -> GalleryMenuIcons.GroupYear
+        PhotosGrouping.None -> GalleryMenuIcons.GroupNone
+    }
 
 private val PhotosGrouping.labelRes: Int
     get() = when (this) {
