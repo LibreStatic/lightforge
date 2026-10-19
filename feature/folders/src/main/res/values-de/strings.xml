@@ -170,4 +170,7 @@
     <string name="folders_tree_collapsed">Geschlossen</string>
     <string name="folders_tree_expand">%1$s aufklappen</string>
     <string name="folders_tree_collapse">%1$s zuklappen</string>
+    <string name="folders_picker_other_location">Anderen Speicherort wählen</string>
+    <string name="folders_picker_new_pending">Neuer Ordner „%1$s“ wird hier erstellt</string>
+    <string name="folders_picker_new_pending_clear">Neuen Ordner entfernen</string>
 </resources>

@@ -7,6 +7,7 @@ import com.librestatic.lightforge.core.model.folders.FolderTree
 import com.librestatic.lightforge.core.model.folders.NaturalNameOrder
 import com.librestatic.lightforge.core.model.folders.buildFolderForest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -358,5 +359,17 @@ class FolderExplorerStateTest {
         assertEquals(chosen, byName.getValue("DCIM/Camera").cover)
         assertTrue(byName.getValue("DCIM/Camera").hasCustomCover)
         assertTrue(!byName.getValue("Pictures/Screenshots").hasCustomCover)
+    }
+
+    @Test
+    fun aPendingNewFolderIsChosenInsideTheFolderShownAndFollowsThePickerRules() {
+        val parent = FolderLocation("external_primary", "Pictures/")
+        val child = pendingFolderLocation(parent, " Trip ")
+        assertEquals(FolderLocation("external_primary", "Pictures/Trip/"), child)
+        val mode = ExplorerMode.PickDestination(PickPurpose.Move, emptyList(), withFiles = true)
+        assertTrue(mode.canChoose(child))
+        assertFalse(mode.canChoose(pendingFolderLocation(FolderLocation("external_primary", "Android/media/com.x/"), "Trip")))
+        val folderMove = ExplorerMode.PickDestination(PickPurpose.MoveFolder, listOf(FolderLocation("external_primary", "Pictures/Trip/")))
+        assertFalse(folderMove.canChoose(pendingFolderLocation(FolderLocation("external_primary", "Pictures/Trip/"), "Sub")))
     }
 }

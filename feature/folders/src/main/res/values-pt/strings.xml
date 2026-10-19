@@ -182,4 +182,7 @@
     <string name="folders_tree_collapsed">Recolhida</string>
     <string name="folders_tree_expand">Expandir %1$s</string>
     <string name="folders_tree_collapse">Recolher %1$s</string>
+    <string name="folders_picker_other_location">Escolher outro local</string>
+    <string name="folders_picker_new_pending">A nova pasta “%1$s” é criada aqui</string>
+    <string name="folders_picker_new_pending_clear">Remover a nova pasta</string>
 </resources>

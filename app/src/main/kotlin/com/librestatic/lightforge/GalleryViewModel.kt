@@ -7175,6 +7175,44 @@ class GalleryViewModel @Inject constructor(
     }
 
     /**
+     * Mode off, destination outside the library: the user chose a folder with the system picker. The items are
+     * copied into it, each verified; a move then asks the system to delete exactly the originals that arrived.
+     */
+    fun completeTreePick(tree: Uri) {
+        val request = mutableFolderPick.value as? FolderPickRequest.Items ?: return
+        if (advancedStatus.status.value.active) return
+        mutableFolderPick.value = null
+        val purpose = if (request.purpose == PickPurpose.Copy) TransferPurpose.Copy else TransferPurpose.Move
+        viewModelScope.launch {
+            val sources = transferSources(request.keys)
+            val resolver = getApplication<Application>().contentResolver
+            val copied = ArrayList<TransferSource>()
+            mutableTransferProgress.value = TransferProgress(purpose, 0, sources.size)
+            try {
+                sources.forEachIndexed { index, source ->
+                    mutableTransferProgress.value = TransferProgress(purpose, index, sources.size)
+                    val done = try {
+                        ScopedMediaOperations.copyToTreeVerified(
+                            resolver, MediaActionTarget(source.key, source.kind), tree, source.displayName, mediaMime(source.kind),
+                        )
+                        true
+                    } catch (cancelled: CancellationException) { throw cancelled
+                    } catch (_: Exception) { false }
+                    if (done) copied += source
+                }
+            } finally {
+                mutableTransferProgress.value = null
+            }
+            if (purpose == TransferPurpose.Move && copied.isNotEmpty()) {
+                beginTargetsAction(copied.map { MediaActionTarget(it.key, it.kind) }, MediaAction.Delete)
+            }
+            val result = treeTransferResult(purpose, request.keys.size, copied, request.keys.size - copied.size)
+            if (result.succeeded > 0 || result.awaitingDelete.isNotEmpty()) clearSelection()
+            advancedEventChannel.send(AdvancedOpEvent.Transfer(result))
+        }
+    }
+
+    /**
      * Drag and drop in the explorer (plan 7.11): moves what was dragged into the folder it was dropped on, with
      * the rules and the result message of the destination picker. The ticked files come along when the drag
      * says so. The last picked destination is left alone, since no picker was involved.

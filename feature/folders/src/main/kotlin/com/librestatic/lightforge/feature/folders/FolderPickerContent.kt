@@ -47,9 +47,20 @@ fun FolderPickerContent(
     onRetry: () -> Unit = {},
     /** Files travel with the folders, so a destination that is only the folders' own parent still changes something. */
     withFiles: Boolean = false,
+    /**
+     * A folder named by the user that does not exist yet (the mode-off New folder): the system creates it
+     * when the first item arrives, so confirming chooses it, inside the folder being shown.
+     */
+    pendingFolder: String? = null,
+    onClearPendingFolder: () -> Unit = {},
+    /** Opens the system folder picker for a destination the library does not list; null when not offered. */
+    onOtherLocation: (() -> Unit)? = null,
+    /** The system takes no new folder at a volume root, so a mode-off New folder needs a folder to go in. */
+    newFolderNeedsParent: Boolean = false,
 ) {
     val mode = ExplorerMode.PickDestination(purpose, sourceFolders, withFiles)
-    val here = (state as? FolderExplorerUiState.Folder)?.crumbs?.lastOrNull()?.location
+    val shown = (state as? FolderExplorerUiState.Folder)?.crumbs?.lastOrNull()?.location
+    val here = if (pendingFolder != null && shown != null) pendingFolderLocation(shown, pendingFolder) else shown
     val canChoose = mode.canChoose(here)
     val title = stringResource(
         when (purpose) {
@@ -66,10 +77,16 @@ fun FolderPickerContent(
                 onBack = onBack,
                 navigationContentDescription = stringResource(R.string.folders_picker_back),
                 actions = {
+                    if (onOtherLocation != null) {
+                        IconButton(onClick = onOtherLocation, modifier = Modifier.testTag("folder-picker-other-location")) {
+                            Icon(GalleryIcons.OpenInNew, contentDescription = stringResource(R.string.folders_picker_other_location))
+                        }
+                    }
                     if (onNewFolder != null) {
                         IconButton(
                             onClick = onNewFolder,
-                            enabled = here != null && here.relativePath?.let(::isAndroidAppTree) != true,
+                            enabled = shown != null && shown.relativePath?.let(::isAndroidAppTree) != true &&
+                                (!newFolderNeedsParent || !shown.relativePath.isNullOrBlank()),
                             modifier = Modifier.testTag("folder-picker-new-folder"),
                         ) {
                             Icon(GalleryIcons.CreateNewFolder, contentDescription = stringResource(R.string.folders_new_title))
@@ -96,6 +113,16 @@ fun FolderPickerContent(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    if (pendingFolder != null) {
+                        Text(
+                            stringResource(R.string.folders_picker_new_pending, pendingFolder),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f).testTag("folder-picker-pending"),
+                        )
+                        IconButton(onClick = onClearPendingFolder, modifier = Modifier.testTag("folder-picker-pending-clear")) {
+                            Icon(GalleryIcons.Close, contentDescription = stringResource(R.string.folders_picker_new_pending_clear))
+                        }
+                    }
                     Button(
                         onClick = { here?.let(onConfirm) },
                         enabled = canChoose,

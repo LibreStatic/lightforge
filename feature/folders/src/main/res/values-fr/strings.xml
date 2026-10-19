@@ -182,4 +182,7 @@
     <string name="folders_tree_collapsed">Réduit</string>
     <string name="folders_tree_expand">Développer %1$s</string>
     <string name="folders_tree_collapse">Réduire %1$s</string>
+    <string name="folders_picker_other_location">Choisir un autre emplacement</string>
+    <string name="folders_picker_new_pending">Le nouveau dossier « %1$s » est créé ici</string>
+    <string name="folders_picker_new_pending_clear">Retirer le nouveau dossier</string>
 </resources>

@@ -367,6 +367,10 @@ fun isStandardFolder(relativePath: String?): Boolean {
 fun normalizedFolderPath(path: String): String =
     path.trim('/').takeIf { it.isNotEmpty() }?.let { "$it/" } ?: ""
 
+/** Where the not yet created folder [name] goes when it is made inside [parent]. */
+fun pendingFolderLocation(parent: FolderLocation, name: String): FolderLocation =
+    FolderLocation(parent.volumeName, normalizedFolderPath(parent.relativePath.orEmpty()) + name.trim().trim('/') + "/")
+
 private fun filesCard(node: FolderNode<FolderStats>, stats: FolderStats) = FolderCardUi(
     key = "files",
     name = node.name,

@@ -164,4 +164,18 @@ class MediaStorePathTransferTest {
         val bytes = ByteArray(10)
         assertTrue(runCatching { copyAndVerify({ bytes.inputStream() }, { java.io.ByteArrayOutputStream() }, { null }) }.isFailure)
     }
+
+    @Test
+    fun aBatchCopiedToAPickedTreeIsDoneForCopyAndWaitsForTheOriginalsForMove() {
+        val copied = listOf(source(1), source(2))
+        val copy = treeTransferResult(TransferPurpose.Copy, 3, copied, failed = 1)
+        assertEquals(2, copy.copied)
+        assertEquals(1, copy.failed)
+        assertTrue(copy.awaitingDelete.isEmpty())
+        val move = treeTransferResult(TransferPurpose.Move, 3, copied, failed = 1)
+        assertEquals(copied, move.awaitingDelete)
+        assertEquals(0, move.copied)
+        assertEquals(TransferOutcome.Partial, move.outcome())
+        assertEquals(TransferOutcome.Failed, treeTransferResult(TransferPurpose.Move, 2, emptyList(), failed = 2).outcome())
+    }
 }

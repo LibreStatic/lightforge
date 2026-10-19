@@ -87,6 +87,17 @@ internal class MediaStorePathTransfer(private val gateway: MediaStoreGateway) {
     }
 }
 
+/**
+ * The result of copying a batch into a folder picked with the system picker: a copy is done, a move still
+ * waits for the originals of the [copied] items to be deleted. [failed] items were not written.
+ */
+internal fun treeTransferResult(purpose: TransferPurpose, total: Int, copied: List<TransferSource>, failed: Int): TransferResult =
+    if (purpose == TransferPurpose.Copy) {
+        TransferResult(purpose, total, copied = copied.size, failed = failed)
+    } else {
+        TransferResult(purpose, total, awaitingDelete = copied, failed = failed)
+    }
+
 /** The platform implementation: ordinary ContentResolver calls, no file permission beyond the media access the app has. */
 internal class ResolverMediaStoreGateway(private val resolver: ContentResolver) : MediaStoreGateway {
     override fun move(source: TransferSource, relativePath: String): Boolean = runCatching {

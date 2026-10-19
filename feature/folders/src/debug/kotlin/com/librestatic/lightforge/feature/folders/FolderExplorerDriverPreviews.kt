@@ -134,6 +134,11 @@ fun FolderPickerNoSubfoldersPreview() =
 fun FolderPickerAndroidTreePreview() =
     PickerFrame(PickPurpose.Move, advancedTree, FolderLocation("external_primary", "Android/media/com.whatsapp/WhatsApp/Media/"))
 
+/** Mode off: a named new folder is pending, the bar says where it will be created and offers the system picker. */
+@Composable
+fun FolderPickerPendingFolderPreview() =
+    PickerFrame(PickPurpose.Move, advancedTree, FolderLocation("external_primary", "DCIM/"), pendingFolder = "Holidays", otherLocation = true)
+
 /** Two volumes at the volume list: nothing can be chosen yet. */
 @Composable
 fun FolderPickerVolumesPreview() = PickerFrame(PickPurpose.Copy, twoVolumes, FolderLocation.Start)
@@ -229,6 +234,8 @@ private fun PickerFrame(
     tree: FolderTree,
     start: FolderLocation,
     source: FolderLocation? = null,
+    pendingFolder: String? = null,
+    otherLocation: Boolean = false,
 ) {
     LightforgeTheme {
         var location by remember { mutableStateOf(start) }
@@ -242,6 +249,8 @@ private fun PickerFrame(
             onBack = { parentLocation(tree, location)?.let { location = it } },
             onNewFolder = {},
             onConfirm = {},
+            pendingFolder = pendingFolder,
+            onOtherLocation = if (otherLocation) ({}) else null,
         )
     }
 }

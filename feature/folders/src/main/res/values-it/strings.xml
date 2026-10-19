@@ -182,4 +182,7 @@
     <string name="folders_tree_collapsed">Compressa</string>
     <string name="folders_tree_expand">Espandi %1$s</string>
     <string name="folders_tree_collapse">Comprimi %1$s</string>
+    <string name="folders_picker_other_location">Scegli un’altra posizione</string>
+    <string name="folders_picker_new_pending">La nuova cartella «%1$s» viene creata qui</string>
+    <string name="folders_picker_new_pending_clear">Rimuovi la nuova cartella</string>
 </resources>

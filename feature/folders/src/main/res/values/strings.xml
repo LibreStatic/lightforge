@@ -171,4 +171,7 @@
     <string name="folders_tree_collapsed">Collapsed</string>
     <string name="folders_tree_expand">Expand %1$s</string>
     <string name="folders_tree_collapse">Collapse %1$s</string>
+    <string name="folders_picker_other_location">Choose another location</string>
+    <string name="folders_picker_new_pending">New folder “%1$s” is created here</string>
+    <string name="folders_picker_new_pending_clear">Remove the new folder</string>
 </resources>

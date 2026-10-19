@@ -182,4 +182,7 @@
     <string name="folders_tree_collapsed">Contraída</string>
     <string name="folders_tree_expand">Expandir %1$s</string>
     <string name="folders_tree_collapse">Contraer %1$s</string>
+    <string name="folders_picker_other_location">Elegir otra ubicación</string>
+    <string name="folders_picker_new_pending">La carpeta nueva «%1$s» se crea aquí</string>
+    <string name="folders_picker_new_pending_clear">Quitar la carpeta nueva</string>
 </resources>

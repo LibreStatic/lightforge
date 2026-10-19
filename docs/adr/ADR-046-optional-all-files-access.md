@@ -210,6 +210,13 @@ Moves and copies (Simple Gallery gap plan sections 7.8 and 7.10):
   inserts a row and streams the bytes, and a cross-volume move copies and then requests
   `MediaAction.Delete` for the originals. Limits: a volume root is not a destination, and a request
   above 500 items is split into chunks whose counters are summed.
+- New folder in the picker with the mode off names a folder that does not exist yet (not at a volume
+  root); the bar says where it will be created, confirming chooses it and the system creates it when
+  the first item is written into it. A destination the library does not list (an SD card folder, a
+  cloud provider) is reached with the "Choose another location" action, which opens the system folder
+  picker; the items are copied into it one by one, each verified, and a move then asks the system to
+  delete exactly the originals that arrived. Folders are never moved this way: folder operations need
+  the mode.
 
 Index: the Animated filter reads an `isAnimated` column set at index time from the file header (GIF
 by type; WebP, APNG, AVIF and HEIF sequences by their markers). Migration 32 to 33 marks existing GIFs

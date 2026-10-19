@@ -1,6 +1,8 @@
 package com.librestatic.lightforge
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
@@ -80,6 +82,7 @@ internal fun FolderPickerHost(
     start: FolderLocation,
     thumbnails: ThumbnailLoader?,
     onPick: (FolderLocation) -> Unit,
+    onPickTree: (android.net.Uri) -> Unit,
     onCancel: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -88,6 +91,16 @@ internal fun FolderPickerHost(
     val state by picker.uiState.collectAsState()
     val canCreate by picker.chrome.collectAsState()
     val newFolderOpen by picker.newFolderOpen.collectAsState()
+    val advancedActive by picker.advancedActive.collectAsState()
+    // Mode off: a new folder is only a name; the system creates it when the first item is written into it.
+    var pendingFolder by rememberSaveable(request) { mutableStateOf<String?>(null) }
+    var namingPending by rememberSaveable(request) { mutableStateOf(false) }
+    val here = (state as? FolderExplorerUiState.Folder)?.crumbs?.lastOrNull()?.location
+    LaunchedEffect(here) { pendingFolder = null }
+    // Files outside the library (an SD card folder, a cloud provider) are reached through the system picker.
+    val treeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        tree?.let(onPickTree)
+    }
     var opened by rememberSaveable(request) { mutableStateOf(false) }
     LaunchedEffect(request, opened) {
         if (!opened) {
@@ -111,10 +124,30 @@ internal fun FolderPickerHost(
             thumbnails = thumbnails,
             onEnter = picker::open,
             onBack = goBack,
-            onNewFolder = if (canCreate.canCreateFolder) picker::beginNewFolder else null,
+            onNewFolder = when {
+                canCreate.canCreateFolder -> picker::beginNewFolder
+                !advancedActive && state is FolderExplorerUiState.Folder -> { { namingPending = true } }
+                else -> null
+            },
             onConfirm = onPick,
             onRetry = picker::retry,
+            pendingFolder = pendingFolder,
+            onClearPendingFolder = { pendingFolder = null },
+            onOtherLocation = if (!advancedActive && request is FolderPickRequest.Items) {
+                { treeLauncher.launch(null) }
+            } else {
+                null
+            },
+            newFolderNeedsParent = !advancedActive,
         )
+        if (namingPending) {
+            val siblings = (state as? FolderExplorerUiState.Folder)?.folders?.map { it.name }.orEmpty()
+            NewFolderDialog(
+                siblings = siblings,
+                onDismiss = { namingPending = false },
+                onCreate = { name -> pendingFolder = name; namingPending = false },
+            )
+        }
         if (newFolderOpen) {
             val siblings = (state as? FolderExplorerUiState.Folder)?.folders?.map { it.name }.orEmpty()
             NewFolderDialog(siblings = siblings, onDismiss = picker::dismissNewFolder, onCreate = picker::createFolder)
@@ -196,6 +229,7 @@ internal fun AdvancedOperationsHost(
             start = last,
             thumbnails = thumbnails,
             onPick = viewModel::completeFolderPick,
+            onPickTree = viewModel::completeTreePick,
             onCancel = viewModel::cancelFolderPick,
         )
     }
