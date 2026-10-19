@@ -1823,7 +1823,8 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    private val refreshMutex = Mutex()
+    // Process-wide: a second MainActivity (own VM) must not run a full scan concurrently with this one.
+    private val refreshMutex = processWideRefreshMutex
 
     fun onHardwareVolumeKey() {
         mutableHardwareVolumeKeys.tryEmit(Unit)
@@ -8296,3 +8297,6 @@ class GalleryViewModel @Inject constructor(
 }
 
 private const val SelectionShareLimit = 500
+
+/** Serialises library refreshes across every GalleryViewModel instance in the process. */
+private val processWideRefreshMutex = Mutex()

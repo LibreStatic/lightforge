@@ -1,6 +1,5 @@
 package com.librestatic.lightforge
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
@@ -127,11 +126,7 @@ internal fun FolderExplorerHost(
                     val view = Intent(Intent.ACTION_VIEW)
                         .setDataAndType(Uri.parse(item.uri), item.mimeType)
                         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    try {
-                        context.startActivity(view)
-                    } catch (_: ActivityNotFoundException) {
-                        // No viewer for this type: nothing to open.
-                    }
+                    startExternalViewer(context, view)
                 },
             )
         }

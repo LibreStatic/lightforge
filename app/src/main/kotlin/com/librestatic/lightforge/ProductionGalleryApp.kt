@@ -1618,7 +1618,7 @@ internal fun ProductionGalleryApp(
                                     val view = Intent(Intent.ACTION_VIEW)
                                         .setDataAndType(row.contentUri, row.mimeType)
                                         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    try { context.startActivity(view) } catch (_: android.content.ActivityNotFoundException) {}
+                                    startExternalViewer(context, view)
                                 }
                             } else if (selectionCount > 0) viewModel.toggleSelection(media)
                             else if (media.stack != null) {
