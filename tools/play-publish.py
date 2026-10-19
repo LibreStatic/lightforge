@@ -8,13 +8,15 @@ system `openssl`. The service-account key is the organisation-wide one in
   tools/play-publish.py status
   tools/play-publish.py publish --aab app.aab [--mapping mapping.txt] [--track alpha]
                                 [--notes store/play/release-notes/X.txt] [--dry-run]
-                                [--no-review]
+                                [--no-review] [--draft]
 
 `publish` uploads the bundle (and the R8 mapping, if given), puts one release on the
 track with the per-locale notes and the name "<versionCode> (<versionName>)", and
 commits the edit, which sends it for review. `--dry-run` validates and discards the
 edit instead. `--no-review` commits with changesNotSentForReview, leaving the change
-in Publishing overview for someone to send from the Console.
+in Publishing overview for someone to send from the Console. `--draft` adds the
+release as a draft next to the live one and skips validation, for when the Console
+needs a release using a new permission before it accepts that permission's declaration.
 """
 import argparse
 import base64
@@ -168,14 +170,24 @@ def cmd_publish(play, args):
         release = {
             "name": f"{code} ({version_name})",
             "versionCodes": [str(code)],
-            "status": "completed",
+            "status": "draft" if args.draft else "completed",
             "releaseNotes": notes,
         }
+        releases = [release]
+        if args.draft:
+            # A draft sits next to the live release instead of replacing it.
+            current = play.call("GET", play.edit_url(edit, f"/tracks/{args.track}"))
+            releases = [r for r in current.get("releases", []) if r.get("status") != "draft"] + releases
         play.call("PUT", play.edit_url(edit, f"/tracks/{args.track}"),
-                  body={"track": args.track, "releases": [release]})
-        print(f"track {args.track}: {release['name']}, notes for {len(notes)} languages")
-        play.call("POST", play.edit_url(edit, ":validate"))
-        print("edit validated")
+                  body={"track": args.track, "releases": releases})
+        print(f"track {args.track}: {release['name']} ({release['status']}), notes for {len(notes)} languages")
+        if args.draft:
+            # Validation fails while a permission declaration is still missing, and the
+            # Console only offers that declaration once a release using the permission exists.
+            print("draft: validation skipped")
+        else:
+            play.call("POST", play.edit_url(edit, ":validate"))
+            print("edit validated")
         if args.dry_run:
             print("dry run: edit discarded")
             return
@@ -201,6 +213,8 @@ def main():
     pub.add_argument("--version-name", help="default: versionName in app/build.gradle.kts")
     pub.add_argument("--dry-run", action="store_true", help="validate, then discard the edit")
     pub.add_argument("--no-review", action="store_true", help="commit without sending for review")
+    pub.add_argument("--draft", action="store_true",
+                     help="add the release as a draft and skip validation (pair with --no-review)")
     args = parser.parse_args()
     package = args.package or gradle_value(r'applicationId\s*=\s*"([^"]+)"')
     if not package:
