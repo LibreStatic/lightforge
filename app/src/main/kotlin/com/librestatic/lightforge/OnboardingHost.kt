@@ -1,5 +1,6 @@
 package com.librestatic.lightforge
 
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -48,7 +49,8 @@ internal fun OnboardingHost(
         val advanced = entryPoint.advancedStorage()
         if (!advanced.isSupported) null else OnboardingAllFilesAccess(
             isGranted = advanced::isGranted,
-            intent = advanced::permissionIntent,
+            // Launched for a result: NEW_TASK would deliver RESULT_CANCELED at once, before the user decides.
+            intent = { advanced.permissionIntent()?.apply { removeFlags(Intent.FLAG_ACTIVITY_NEW_TASK) } },
             onResult = entryPoint.status()::refresh,
         )
     }
