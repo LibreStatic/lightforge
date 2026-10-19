@@ -291,4 +291,15 @@
     </plurals>
     <string name="storage_access_advanced_supporting">Mostra itens ocultos, oculta e reexibe pastas, move e renomeia arquivos instantaneamente no mesmo armazenamento, cria, renomeia, move, copia e exclui permanentemente pastas (inclusive as que têm arquivos).</string>
     <string name="storage_access_enable_body">Este modo permite que o Lightforge:\n• Mostre fotos e vídeos de pastas ocultas com .nomedia\n• Oculte e reexiba pastas\n• Mova e renomeie arquivos instantaneamente no mesmo armazenamento\n• Crie, renomeie, mova e copie pastas\n• Exclua permanentemente pastas com tudo o que há dentro, depois de você confirmar quantos arquivos são (nada vai para a lixeira)\n• Opcionalmente, exclua pastas que ficaram vazias após uma movimentação\n\nUsa a permissão de acesso a todos os arquivos, concedida na próxima tela. Você pode desativá-lo a qualquer momento. O Lightforge guarda uma lista das pastas que oculta para poder desfazer.</string>
+    <string name="settings_start_screen">Tela inicial</string>
+    <string name="settings_start_screen_photos">Fotos</string>
+    <string name="settings_start_screen_albums">Álbuns</string>
+    <string name="settings_start_screen_folders">Pastas</string>
+    <string name="storage_access_included_title">Pastas incluídas</string>
+    <string name="storage_access_included_body">Adicione pastas que o sistema não indexa, como uma em um local que o scanner de mídia ignora. As fotos e os vídeos delas são escaneados para a biblioteca, e de novo sempre que o acesso a todos os arquivos for ativado.</string>
+    <string name="storage_access_included_add">Adicionar pasta</string>
+    <string name="storage_access_included_rescan">Escanear de novo</string>
+    <string name="storage_access_included_remove">Remover</string>
+    <string name="storage_access_included_remove_description">Remover %1$s das pastas incluídas</string>
+    <string name="storage_access_include_failed">Não foi possível adicionar essa pasta.</string>
 </resources>

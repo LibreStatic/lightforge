@@ -247,7 +247,23 @@ data class OperationSettings(
     val showEvenIfHidden: Set<String> = emptySet(),
     /** Device folders: the cover the user chose per folder, as `volume|path/` to `volume:mediaStoreId`. */
     val folderCovers: Map<String, String> = emptyMap(),
+    /** Where the app opens on a cold start. */
+    val startScreen: StartScreen = StartScreen.Photos,
+    /** Advanced mode: absolute paths of folders the user asked to add to the library even though MediaStore does not index them. */
+    val scannedFolders: Set<String> = emptySet(),
 )
+
+/** The surface the app opens on. [key] is persisted: never rename it. */
+enum class StartScreen(val key: String) {
+    Photos("photos"),
+    Albums("albums"),
+    Folders("folders");
+
+    companion object {
+        /** An unknown key (a newer app or a damaged backup) means the default. */
+        fun fromKey(key: String?): StartScreen = entries.firstOrNull { it.key == key } ?: Photos
+    }
+}
 
 /** Confirmation dialogs the user can silence, and bring back from Settings. [key] is persisted: never rename it. */
 enum class DismissibleWarning(val key: String) {

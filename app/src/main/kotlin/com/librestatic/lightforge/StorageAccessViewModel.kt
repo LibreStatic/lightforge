@@ -39,7 +39,21 @@ internal data class StorageExtras(
     val deleteEmptyFolders: Boolean = false,
     val protectHiddenItems: Boolean = false,
     val appLockEnabled: Boolean = false,
+    val scannedFolders: Set<String> = emptySet(),
 )
+
+/**
+ * The volume name MediaStore uses and the relative path of a folder picked in the system picker, from the
+ * tree's document id (`primary:Scans/2024` or `ABCD-1234:Photos`). Null for ids that are not a folder of a volume.
+ */
+internal fun treeDocumentVolumeAndPath(documentId: String): Pair<String, String>? {
+    val separator = documentId.indexOf(':')
+    if (separator <= 0) return null
+    val volume = documentId.substring(0, separator)
+    val path = documentId.substring(separator + 1).trim('/')
+    if (path.isEmpty()) return null
+    return (if (volume.equals("primary", ignoreCase = true)) "external_primary" else volume.lowercase()) to path
+}
 
 /**
  * Plain logic behind the "Storage access" page (ADR-046), kept free of Android and Hilt so it is unit
@@ -56,6 +70,7 @@ internal class StorageAccessModel(
     private val writeShowHidden: suspend (Boolean) -> Unit = {},
     private val writeDeleteEmptyFolders: suspend (Boolean) -> Unit = {},
     private val expectLocalChange: (Boolean) -> Unit = {},
+    private val writeScannedFolders: suspend (Set<String>) -> Unit = {},
 ) {
     /** Entries whose unhide needs the user to pick the folder (the owner path failed without the permission). */
     private val needsTreeGrant = linkedSetOf<String>()
@@ -76,6 +91,7 @@ internal class StorageAccessModel(
             deleteEmptyFolders = extras.deleteEmptyFolders,
             protectHiddenItems = extras.protectHiddenItems,
             appLockEnabled = extras.appLockEnabled,
+            scannedFolders = extras.scannedFolders.sorted(),
             busy = busy,
             message = message,
         )
@@ -89,6 +105,29 @@ internal class StorageAccessModel(
     suspend fun setShowHidden(enabled: Boolean) = writeShowHidden(enabled)
 
     suspend fun setDeleteEmptyFolders(enabled: Boolean) = writeDeleteEmptyFolders(enabled)
+
+    /**
+     * Adds a folder the user picked (the tree's document id) to the library: the scanner indexes its photos
+     * and videos, and the folder is remembered so it is scanned again when the mode turns on.
+     */
+    suspend fun includeFolder(documentId: String?): StorageAccessMessage? {
+        val (volume, relative) = documentId?.let(::treeDocumentVolumeAndPath) ?: return includeFailed
+        val path = advanced.absolutePathOf(volume, "$relative/")?.trimEnd('/') ?: return includeFailed
+        if (withContext(io) { advanced.scanFolderTree(path) } == null) {
+            return if (advanced.isGranted()) includeFailed else permissionNeeded
+        }
+        writeScannedFolders(readExtras().scannedFolders + path)
+        return null
+    }
+
+    suspend fun removeIncludedFolder(absolutePath: String) {
+        writeScannedFolders(readExtras().scannedFolders - absolutePath)
+    }
+
+    /** Scans every included folder again; a folder that is gone is left in the list for the user to remove. */
+    suspend fun rescanScannedFolders() {
+        readExtras().scannedFolders.forEach { withContext(io) { advanced.scanFolderTree(it) } }
+    }
 
     /** Works without the permission when the marker is ours; otherwise the row asks for the folder. */
     suspend fun unhide(absolutePath: String): StorageAccessMessage? {
@@ -139,6 +178,7 @@ internal class StorageAccessModel(
     }
 
     private val permissionNeeded = StorageAccessMessage(StorageAccessMessageKind.PermissionNeeded)
+    private val includeFailed = StorageAccessMessage(StorageAccessMessageKind.IncludeFailed)
     private fun notUnhidden(count: Int) = StorageAccessMessage(StorageAccessMessageKind.NotAllUnhidden, count)
 }
 
@@ -162,11 +202,13 @@ class StorageAccessViewModel @Inject constructor(
                 deleteEmptyFolders = current.operations.advancedDeleteEmptyFolders,
                 protectHiddenItems = current.security.protectHiddenItems,
                 appLockEnabled = current.security.appLockEnabled,
+                scannedFolders = current.operations.scannedFolders,
             )
         },
         writeShowHidden = { on -> settings.update { it.copy(operations = it.operations.copy(advancedShowHidden = on)) } },
         writeDeleteEmptyFolders = { on -> settings.update { it.copy(operations = it.operations.copy(advancedDeleteEmptyFolders = on)) } },
         expectLocalChange = status::expectLocalChange,
+        writeScannedFolders = { paths -> settings.update { it.copy(operations = it.operations.copy(scannedFolders = paths)) } },
     )
     private val lock = Mutex()
     private val mutableState = MutableStateFlow(StorageAccessUiState())
@@ -185,6 +227,11 @@ class StorageAccessViewModel @Inject constructor(
         onUnhideWithTree = { path, uri -> run { model.unhideWithTree(path, uri) } },
         onSetShowHidden = { on -> run { model.setShowHidden(on); null } },
         onSetDeleteEmptyFolders = { on -> run { model.setDeleteEmptyFolders(on); null } },
+        onIncludeFolder = { uri ->
+            run { model.includeFolder(runCatching { android.provider.DocumentsContract.getTreeDocumentId(uri) }.getOrNull()) }
+        },
+        onRemoveScannedFolder = { path -> run { model.removeIncludedFolder(path); null } },
+        onRescanScannedFolders = { run { model.rescanScannedFolders(); null } },
         onDismissUnhidePrompt = status::dismissPendingUnhide,
         onKeepHidden = status::keepHidden,
         manageMediaIntent = { MediaManagementAccess.requestIntent(context) },
@@ -194,7 +241,7 @@ class StorageAccessViewModel @Inject constructor(
     init {
         // Also picks up an imported or reset settings file while the page is open.
         viewModelScope.launch {
-            settings.settings.map { listOf(it.operations.advancedStorageEnabled, it.operations.advancedShowHidden, it.operations.advancedDeleteEmptyFolders, it.security.protectHiddenItems, it.security.appLockEnabled) }
+            settings.settings.map { listOf(it.operations.advancedStorageEnabled, it.operations.advancedShowHidden, it.operations.advancedDeleteEmptyFolders, it.operations.scannedFolders, it.security.protectHiddenItems, it.security.appLockEnabled) }
                 .distinctUntilChanged().collect { refresh() }
         }
     }

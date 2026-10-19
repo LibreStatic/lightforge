@@ -354,6 +354,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         lastFolder = p[Keys.LastFolder],
                         showEvenIfHidden = p[Keys.ShowEvenIfHidden].orEmpty(),
                         folderCovers = decodeStringMap(p[Keys.FolderCovers]),
+                        startScreen = StartScreen.fromKey(p[Keys.StartScreen]),
+                        scannedFolders = p[Keys.ScannedFolders].orEmpty(),
                     ),
                 security =
                     SecuritySettings(
@@ -430,6 +432,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         s.operations.lastFolder?.let { p[Keys.LastFolder] = it } ?: p.remove(Keys.LastFolder)
         p[Keys.ShowEvenIfHidden] = s.operations.showEvenIfHidden
         p[Keys.FolderCovers] = encodeStringMap(s.operations.folderCovers)
+        p[Keys.StartScreen] = s.operations.startScreen.key
+        p[Keys.ScannedFolders] = s.operations.scannedFolders
         p[Keys.AppLock] = s.security.appLockEnabled
         p[Keys.DestructiveLock] = s.security.destructiveActionLockEnabled
         p[Keys.RelockTimeout] = s.security.relockTimeoutMinutes
@@ -522,6 +526,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     operations.lastFolder?.let { put("lastFolder", it) }
                     put("showEvenIfHidden", JSONArray(operations.showEvenIfHidden.sorted()))
                     put("folderCovers", encodeStringMap(operations.folderCovers))
+                    put("startScreen", operations.startScreen.key)
+                    put("scannedFolders", JSONArray(operations.scannedFolders.sorted()))
                 },
             )
             put(
@@ -648,6 +654,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     o.optString("lastFolder", "").ifBlank { null },
                     o.stringSet("showEvenIfHidden"),
                     decodeStringMap(o.optString("folderCovers", "")),
+                    StartScreen.fromKey(o.optString("startScreen", "")),
+                    o.stringSet("scannedFolders"),
                 ),
             security =
                 SecuritySettings(
@@ -723,6 +731,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val LastFolder = stringPreferencesKey("folders.last")
         val ShowEvenIfHidden = stringSetPreferencesKey("folders.show_even_if_hidden")
         val FolderCovers = stringPreferencesKey("folders.covers")
+        val StartScreen = stringPreferencesKey("operations.start_screen")
+        val ScannedFolders = stringSetPreferencesKey("operations.scanned_folders")
         val ProtectHiddenItems = booleanPreferencesKey("security.protect_hidden_items")
         val AppLock = booleanPreferencesKey("security.app_lock")
         val DestructiveLock = booleanPreferencesKey("security.destructive_lock")

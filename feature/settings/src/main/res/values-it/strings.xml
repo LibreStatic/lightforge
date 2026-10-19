@@ -291,4 +291,15 @@
     </plurals>
     <string name="storage_access_advanced_supporting">Mostra gli elementi nascosti, nasconde e mostra di nuovo le cartelle, sposta e rinomina i file all\'istante nello stesso archivio, crea, rinomina, sposta, copia ed elimina definitivamente le cartelle (anche quelle con file all\'interno).</string>
     <string name="storage_access_enable_body">Questa modalità permette a Lightforge di:\n• Mostrare foto e video nelle cartelle nascoste con .nomedia\n• Nascondere e mostrare di nuovo le cartelle\n• Spostare e rinominare i file all\'istante nello stesso archivio\n• Creare, rinominare, spostare e copiare cartelle\n• Eliminare definitivamente le cartelle con tutto il loro contenuto, dopo che hai confermato quanti file sono (nulla passa dal cestino)\n• Facoltativamente, eliminare le cartelle rimaste vuote dopo uno spostamento\n\nUsa l\'autorizzazione di accesso a tutti i file, che concedi nella schermata successiva. Puoi disattivarla in qualsiasi momento. Lightforge conserva l\'elenco delle cartelle che nasconde per poter annullare.</string>
+    <string name="settings_start_screen">Schermata iniziale</string>
+    <string name="settings_start_screen_photos">Foto</string>
+    <string name="settings_start_screen_albums">Album</string>
+    <string name="settings_start_screen_folders">Cartelle</string>
+    <string name="storage_access_included_title">Cartelle incluse</string>
+    <string name="storage_access_included_body">Aggiungi cartelle che il sistema non indicizza, per esempio in una posizione che lo scanner dei media ignora. Foto e video vengono scansionati nella libreria e di nuovo ogni volta che si attiva l\'accesso a tutti i file.</string>
+    <string name="storage_access_included_add">Aggiungi cartella</string>
+    <string name="storage_access_included_rescan">Scansiona di nuovo</string>
+    <string name="storage_access_included_remove">Rimuovi</string>
+    <string name="storage_access_included_remove_description">Rimuovi %1$s dalle cartelle incluse</string>
+    <string name="storage_access_include_failed">Impossibile aggiungere questa cartella.</string>
 </resources>

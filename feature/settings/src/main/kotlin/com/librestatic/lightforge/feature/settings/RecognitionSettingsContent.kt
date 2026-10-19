@@ -83,6 +83,7 @@ import com.librestatic.lightforge.core.preferences.AutoGridColumns
 import com.librestatic.lightforge.core.preferences.MaxGridColumns
 import com.librestatic.lightforge.core.preferences.MinGridColumns
 import com.librestatic.lightforge.core.preferences.DismissibleWarning
+import com.librestatic.lightforge.core.preferences.StartScreen
 import com.librestatic.lightforge.core.preferences.GallerySettings
 import com.librestatic.lightforge.core.preferences.FolderSelectionMode
 import com.librestatic.lightforge.core.preferences.FolderSelectionPolicy
@@ -1592,6 +1593,21 @@ private fun OperationsSection(
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
 ) {
     SettingsCard {
+        val start = settings.operations.startScreen
+        SettingsValueRow(
+            stringResource(R.string.settings_start_screen),
+            stringResource(
+                when (start) {
+                    StartScreen.Photos -> R.string.settings_start_screen_photos
+                    StartScreen.Albums -> R.string.settings_start_screen_albums
+                    StartScreen.Folders -> R.string.settings_start_screen_folders
+                },
+            ),
+            modifier = Modifier.testTag("settings_start_screen_row"),
+        ) {
+            val next = StartScreen.entries[(start.ordinal + 1) % StartScreen.entries.size]
+            onSettingsChange { current -> current.copy(operations = current.operations.copy(startScreen = next)) }
+        }
         SettingsSwitchRow(stringResource(R.string.settings_share_sanitized), settings.operations.shareWithoutLocationByDefault) {
             onSettingsChange { current -> current.copy(operations = current.operations.copy(shareWithoutLocationByDefault = it)) }
         }

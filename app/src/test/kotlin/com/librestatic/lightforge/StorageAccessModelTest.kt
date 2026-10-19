@@ -49,6 +49,11 @@ class StorageAccessModelTest {
             }
             return failed.map { HiddenEntry(it, HiddenKind.NoMediaFile, 5L) }
         }
+        val scanned = mutableListOf<String>()
+        var scanResult: Int? = 3
+        override fun absolutePathOf(volumeName: String, relativePath: String?, displayName: String?): String? =
+            if (volumeName == "external_primary") "/storage/emulated/0/" + relativePath.orEmpty() else null
+        override suspend fun scanFolderTree(absolutePath: String): Int? { scanned += absolutePath; return scanResult }
         override suspend fun renameInPlace(sourceAbsolutePath: String, targetAbsolutePath: String) = AdvancedResult.Done
         override suspend fun deleteEmptyDirectory(absolutePath: String) = AdvancedResult.Done
     }
@@ -63,7 +68,10 @@ class StorageAccessModelTest {
             writeEnabled = { enabled = it },
             io = Dispatchers.Unconfined,
             expectLocalChange = { localChanges += it },
+            readExtras = { StorageExtras(scannedFolders = included) },
+            writeScannedFolders = { included = it },
         )
+        var included: Set<String> = emptySet()
     }
 
     @Test fun `snapshot combines both permissions, the opt-in and the sorted registry`() = runBlocking {
@@ -182,5 +190,40 @@ class StorageAccessModelTest {
         val noneStatus = statusFor(none, Fake(granted = true, hidden = emptyList()))
         none.value = false
         assertEquals(0, noneStatus.pendingUnhide.value)
+    }
+
+    @Test fun `a picked folder is scanned and remembered, and removing it forgets it`() = runBlocking {
+        val env = Env(Fake(granted = true, hidden = emptyList()))
+        assertNull(env.model.includeFolder("primary:Scans/2024"))
+        assertEquals(listOf("/storage/emulated/0/Scans/2024"), env.storage.scanned)
+        assertEquals(setOf("/storage/emulated/0/Scans/2024"), env.included)
+        assertEquals(listOf("/storage/emulated/0/Scans/2024"), env.model.snapshot().scannedFolders)
+        env.model.removeIncludedFolder("/storage/emulated/0/Scans/2024")
+        assertTrue(env.included.isEmpty())
+    }
+
+    @Test fun `a folder the scanner refuses, or a volume root, is not remembered`() = runBlocking {
+        val env = Env(Fake(granted = true, hidden = emptyList()))
+        env.storage.scanResult = null
+        assertEquals(StorageAccessMessageKind.IncludeFailed, env.model.includeFolder("primary:Scans")!!.kind)
+        assertEquals(StorageAccessMessageKind.IncludeFailed, env.model.includeFolder("primary:")!!.kind)
+        assertEquals(StorageAccessMessageKind.IncludeFailed, env.model.includeFolder(null)!!.kind)
+        env.storage.granted = false
+        assertEquals(StorageAccessMessageKind.PermissionNeeded, env.model.includeFolder("primary:Scans")!!.kind)
+        assertTrue(env.included.isEmpty())
+    }
+
+    @Test fun `rescanning scans every included folder`() = runBlocking {
+        val env = Env(Fake(granted = true, hidden = emptyList()))
+        env.included = setOf("/a", "/b")
+        env.model.rescanScannedFolders()
+        assertEquals(setOf("/a", "/b"), env.storage.scanned.toSet())
+    }
+
+    @Test fun `tree document ids map to a volume and a relative path`() {
+        assertEquals("external_primary" to "Scans/2024", treeDocumentVolumeAndPath("primary:Scans/2024/"))
+        assertEquals("abcd-1234" to "Photos", treeDocumentVolumeAndPath("ABCD-1234:Photos"))
+        assertNull(treeDocumentVolumeAndPath("primary:"))
+        assertNull(treeDocumentVolumeAndPath("garbage"))
     }
 }

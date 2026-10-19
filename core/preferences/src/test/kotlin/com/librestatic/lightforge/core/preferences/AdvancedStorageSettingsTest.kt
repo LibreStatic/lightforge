@@ -134,4 +134,33 @@ class AdvancedStorageSettingsTest {
         repo.importJson(JSONObject("""{"operations":{}}"""))
         assertTrue(repo.settings.first().operations.folderCovers.isEmpty())
     }
+
+    @Test
+    fun `the start screen defaults to photos, round trips and ignores an unknown value`() = test { repo ->
+        assertEquals(StartScreen.Photos, repo.settings.first().operations.startScreen)
+        repo.update { it.copy(operations = it.operations.copy(startScreen = StartScreen.Folders)) }
+        assertEquals(StartScreen.Folders, repo.settings.first().operations.startScreen)
+        val exported = repo.exportJson()
+        assertEquals("folders", exported.getJSONObject("operations").getString("startScreen"))
+        repo.reset()
+        assertEquals(StartScreen.Photos, repo.settings.first().operations.startScreen)
+        repo.importJson(exported)
+        assertEquals(StartScreen.Folders, repo.settings.first().operations.startScreen)
+        repo.importJson(JSONObject("""{"operations":{"startScreen":"tomorrow"}}"""))
+        assertEquals(StartScreen.Photos, repo.settings.first().operations.startScreen)
+    }
+
+    @Test
+    fun `scanned folders persist and round trip through the export`() = test { repo ->
+        assertEquals(emptySet<String>(), repo.settings.first().operations.scannedFolders)
+        val paths = setOf("/storage/emulated/0/Scans", "/storage/ABCD-1234/Photos")
+        repo.update { it.copy(operations = it.operations.copy(scannedFolders = paths)) }
+        assertEquals(paths, repo.settings.first().operations.scannedFolders)
+        val exported = repo.exportJson()
+        assertEquals(2, exported.getJSONObject("operations").getJSONArray("scannedFolders").length())
+        repo.reset()
+        assertEquals(emptySet<String>(), repo.settings.first().operations.scannedFolders)
+        repo.importJson(exported)
+        assertEquals(paths, repo.settings.first().operations.scannedFolders)
+    }
 }

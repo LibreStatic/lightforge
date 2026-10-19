@@ -61,6 +61,9 @@ fun StorageAccessSettingsContent(
         treeGrantPath = null
         if (uri != null && path != null) actions.onUnhideWithTree(path, uri)
     }
+    val includePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) actions.onIncludeFolder(uri)
+    }
     // Opening the system picker on the folder itself saves the user from browsing to it.
     val chooseFolder: (String) -> Unit = { path ->
         treeGrantPath = path
@@ -78,6 +81,7 @@ fun StorageAccessSettingsContent(
             NoticeCard(
                 text = when (message.kind) {
                     StorageAccessMessageKind.PermissionNeeded -> stringResource(R.string.storage_access_message_permission)
+                    StorageAccessMessageKind.IncludeFailed -> stringResource(R.string.storage_access_include_failed)
                     StorageAccessMessageKind.NotAllUnhidden -> pluralStringResource(
                         R.plurals.storage_access_message_not_unhidden, message.count, message.count,
                     )
@@ -102,6 +106,13 @@ fun StorageAccessSettingsContent(
                         TurnOffAction.AskAboutHiddenFolders -> confirmTurnOff = true
                     }
                 },
+            )
+        }
+        if (state.advancedActive) {
+            ScannedFoldersSection(
+                state = state,
+                actions = actions,
+                onAdd = { runCatching { includePicker.launch(null) } },
             )
         }
         if (state.hidden.isNotEmpty()) {
@@ -282,6 +293,47 @@ private fun AdvancedSection(
                     onClick = onRequestEnable,
                     modifier = Modifier.padding(horizontal = GallerySpacing.Md).testTag("storage-access-permission-button"),
                 ) { Text(stringResource(R.string.storage_access_open_system)) }
+            }
+        }
+    }
+}
+
+/** Folders MediaStore does not index that the user added to the library (ADR-046). */
+@Composable
+private fun ScannedFoldersSection(state: StorageAccessUiState, actions: StorageAccessActions, onAdd: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+        SectionTitle(stringResource(R.string.storage_access_included_title))
+        SectionBody(stringResource(R.string.storage_access_included_body))
+        state.scannedFolders.forEach { path ->
+            val name = readableHiddenPath(path)
+            val description = stringResource(R.string.storage_access_included_remove_description, name)
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).testTag("storage-access-included-row"),
+                trailingContent = {
+                    TextButton(
+                        onClick = { actions.onRemoveScannedFolder(path) },
+                        enabled = !state.busy,
+                        modifier = Modifier.semantics { contentDescription = description },
+                    ) { Text(stringResource(R.string.storage_access_included_remove)) }
+                },
+            ) { Text(name, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+        }
+        Row(
+            Modifier.padding(horizontal = GallerySpacing.Md),
+            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+            FilledTonalButton(
+                onClick = onAdd,
+                enabled = !state.busy,
+                modifier = Modifier.testTag("storage-access-included-add"),
+            ) { Text(stringResource(R.string.storage_access_included_add)) }
+            if (state.scannedFolders.isNotEmpty()) {
+                TextButton(
+                    onClick = actions.onRescanScannedFolders,
+                    enabled = !state.busy,
+                    modifier = Modifier.testTag("storage-access-included-rescan"),
+                ) { Text(stringResource(R.string.storage_access_included_rescan)) }
             }
         }
     }

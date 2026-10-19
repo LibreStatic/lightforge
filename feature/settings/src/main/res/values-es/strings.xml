@@ -291,4 +291,15 @@
     </plurals>
     <string name="storage_access_advanced_supporting">Muestra elementos ocultos, oculta y vuelve a mostrar carpetas, mueve y renombra archivos al instante dentro del mismo almacenamiento, crea, renombra, mueve, copia y elimina de forma permanente carpetas (también las que tienen archivos).</string>
     <string name="storage_access_enable_body">Este modo permite a Lightforge:\n• Mostrar fotos y vídeos de carpetas ocultas con .nomedia\n• Ocultar y volver a mostrar carpetas\n• Mover y renombrar archivos al instante dentro del mismo almacenamiento\n• Crear, renombrar, mover y copiar carpetas\n• Eliminar de forma permanente carpetas con todo lo que contienen, tras confirmar cuántos archivos son (nada pasa a la papelera)\n• Opcionalmente, eliminar las carpetas que quedan vacías tras un movimiento\n\nUsa el permiso de acceso a todos los archivos, que concedes en la siguiente pantalla. Puedes desactivarlo cuando quieras. Lightforge guarda una lista de las carpetas que oculta para poder deshacerlo.</string>
+    <string name="settings_start_screen">Pantalla de inicio</string>
+    <string name="settings_start_screen_photos">Fotos</string>
+    <string name="settings_start_screen_albums">Álbumes</string>
+    <string name="settings_start_screen_folders">Carpetas</string>
+    <string name="storage_access_included_title">Carpetas incluidas</string>
+    <string name="storage_access_included_body">Agrega carpetas que el sistema no indexa, por ejemplo una en un lugar que el escáner de medios omite. Sus fotos y videos se escanean en la biblioteca, y de nuevo cada vez que se activa el acceso a todos los archivos.</string>
+    <string name="storage_access_included_add">Agregar carpeta</string>
+    <string name="storage_access_included_rescan">Volver a escanear</string>
+    <string name="storage_access_included_remove">Quitar</string>
+    <string name="storage_access_included_remove_description">Quitar %1$s de las carpetas incluidas</string>
+    <string name="storage_access_include_failed">No se pudo agregar esa carpeta.</string>
 </resources>

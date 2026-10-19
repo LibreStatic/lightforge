@@ -284,4 +284,15 @@
     </plurals>
     <string name="storage_access_advanced_supporting">Blendet versteckte Elemente ein, versteckt und blendet Ordner ein, verschiebt und benennt Dateien im selben Speicher sofort um, erstellt, benennt um, verschiebt, kopiert und löscht Ordner endgültig (auch solche mit Dateien).</string>
     <string name="storage_access_enable_body">Mit diesem Modus kann Lightforge:\n• Fotos und Videos in mit .nomedia versteckten Ordnern anzeigen\n• Ordner verstecken und wieder einblenden\n• Dateien im selben Speicher sofort verschieben und umbenennen\n• Ordner erstellen, umbenennen, verschieben und kopieren\n• Ordner samt Inhalt endgültig löschen, nachdem du bestätigt hast, wie viele Dateien das sind (nichts landet im Papierkorb)\n• Optional nach dem Verschieben leer gebliebene Ordner löschen\n\nEr nutzt die Berechtigung „Zugriff auf alle Dateien“, die du im nächsten Bildschirm erteilst. Du kannst ihn jederzeit ausschalten. Lightforge führt eine Liste der versteckten Ordner, um das rückgängig machen zu können.</string>
+    <string name="settings_start_screen">Startbildschirm</string>
+    <string name="settings_start_screen_photos">Fotos</string>
+    <string name="settings_start_screen_albums">Alben</string>
+    <string name="settings_start_screen_folders">Ordner</string>
+    <string name="storage_access_included_title">Eingeschlossene Ordner</string>
+    <string name="storage_access_included_body">Füge Ordner hinzu, die das System nicht indiziert, etwa an einem Ort, den der Medienscanner überspringt. Ihre Fotos und Videos werden in die Mediathek eingelesen, und erneut, sobald der Zugriff auf alle Dateien aktiviert wird.</string>
+    <string name="storage_access_included_add">Ordner hinzufügen</string>
+    <string name="storage_access_included_rescan">Erneut scannen</string>
+    <string name="storage_access_included_remove">Entfernen</string>
+    <string name="storage_access_included_remove_description">%1$s aus den eingeschlossenen Ordnern entfernen</string>
+    <string name="storage_access_include_failed">Dieser Ordner konnte nicht hinzugefügt werden.</string>
 </resources>

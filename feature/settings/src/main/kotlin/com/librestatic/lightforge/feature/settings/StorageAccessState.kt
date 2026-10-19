@@ -6,7 +6,7 @@ import android.net.Uri
 /** A folder Lightforge hid with a `.nomedia` file, as shown in Settings (ADR-046). */
 data class HiddenFolderUi(val absolutePath: String, val createdAtMillis: Long)
 
-enum class StorageAccessMessageKind { PermissionNeeded, NotAllUnhidden }
+enum class StorageAccessMessageKind { PermissionNeeded, NotAllUnhidden, IncludeFailed }
 
 /** One-shot explanation shown on the page until the next action or resume. [count] is the folders left hidden. */
 data class StorageAccessMessage(val kind: StorageAccessMessageKind, val count: Int = 0)
@@ -28,6 +28,8 @@ data class StorageAccessUiState(
     val deleteEmptyFolders: Boolean = false,
     val protectHiddenItems: Boolean = false,
     val appLockEnabled: Boolean = false,
+    /** Absolute paths of the folders the user added to the library; the list exists only while the mode is active. */
+    val scannedFolders: List<String> = emptyList(),
     /** Folders to offer to unhide after an import or reset turned the mode off; 0 means no prompt. */
     val unhidePromptCount: Int = 0,
     val busy: Boolean = false,
@@ -68,6 +70,10 @@ data class StorageAccessActions(
     val onUnhideWithTree: (String, Uri) -> Unit = { _, _ -> },
     val onSetShowHidden: (Boolean) -> Unit = {},
     val onSetDeleteEmptyFolders: (Boolean) -> Unit = {},
+    /** Adds the folder picked in the system picker to the library and scans it. */
+    val onIncludeFolder: (Uri) -> Unit = {},
+    val onRemoveScannedFolder: (String) -> Unit = {},
+    val onRescanScannedFolders: () -> Unit = {},
     val onDismissUnhidePrompt: () -> Unit = {},
     /** "Keep hidden" on the unhide prompt: also remembered so the launch prompt does not return for these folders. */
     val onKeepHidden: () -> Unit = {},

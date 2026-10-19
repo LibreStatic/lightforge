@@ -291,4 +291,15 @@
     </plurals>
     <string name="storage_access_advanced_supporting">Affiche les éléments masqués, masque et réaffiche des dossiers, déplace et renomme des fichiers instantanément sur le même stockage, crée, renomme, déplace, copie et supprime définitivement des dossiers (y compris ceux qui contiennent des fichiers).</string>
     <string name="storage_access_enable_body">Ce mode permet à Lightforge de :\n• Afficher les photos et vidéos des dossiers masqués avec .nomedia\n• Masquer et réafficher des dossiers\n• Déplacer et renommer des fichiers instantanément sur le même stockage\n• Créer, renommer, déplacer et copier des dossiers\n• Supprimer définitivement des dossiers avec tout leur contenu, après confirmation du nombre de fichiers concernés (rien ne passe par la corbeille)\n• Supprimer, si vous le souhaitez, les dossiers restés vides après un déplacement\n\nIl utilise l\'autorisation d\'accès à tous les fichiers, que vous accordez à l\'écran suivant. Vous pouvez le désactiver à tout moment. Lightforge conserve la liste des dossiers qu\'il masque pour pouvoir annuler.</string>
+    <string name="settings_start_screen">Écran de démarrage</string>
+    <string name="settings_start_screen_photos">Photos</string>
+    <string name="settings_start_screen_albums">Albums</string>
+    <string name="settings_start_screen_folders">Dossiers</string>
+    <string name="storage_access_included_title">Dossiers inclus</string>
+    <string name="storage_access_included_body">Ajoutez des dossiers que le système n\'indexe pas, par exemple dans un emplacement ignoré par l\'analyseur de médias. Leurs photos et vidéos sont analysées dans la bibliothèque, puis de nouveau à chaque activation de l\'accès à tous les fichiers.</string>
+    <string name="storage_access_included_add">Ajouter un dossier</string>
+    <string name="storage_access_included_rescan">Réanalyser</string>
+    <string name="storage_access_included_remove">Retirer</string>
+    <string name="storage_access_included_remove_description">Retirer %1$s des dossiers inclus</string>
+    <string name="storage_access_include_failed">Impossible d\'ajouter ce dossier.</string>
 </resources>

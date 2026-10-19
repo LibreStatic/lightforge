@@ -290,4 +290,15 @@
     </plurals>
     <string name="storage_access_advanced_supporting">Show hidden items, hide and unhide folders, move and rename files instantly within the same storage, create, rename, move, copy and permanently delete folders (including ones with files in them).</string>
     <string name="storage_access_enable_body">This mode lets Lightforge:\n• Show photos and videos in folders hidden with .nomedia\n• Hide and unhide folders\n• Move and rename files instantly within the same storage\n• Create, rename, move and copy folders\n• Permanently delete folders together with everything inside them, after you confirm how many files that is (nothing goes to Trash)\n• Optionally delete folders left empty after a move\n\nIt uses the All files access permission, which you grant on the next screen. You can turn it off at any time. Lightforge keeps a list of the folders it hides so it can undo it.</string>
+    <string name="settings_start_screen">Start screen</string>
+    <string name="settings_start_screen_photos">Photos</string>
+    <string name="settings_start_screen_albums">Albums</string>
+    <string name="settings_start_screen_folders">Folders</string>
+    <string name="storage_access_included_title">Included folders</string>
+    <string name="storage_access_included_body">Add folders the system does not index, such as one in a place the media scanner skips. Their photos and videos are scanned into the library, and again whenever All files access turns on.</string>
+    <string name="storage_access_included_add">Add folder</string>
+    <string name="storage_access_included_rescan">Rescan</string>
+    <string name="storage_access_included_remove">Remove</string>
+    <string name="storage_access_included_remove_description">Remove %1$s from the included folders</string>
+    <string name="storage_access_include_failed">That folder could not be added.</string>
 </resources>
