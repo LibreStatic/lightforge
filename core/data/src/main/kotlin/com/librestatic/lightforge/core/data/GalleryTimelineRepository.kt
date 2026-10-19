@@ -130,7 +130,12 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
                 plainRows.map { data -> data.map { it.toTimelineMedia() } }
             }
         return rows.map { data ->
-            val media = mergeHidden(data, hidden, settings, zoneId).map { TimelineEntry.Media(it) as TimelineEntry }
+            // A hidden-folder scan can return rows the library already shows (dot-path media, or a folder another
+            // app marked .nomedia before the next sweep); the library row wins.
+            val extra =
+                if (hidden.isEmpty()) hidden
+                else withoutLibraryKeys(hidden, database.libraryDao().libraryKeysAmong(hidden.map { it.key }))
+            val media = mergeHidden(data, extra, settings, zoneId).map { TimelineEntry.Media(it) as TimelineEntry }
             if (settings.grouping == LibraryGrouping.None) media
             else
                 media.insertSeparators { before: TimelineEntry?, after: TimelineEntry? ->

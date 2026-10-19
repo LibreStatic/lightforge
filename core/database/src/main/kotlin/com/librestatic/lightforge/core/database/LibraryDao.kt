@@ -165,6 +165,13 @@ interface LibraryDao {
     @RawQuery
     suspend fun rawSelectionCount(query: SupportSQLiteQuery): Long
 
+    /** The ids among [ids] (one volume) that the library shows: accessible and not in the trash. */
+    @Query(
+        "SELECT mediaStoreId FROM media_items WHERE volumeName=:volumeName AND isAccessible=1 AND isTrashed=0 " +
+            "AND mediaStoreId IN (:ids)",
+    )
+    suspend fun accessibleIdsAmong(volumeName: String, ids: List<Long>): List<Long>
+
     @Query(
         "SELECT m.*, o.rawText AS ocrText, o.modelVersion AS ocrModelVersion, " +
             "GROUP_CONCAT(l.canonicalLabel) AS canonicalLabelsCsv, " +

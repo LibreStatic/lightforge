@@ -26,6 +26,10 @@ class FolderTreeRepository(
     private val debounceMillis: Long = 300,
 ) {
     fun observeFolderTree(): Flow<FolderTree> = observeFolderTree(dao.folderSummaries(), debounceMillis)
+
+    /** The keys among [keys] that the library lists, so the explorer does not count an on-disk row twice. */
+    suspend fun libraryKeysAmong(keys: Collection<com.librestatic.lightforge.core.model.MediaKey>) =
+        dao.libraryKeysAmong(keys)
 }
 
 internal fun observeFolderTree(rows: Flow<List<FolderSummaryRow>>, debounceMillis: Long): Flow<FolderTree> = channelFlow {

@@ -81,4 +81,14 @@ class HiddenTimelineMergeTest {
         val hidden = listOf(media(100, 1), media(101, 2))
         assertEquals(listOf(101L, 100), merged(emptyList(), hidden, LibrarySettings()))
     }
+
+    @Test fun `a scanned item the library already lists is dropped and repeats collapse`() {
+        val inLibrary = setOf(MediaKey("external_primary", 7))
+        val scanned = listOf(media(100, 1), media(7, 5), media(100, 1))
+        val kept = withoutLibraryKeys(scanned, inLibrary)
+        assertEquals(listOf(100L), kept.map { it.key.mediaStoreId })
+        val rows = listOf(media(7, 5), media(1, 3))
+        val keys = merged(rows, kept, LibrarySettings()).map { it }
+        assertEquals(keys.size, keys.toSet().size)
+    }
 }

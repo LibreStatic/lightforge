@@ -4,6 +4,8 @@ import androidx.paging.PagingData
 import androidx.paging.flatMap
 import androidx.paging.insertSeparators
 import androidx.paging.map
+import com.librestatic.lightforge.core.database.LibraryDao
+import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.preferences.LibraryGrouping
 import com.librestatic.lightforge.core.preferences.LibrarySettings
@@ -84,3 +86,22 @@ internal fun mergeHidden(
         }
         .flatMap { it.items }
 }
+
+/** The keys among [keys] that the library already shows, so a disk scan does not list the same file again. */
+suspend fun LibraryDao.libraryKeysAmong(keys: Collection<MediaKey>): Set<MediaKey> {
+    if (keys.isEmpty()) return emptySet()
+    val found = HashSet<MediaKey>()
+    keys.groupBy { it.volumeName }.forEach { (volume, ofVolume) ->
+        // SQLite caps the bound variables of one statement, so ask in chunks.
+        ofVolume.map { it.mediaStoreId }.distinct().chunked(LookupChunk).forEach { ids ->
+            accessibleIdsAmong(volume, ids).forEach { found += MediaKey(volume, it) }
+        }
+    }
+    return found
+}
+
+private const val LookupChunk = 500
+
+/** [hidden] without the items [present] already lists, and without repeats of one key. */
+internal fun withoutLibraryKeys(hidden: List<TimelineMedia>, present: Set<MediaKey>): List<TimelineMedia> =
+    hidden.filter { it.key !in present }.distinctBy { it.key }
