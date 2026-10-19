@@ -20,8 +20,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,6 +52,9 @@ import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.model.EditOperation
 import kotlin.math.roundToInt
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
 
 /** A filter the user made from a reference photo; [id] is a `custom:<uuid>` look id. */
 data class PhotoCustomLook(val id: String, val name: String)
@@ -206,18 +207,20 @@ private fun MyLooks(
                         )
                     }
                 }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.photo_editor_look_rename)) },
-                        leadingIcon = { Icon(GalleryIcons.Rename, contentDescription = null) },
+                GalleryDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    GalleryMenuItem(
+                        text = stringResource(R.string.photo_editor_look_rename),
                         onClick = { menuOpen = false; renaming = look },
-                        modifier = Modifier.testTag("photo-look-rename"),
+                        icon = GalleryIcons.Rename,
+                        testTag = "photo-look-rename",
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.photo_editor_look_delete)) },
-                        leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
+                    GalleryMenuDivider()
+                    GalleryMenuItem(
+                        text = stringResource(R.string.photo_editor_look_delete),
                         onClick = { menuOpen = false; deleting = look },
-                        modifier = Modifier.testTag("photo-look-delete"),
+                        icon = GalleryIcons.Trash,
+                        destructive = true,
+                        testTag = "photo-look-delete",
                     )
                 }
             }

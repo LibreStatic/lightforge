@@ -45,6 +45,8 @@ import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 
 private fun DocumentRow.key() = MediaKey(media.volumeName, media.mediaStoreId)
 
@@ -171,17 +173,15 @@ fun DocumentsContent(
                 ) {
                     Icon(GalleryIcons.More, contentDescription = stringResource(R.string.documents_more_actions))
                 }
-                DropdownMenu(expanded = showMore, onDismissRequest = { showMore = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.document_auto_title)) },
-                        leadingIcon = { Icon(GalleryIcons.Archive, contentDescription = null) },
+                GalleryDropdownMenu(expanded = showMore, onDismissRequest = { showMore = false }) {
+                    GalleryMenuItem(
+                        text = stringResource(R.string.document_auto_title),
                         onClick = {
                             showMore = false
                             showAutoArchive = true
                         },
-                        modifier =
-                            Modifier.semantics { testTagsAsResourceId = true }
-                                .testTag("documents-auto-archive"),
+                        icon = GalleryIcons.Archive,
+                        testTag = "documents-auto-archive",
                     )
                 }
             }

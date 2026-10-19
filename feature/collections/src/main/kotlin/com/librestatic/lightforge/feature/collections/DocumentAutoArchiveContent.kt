@@ -24,6 +24,8 @@ import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 
 @OptIn(ExperimentalLayoutApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -84,26 +86,28 @@ fun DocumentAutoArchiveContent(
                                     contentDescription = stringResource(R.string.document_auto_more_actions),
                                 )
                             }
-                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            GalleryDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                                 if (current.enabled)
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.document_auto_pause)) },
-                                        enabled = !busy,
+                                    GalleryMenuItem(
+                                        text = stringResource(R.string.document_auto_pause),
                                         onClick = {
                                             menuOpen = false
                                             mutate { repository.pause() }
                                         },
-                                        modifier = Modifier.testTag("document-auto-pause"),
+                                        icon = GalleryIcons.Pause,
+                                        enabled = !busy,
+                                        testTag = "document-auto-pause",
                                     )
                                 if (current.lastRunId != null)
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.document_auto_undo)) },
-                                        enabled = !busy,
+                                    GalleryMenuItem(
+                                        text = stringResource(R.string.document_auto_undo),
                                         onClick = {
                                             menuOpen = false
                                             mutate { repository.undoLastRun() }
                                         },
-                                        modifier = Modifier.testTag("document-auto-undo"),
+                                        icon = GalleryIcons.Undo,
+                                        enabled = !busy,
+                                        testTag = "document-auto-undo",
                                     )
                             }
                         }

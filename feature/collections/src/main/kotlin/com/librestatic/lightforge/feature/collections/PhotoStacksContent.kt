@@ -39,6 +39,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
 
 private fun MediaKey.stackKey() = "$volumeName:$mediaStoreId"
 
@@ -240,13 +243,12 @@ fun PhotoStacksContent(
                                         contentDescription = stringResource(R.string.stacks_more),
                                     )
                                 }
-                                DropdownMenu(
+                                GalleryDropdownMenu(
                                     expanded = menuOpen,
                                     onDismissRequest = { menuOpen = false },
                                 ) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.stacks_separate)) },
-                                        enabled = !busy,
+                                    GalleryMenuItem(
+                                        text = stringResource(R.string.stacks_separate),
                                         onClick = {
                                             menuOpen = false
                                             mutate {
@@ -261,25 +263,31 @@ fun PhotoStacksContent(
                                                 if (!remains) home()
                                             }
                                         },
-                                        modifier = Modifier.testTag("stack-separate"),
+                                        icon = GalleryIcons.Layers,
+                                        enabled = !busy,
+                                        testTag = "stack-separate",
                                     )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.stacks_rename)) },
+                                    GalleryMenuItem(
+                                        text = stringResource(R.string.stacks_rename),
                                         onClick = {
                                             menuOpen = false
                                             title = current.title.orEmpty()
                                             renaming = true
                                         },
-                                        modifier = Modifier.testTag("stack-rename"),
+                                        icon = GalleryIcons.Rename,
+                                        testTag = "stack-rename",
                                     )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.stacks_unstack)) },
-                                        enabled = !busy,
+                                    GalleryMenuDivider()
+                                    GalleryMenuItem(
+                                        text = stringResource(R.string.stacks_unstack),
                                         onClick = {
                                             menuOpen = false
                                             confirmDissolve = true
                                         },
-                                        modifier = Modifier.testTag("stack-unstack"),
+                                        icon = GalleryIcons.LinkOff,
+                                        enabled = !busy,
+                                        destructive = true,
+                                        testTag = "stack-unstack",
                                     )
                                 }
                             }

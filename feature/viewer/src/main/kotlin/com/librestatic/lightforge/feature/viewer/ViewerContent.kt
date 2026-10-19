@@ -46,8 +46,6 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -172,6 +170,10 @@ import com.librestatic.lightforge.feature.viewer.textselect.ViewerTextRecognizer
 import com.librestatic.lightforge.feature.viewer.textselect.detectTextSelectionGestures
 import com.librestatic.lightforge.feature.viewer.textselect.fitCenterRect
 import com.librestatic.lightforge.feature.viewer.textselect.rememberTextSelectionLongPress
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
+import com.librestatic.lightforge.core.designsystem.GalleryMenuIcons
 
 @Composable
 fun ViewerContent(
@@ -852,37 +854,42 @@ fun ViewerContent(
                     GalleryExpressiveIconButton(onClick = { menuExpanded = true }) {
                         Icon(GalleryIcons.More, contentDescription = stringResource(R.string.viewer_more), tint = GalleryOverlayTokens.Content)
                     }
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        onDetails?.let { action -> DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_details)) },
+                    GalleryDropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        onDetails?.let { action -> GalleryMenuItem(
+                            text = stringResource(R.string.viewer_details),
                             onClick = { menuExpanded = false; action() },
-                            leadingIcon = { Icon(GalleryIcons.Info, contentDescription = null) },
+                            icon = GalleryIcons.Info,
                         ) }
-                        onShareSanitized?.let { action -> DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_share_private)) },
+                        onShareSanitized?.let { action -> GalleryMenuItem(
+                            text = stringResource(R.string.viewer_share_private),
                             onClick = { menuExpanded = false; action() },
-                            leadingIcon = { Icon(GalleryIcons.Lock, contentDescription = null) },
+                            icon = GalleryIcons.Lock,
                         ) }
-                        onPrint?.takeIf { media.kind == MediaKind.Image }?.let { action -> DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_print)) },
+                        onPrint?.takeIf { media.kind == MediaKind.Image }?.let { action -> GalleryMenuItem(
+                            text = stringResource(R.string.viewer_print),
                             onClick = { menuExpanded = false; action() },
+                            icon = GalleryMenuIcons.Print,
                         ) }
-                        onRename?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_rename)) }, onClick = { menuExpanded = false; action() }) }
-                        onCopy?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_copy_to)) }, onClick = { menuExpanded = false; action() }) }
-                        onMove?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_move_to)) }, onClick = { menuExpanded = false; action() }) }
-                        onSetAs?.takeIf { media.kind == MediaKind.Image }?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_set_as)) }, onClick = { menuExpanded = false; action() }) }
-                        onOpenWith?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_open_with)) }, onClick = { menuExpanded = false; action() }) }
-                        onRepairDate?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_repair_date)) }, onClick = { menuExpanded = false; action() }) }
-                        onMoveToPrivate?.let { action -> DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_move_to_private)) },
+                        if (onRename != null || onCopy != null || onMove != null || onSetAs != null || onOpenWith != null || onRepairDate != null) {
+                            GalleryMenuDivider()
+                        }
+                        onRename?.let { action -> GalleryMenuItem(text = stringResource(R.string.viewer_rename), onClick = { menuExpanded = false; action() }, icon = GalleryIcons.Rename) }
+                        onCopy?.let { action -> GalleryMenuItem(text = stringResource(R.string.viewer_copy_to), onClick = { menuExpanded = false; action() }, icon = GalleryIcons.ContentCopy) }
+                        onMove?.let { action -> GalleryMenuItem(text = stringResource(R.string.viewer_move_to), onClick = { menuExpanded = false; action() }, icon = GalleryIcons.DriveFileMove) }
+                        onSetAs?.takeIf { media.kind == MediaKind.Image }?.let { action -> GalleryMenuItem(text = stringResource(R.string.viewer_set_as), onClick = { menuExpanded = false; action() }, icon = GalleryMenuIcons.SetAsWallpaper) }
+                        onOpenWith?.let { action -> GalleryMenuItem(text = stringResource(R.string.viewer_open_with), onClick = { menuExpanded = false; action() }, icon = GalleryIcons.OpenInNew) }
+                        onRepairDate?.let { action -> GalleryMenuItem(text = stringResource(R.string.viewer_repair_date), onClick = { menuExpanded = false; action() }, icon = GalleryMenuIcons.EditDate) }
+                        if (onMoveToPrivate != null || (onArchive != null && archiveActionLabel != null)) GalleryMenuDivider()
+                        onMoveToPrivate?.let { action -> GalleryMenuItem(
+                            text = stringResource(R.string.viewer_move_to_private),
                             onClick = { menuExpanded = false; action() },
-                            leadingIcon = { Icon(GalleryIcons.Lock, contentDescription = null) },
+                            icon = GalleryIcons.Lock,
                         ) }
                         if (onArchive != null && archiveActionLabel != null) {
-                            DropdownMenuItem(
-                                text = { Text(archiveActionLabel) },
+                            GalleryMenuItem(
+                                text = archiveActionLabel,
                                 onClick = { menuExpanded = false; onArchive() },
-                                leadingIcon = { Icon(GalleryIcons.Archive, contentDescription = null) },
+                                icon = GalleryIcons.Archive,
                             )
                         }
                     }

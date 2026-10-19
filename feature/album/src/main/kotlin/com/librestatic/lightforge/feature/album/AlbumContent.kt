@@ -29,8 +29,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
@@ -84,6 +82,9 @@ import com.librestatic.lightforge.core.selection.SelectionSpec
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailPrefetchCandidate
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
 
 @Composable
 fun AlbumContent(
@@ -388,19 +389,17 @@ private fun AlbumToolbar(
                     Icon(GalleryIcons.Sort, contentDescription = sortDescription)
                 }
             }
-            DropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
+            GalleryDropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
                 AlbumSort.entries.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(option.label())) },
+                    GalleryMenuItem(
+                        text = stringResource(option.label()),
                         onClick = {
                             sortExpanded = false
                             if (option != sort) onSortChange(option)
                         },
-                        leadingIcon = {
-                            if (option == sort) Icon(GalleryIcons.Check, contentDescription = null)
-                        },
-                        modifier = Modifier.testTag("album-sort-${option.name}")
-                            .semantics { selected = option == sort },
+                        checked = option == sort,
+                        radio = true,
+                        testTag = "album-sort-${option.name}",
                     )
                 }
             }
@@ -409,25 +408,32 @@ private fun AlbumToolbar(
             IconButton(onClick = { moreExpanded = true }, enabled = enabled, modifier = Modifier.testTag("album-more")) {
                 Icon(GalleryIcons.More, contentDescription = stringResource(R.string.album_more_options))
             }
-            DropdownMenu(expanded = moreExpanded, onDismissRequest = { moreExpanded = false }) {
-                if (coverInMenu) DropdownMenuItem(
-                    text = { Text(stringResource(R.string.album_cover_action)) },
+            GalleryDropdownMenu(expanded = moreExpanded, onDismissRequest = { moreExpanded = false }) {
+                if (coverInMenu) GalleryMenuItem(
+                    text = stringResource(R.string.album_cover_action),
                     onClick = { moreExpanded = false; onChooseCover?.invoke() },
-                    modifier = Modifier.testTag("album-cover-choose"),
+                    icon = GalleryIcons.Photo,
+                    testTag = "album-cover-choose",
                 )
                 onRenameAlbum?.let { rename ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(if (renameIsFolder) R.string.album_rename_folder else R.string.album_rename)) },
+                    GalleryMenuItem(
+                        text = stringResource(if (renameIsFolder) R.string.album_rename_folder else R.string.album_rename),
                         onClick = { moreExpanded = false; rename() },
-                        modifier = Modifier.testTag(if (renameIsFolder) "album-rename-folder" else "album-rename"),
+                        icon = GalleryIcons.Rename,
+                        testTag = if (renameIsFolder) "album-rename-folder" else "album-rename",
                     )
                 }
                 // Device folders are filesystem directories: only AlbumKey.Virtual albums may be deleted.
-                if (onDeleteAlbum != null && deleteAlbumLabel != null) DropdownMenuItem(
-                    text = { Text(deleteAlbumLabel) },
-                    onClick = { moreExpanded = false; onDeleteAlbum() },
-                    modifier = Modifier.testTag("album-delete"),
-                )
+                if (onDeleteAlbum != null && deleteAlbumLabel != null) {
+                    if (coverInMenu || onRenameAlbum != null) GalleryMenuDivider()
+                    GalleryMenuItem(
+                        text = deleteAlbumLabel,
+                        onClick = { moreExpanded = false; onDeleteAlbum() },
+                        icon = GalleryIcons.Trash,
+                        destructive = true,
+                        testTag = "album-delete",
+                    )
+                }
             }
         }
     }

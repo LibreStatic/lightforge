@@ -34,8 +34,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -93,6 +91,10 @@ import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
 
 private const val PeopleThumbSize = 256
 
@@ -186,18 +188,20 @@ fun PeopleContent(
                         IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("people_menu")) {
                             Icon(GalleryIcons.More, contentDescription = stringResource(R.string.people_more))
                         }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.people_analyze_all)) },
+                        GalleryDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            GalleryMenuItem(
+                                text = stringResource(R.string.people_analyze_all),
                                 onClick = { menuOpen = false; onAnalyzeAll() },
+                                icon = GalleryIcons.Repeat,
                                 enabled = state.analysisPhase() != PeopleAnalysisPhase.Running,
-                                leadingIcon = { Icon(GalleryIcons.Repeat, contentDescription = null) },
                             )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.people_delete_all)) },
+                            GalleryMenuDivider()
+                            GalleryMenuItem(
+                                text = stringResource(R.string.people_delete_all),
                                 onClick = { menuOpen = false; confirmDelete = true },
-                                leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
-                                modifier = Modifier.testTag("people_delete_all"),
+                                icon = GalleryIcons.Trash,
+                                destructive = true,
+                                testTag = "people_delete_all",
                             )
                         }
                     }
@@ -738,18 +742,18 @@ private fun PersonDetailScreen(
                         IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("person_menu")) {
                             Icon(GalleryIcons.More, contentDescription = stringResource(R.string.people_more))
                         }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.people_split)) },
+                        GalleryDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            GalleryMenuItem(
+                                text = stringResource(R.string.people_split),
                                 onClick = { menuOpen = false; splitting = true; splitSelection = emptySet() },
-                                leadingIcon = { Icon(GalleryIcons.Layers, contentDescription = null) },
-                                modifier = Modifier.testTag("people_split"),
+                                icon = GalleryIcons.Layers,
+                                testTag = "people_split",
                             )
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.people_hide)) },
+                            GalleryMenuItem(
+                                text = stringResource(R.string.people_hide),
                                 onClick = { menuOpen = false; onHide(person.clusterId) },
-                                leadingIcon = { Icon(GalleryIcons.Archive, contentDescription = null) },
-                                modifier = Modifier.testTag("people_hide"),
+                                icon = GalleryIcons.Archive,
+                                testTag = "people_hide",
                             )
                         }
                     }

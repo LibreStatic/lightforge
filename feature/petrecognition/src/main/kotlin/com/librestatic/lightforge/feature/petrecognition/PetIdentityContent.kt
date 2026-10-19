@@ -44,6 +44,8 @@ import com.librestatic.lightforge.core.designsystem.GallerySelectionAction
 import com.librestatic.lightforge.core.designsystem.GallerySelectionBar
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 
 private const val MegaByte = 1024 * 1024
 
@@ -184,12 +186,13 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
                     IconButton(onClick = { moreOpen = true }, modifier = Modifier.testTag("pet-more")) {
                         Icon(GalleryIcons.More, contentDescription = stringResource(R.string.pet_more))
                     }
-                    DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }, modifier = Modifier.semantics { testTagsAsResourceId = true }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.pet_remove), color = MaterialTheme.colorScheme.error) },
-                            enabled = !working,
+                    GalleryDropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }, modifier = Modifier.semantics { testTagsAsResourceId = true }) {
+                        GalleryMenuItem(
+                            text = stringResource(R.string.pet_remove),
                             onClick = { moreOpen = false; removal = true },
-                            modifier = Modifier.testTag("pet-remove"),
+                            enabled = !working,
+                            destructive = true,
+                            testTag = "pet-remove",
                         )
                     }
                 }

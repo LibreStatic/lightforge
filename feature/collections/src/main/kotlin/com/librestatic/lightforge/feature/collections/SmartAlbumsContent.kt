@@ -38,6 +38,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
 
 private enum class SmartPage {
     Home,
@@ -213,16 +216,14 @@ fun SmartAlbumsContent(
                                     )
                                 }
                                 SmartMenu(menuOpen, { menuOpen = it }) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.smart_analysis)) },
+                                    GalleryMenuItem(
+                                        text = stringResource(R.string.smart_analysis),
                                         onClick = {
                                             menuOpen = false
                                             onAnalysis()
                                         },
-                                        leadingIcon = {
-                                            Icon(GalleryIcons.Settings, contentDescription = null)
-                                        },
-                                        modifier = Modifier.testTag("smart-analysis"),
+                                        icon = GalleryIcons.Settings,
+                                        testTag = "smart-analysis",
                                     )
                                 }
                             }
@@ -249,26 +250,27 @@ fun SmartAlbumsContent(
                                     )
                                 }
                                 SmartMenu(menuOpen, { menuOpen = it }) {
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.smart_excluded)) },
+                                    GalleryMenuItem(
+                                        text = stringResource(R.string.smart_excluded),
                                         onClick = {
                                             menuOpen = false
                                             page = SmartPage.Exclusions
                                         },
+                                        icon = GalleryIcons.Block,
                                         enabled = !busy,
-                                        modifier = Modifier.testTag("smart-manage-exclusions"),
+                                        testTag = "smart-manage-exclusions",
                                     )
-                                    DropdownMenuItem(
-                                        text = { Text(stringResource(R.string.smart_delete)) },
+                                    GalleryMenuDivider()
+                                    GalleryMenuItem(
+                                        text = stringResource(R.string.smart_delete),
                                         onClick = {
                                             menuOpen = false
                                             deleting = true
                                         },
+                                        icon = GalleryIcons.Trash,
                                         enabled = !busy,
-                                        leadingIcon = {
-                                            Icon(GalleryIcons.Trash, contentDescription = null)
-                                        },
-                                        modifier = Modifier.testTag("smart-delete"),
+                                        destructive = true,
+                                        testTag = "smart-delete",
                                     )
                                 }
                             }
@@ -1128,7 +1130,7 @@ private fun SmartMenu(
         IconButton(onClick = { onOpenChange(true) }, modifier = Modifier.testTag("smart-menu")) {
             Icon(GalleryIcons.More, contentDescription = stringResource(R.string.smart_more))
         }
-        DropdownMenu(expanded = open, onDismissRequest = { onOpenChange(false) }, content = items)
+        GalleryDropdownMenu(expanded = open, onDismissRequest = { onOpenChange(false) }, content = items)
     }
 }
 

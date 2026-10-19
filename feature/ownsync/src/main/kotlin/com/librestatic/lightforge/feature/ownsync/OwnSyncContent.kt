@@ -28,6 +28,8 @@ import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 
 @Composable
 fun OwnSyncContent(
@@ -90,12 +92,12 @@ fun OwnSyncContent(
                     IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("own-sync-more")) {
                         Icon(GalleryIcons.More, contentDescription = stringResource(R.string.own_sync_more))
                     }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.own_sync_servers)) },
+                    GalleryDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        GalleryMenuItem(
+                            text = stringResource(R.string.own_sync_servers),
                             onClick = { menuOpen = false; onManageServers() },
-                            leadingIcon = { Icon(GalleryIcons.Link, contentDescription = null) },
-                            modifier = Modifier.testTag("own-sync-servers"),
+                            icon = GalleryIcons.Link,
+                            testTag = "own-sync-servers",
                         )
                     }
                 }

@@ -19,8 +19,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -65,6 +63,8 @@ import com.librestatic.lightforge.core.editing.video.VideoColorGrade
 import com.librestatic.lightforge.core.editing.video.VideoColorGradeEffects
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 
 private val LookTileWidth = 84.dp
 private val LookThumbnailHeight = 56.dp
@@ -479,10 +479,10 @@ private fun ProfilePicker(selected: LogInputProfile, onSelect: (LogInputProfile)
             OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(selected.labelResource()), modifier = Modifier.weight(1f))
             }
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            GalleryDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                 LogInputProfile.entries.forEach { profile ->
-                    DropdownMenuItem(
-                        text = { Text(stringResource(profile.labelResource())) },
+                    GalleryMenuItem(
+                        text = stringResource(profile.labelResource()),
                         onClick = {
                             expanded = false
                             onSelect(profile)
