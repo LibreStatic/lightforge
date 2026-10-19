@@ -36,6 +36,18 @@ class StorageAccessStateTest {
         assertTrue(StorageAccessUiState(hidden = listOf(HiddenFolderUi("/x", 0L))).hasContent)
     }
 
+    @Test fun `a hidden file shows its name without the dot and its parent folder`() {
+        val file = HiddenFolderUi("/storage/emulated/0/Pictures/Travel/.IMG_1.jpg", 1L, isFile = true)
+        assertEquals("IMG_1.jpg", hiddenItemName(file))
+        assertEquals("Pictures/Travel", hiddenItemParent(file))
+    }
+
+    @Test fun `a hidden folder keeps its own name`() {
+        val folder = HiddenFolderUi("/storage/emulated/0/DCIM/.Private/", 1L)
+        assertEquals(".Private", hiddenItemName(folder))
+        assertEquals("DCIM", hiddenItemParent(folder))
+    }
+
     @Test fun `hidden paths are shortened to a readable form`() {
         assertEquals("Pictures/Trip", readableHiddenPath("/storage/emulated/0/Pictures/Trip"))
         assertEquals("Pictures/Trip", readableHiddenPath("/storage/emulated/10/Pictures/Trip/"))

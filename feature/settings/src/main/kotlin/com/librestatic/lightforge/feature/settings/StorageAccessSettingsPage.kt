@@ -10,12 +10,32 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.FolderOff
+import androidx.compose.material.icons.outlined.FolderSpecial
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.PermMedia
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -26,16 +46,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import java.text.DateFormat
@@ -73,10 +94,7 @@ fun StorageAccessSettingsContent(
         runCatching { treePicker.launch(initial) }.onFailure { treeGrantPath = null }
     }
 
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xl)) {
-        if (state.permissionRevoked) {
-            RevokedWarning(state, actions, context)
-        }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xxl)) {
         state.message?.let { message ->
             NoticeCard(
                 text = when (message.kind) {
@@ -145,32 +163,84 @@ fun StorageAccessSettingsContent(
         )
     }
     if (confirmTurnOff) {
-        AlertDialog(
-            onDismissRequest = { confirmTurnOff = false },
-            title = {
-                Text(pluralStringResource(R.plurals.storage_access_turn_off_title, state.hidden.size, state.hidden.size))
-            },
-            text = {
-                Text(
-                    stringResource(R.string.storage_access_turn_off_body) +
-                        if (state.allFilesGranted) "" else "\n\n" + stringResource(R.string.storage_access_turn_off_no_permission),
-                )
-            },
-            // Three actions do not fit on one row; Material stacks them as separate text buttons.
-            confirmButton = {
-                Column(horizontalAlignment = androidx.compose.ui.Alignment.End) {
-                    TextButton(
-                        onClick = { confirmTurnOff = false; actions.onUnhideAndTurnOff() },
-                        modifier = Modifier.testTag("storage-access-unhide-and-turn-off"),
-                    ) { Text(stringResource(R.string.storage_access_turn_off_unhide)) }
-                    TextButton(
-                        onClick = { confirmTurnOff = false; actions.onSetEnabled(false) },
-                        modifier = Modifier.testTag("storage-access-keep-and-turn-off"),
-                    ) { Text(stringResource(R.string.storage_access_turn_off_keep)) }
-                    TextButton(onClick = { confirmTurnOff = false }) { Text(stringResource(R.string.storage_access_cancel)) }
-                }
+        TurnOffDialog(
+            state = state,
+            onDismiss = { confirmTurnOff = false },
+            onConfirm = { unhide ->
+                confirmTurnOff = false
+                if (unhide) actions.onUnhideAndTurnOff() else actions.onSetEnabled(false)
             },
         )
+    }
+}
+
+/**
+ * Asks what to do with the items Lightforge hid before the mode goes off. Without the permission nothing can be
+ * unhidden, so the checkbox is off and disabled and the dialog says why.
+ */
+@Composable
+private fun TurnOffDialog(state: StorageAccessUiState, onDismiss: () -> Unit, onConfirm: (unhide: Boolean) -> Unit) {
+    var unhideNow by rememberSaveable { mutableStateOf(true) }
+    val canUnhide = state.allFilesGranted
+    val checked = unhideNow && canUnhide
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("storage-access-turn-off-dialog"),
+        title = { Text(stringResource(R.string.storage_access_turn_off_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                Text(hiddenCountSentence(state.hidden))
+                if (!canUnhide) {
+                    Text(
+                        stringResource(R.string.storage_access_turn_off_no_permission),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.small)
+                        .toggleable(
+                            value = checked,
+                            enabled = canUnhide,
+                            role = Role.Checkbox,
+                            onValueChange = { unhideNow = it },
+                        )
+                        .testTag("storage-access-turn-off-unhide-checkbox"),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = checked, onCheckedChange = null, enabled = canUnhide, modifier = Modifier.padding(end = GallerySpacing.Md))
+                    Text(
+                        stringResource(R.string.storage_access_turn_off_unhide_now),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (canUnhide) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(checked) }, modifier = Modifier.testTag("storage-access-turn-off-confirm")) {
+                Text(stringResource(R.string.storage_access_turn_off_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.storage_access_cancel)) }
+        },
+    )
+}
+
+/** "Lightforge hid 2 folders and 1 file." with the right noun for each kind that is present. */
+@Composable
+private fun hiddenCountSentence(hidden: List<HiddenFolderUi>): String {
+    val files = hidden.count { it.isFile }
+    val folders = hidden.size - files
+    val folderText = if (folders > 0) pluralStringResource(R.plurals.storage_access_count_folders, folders, folders) else null
+    val fileText = if (files > 0) pluralStringResource(R.plurals.storage_access_count_files, files, files) else null
+    return if (folderText != null && fileText != null) {
+        stringResource(R.string.storage_access_turn_off_hid_both, folderText, fileText)
+    } else {
+        stringResource(R.string.storage_access_turn_off_hid, folderText ?: fileText.orEmpty())
     }
 }
 
@@ -192,52 +262,22 @@ private fun advancedStatusLabel(status: AdvancedStatus) = stringResource(
 )
 
 @Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(horizontal = GallerySpacing.Md).semantics { heading() },
-    )
-}
-
-@Composable
-private fun SectionBody(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = GallerySpacing.Md),
-    )
-}
-
-@Composable
-private fun StatusRow(label: String, value: String, modifier: Modifier = Modifier) {
-    ListItem(
-        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        modifier = modifier.fillMaxWidth().clip(MaterialTheme.shapes.large),
-        supportingContent = { Text(value) },
-    ) { Text(label) }
-}
-
-@Composable
 private fun ManageMediaSection(state: StorageAccessUiState, actions: StorageAccessActions, context: Context) {
-    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-        SectionTitle(stringResource(R.string.storage_access_media_title))
-        SectionBody(stringResource(R.string.storage_access_media_body))
-        StatusRow(
-            label = stringResource(R.string.storage_access_permission_label),
-            value = stringResource(if (state.manageMediaGranted) R.string.storage_access_allowed else R.string.storage_access_not_allowed),
-            modifier = Modifier.testTag("storage-access-media-status"),
-        )
-        FilledTonalButton(
-            onClick = { context.startSafely(actions.manageMediaIntent()) },
-            modifier = Modifier.padding(horizontal = GallerySpacing.Md).testTag("storage-access-media-button"),
-        ) {
-            Text(
-                stringResource(
-                    if (state.manageMediaGranted) R.string.storage_access_change_system else R.string.storage_access_open_system,
-                ),
+    StorageAccessSection(title = stringResource(R.string.storage_access_permissions_title)) {
+        row {
+            StorageAccessRow(
+                title = stringResource(R.string.storage_access_media_title),
+                icon = Icons.Outlined.PermMedia,
+                supporting = stringResource(R.string.storage_access_media_body),
+                onClick = { context.startSafely(actions.manageMediaIntent()) },
+                modifier = Modifier.testTag("storage-access-media-status"),
+                trailing = {
+                    Text(
+                        stringResource(if (state.manageMediaGranted) R.string.storage_access_allowed else R.string.storage_access_not_allowed),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (state.manageMediaGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
             )
         }
     }
@@ -252,48 +292,105 @@ private fun AdvancedSection(
     onRequestTurnOff: () -> Unit,
     requireUnlock: (onSuccess: () -> Unit) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-        SectionTitle(stringResource(R.string.storage_access_advanced_title))
-        SettingsSwitchRow(
-            label = stringResource(R.string.storage_access_advanced_switch),
-            checked = state.advancedEnabled,
-            supporting = stringResource(R.string.storage_access_advanced_supporting),
-            enabled = !state.busy,
-            modifier = Modifier.testTag("storage-access-advanced-switch"),
-        ) { enable -> if (enable) onRequestEnable() else onRequestTurnOff() }
-        if (state.advancedEnabled) {
-            StatusRow(
-                label = stringResource(R.string.storage_access_status_label),
-                value = advancedStatusLabel(state.advancedStatus),
-                modifier = Modifier.testTag("storage-access-advanced-status"),
+    var detailsExpanded by rememberSaveable { mutableStateOf(false) }
+    val modeActive = state.advancedActive && !state.busy
+    StorageAccessSection(title = stringResource(R.string.storage_access_advanced_title)) {
+        row {
+            StorageAccessSwitchRow(
+                title = stringResource(R.string.storage_access_advanced_switch),
+                icon = Icons.Outlined.FolderSpecial,
+                checked = state.advancedEnabled,
+                supporting = stringResource(R.string.storage_access_advanced_summary),
+                enabled = !state.busy,
+                modifier = Modifier.testTag("storage-access-advanced-switch"),
+                onCheckedChange = { enable -> if (enable) onRequestEnable() else onRequestTurnOff() },
             )
-            if (state.advancedActive) {
-                SettingsSwitchRow(
-                    label = stringResource(R.string.storage_access_show_hidden),
-                    checked = state.showHidden,
-                    supporting = stringResource(R.string.storage_access_show_hidden_supporting),
-                    enabled = !state.busy,
-                    modifier = Modifier.testTag("storage-access-show-hidden-switch"),
-                ) { on ->
-                    // Showing hidden items is the protected step; hiding them again never asks.
+        }
+        if (state.advancedStatus == AdvancedStatus.WaitingForPermission) {
+            row {
+                PermissionOffRow(
+                    hasHidden = state.hidden.isNotEmpty(),
+                    onAllow = { context.startSafely(actions.permissionIntent()) },
+                )
+            }
+        }
+        row {
+            StorageAccessSwitchRow(
+                title = stringResource(R.string.storage_access_show_hidden),
+                icon = Icons.Outlined.Visibility,
+                checked = state.showHidden,
+                supporting = stringResource(R.string.storage_access_show_hidden_supporting),
+                enabled = modeActive,
+                modifier = Modifier.testTag("storage-access-show-hidden-switch"),
+                // Showing hidden items is the protected step; hiding them again never asks.
+                onCheckedChange = { on ->
                     if (on && state.hiddenItemsProtected) requireUnlock { actions.onSetShowHidden(true) } else actions.onSetShowHidden(on)
-                }
-                SettingsSwitchRow(
-                    label = stringResource(R.string.storage_access_delete_empty),
-                    checked = state.deleteEmptyFolders,
-                    supporting = stringResource(R.string.storage_access_delete_empty_supporting),
-                    enabled = !state.busy,
-                    modifier = Modifier.testTag("storage-access-delete-empty-switch"),
-                ) { on -> actions.onSetDeleteEmptyFolders(on) }
+                },
+            )
+        }
+        row {
+            StorageAccessSwitchRow(
+                title = stringResource(R.string.storage_access_delete_empty),
+                icon = Icons.Outlined.DeleteSweep,
+                checked = state.deleteEmptyFolders,
+                supporting = stringResource(R.string.storage_access_delete_empty_supporting),
+                enabled = modeActive,
+                modifier = Modifier.testTag("storage-access-delete-empty-switch"),
+                onCheckedChange = { on -> actions.onSetDeleteEmptyFolders(on) },
+            )
+        }
+        row {
+            StorageAccessRow(
+                title = stringResource(R.string.storage_access_learn_more),
+                icon = Icons.Outlined.Info,
+                supporting = if (detailsExpanded) stringResource(R.string.storage_access_advanced_supporting) else null,
+                supportingMaxLines = Int.MAX_VALUE,
+                onClick = { detailsExpanded = !detailsExpanded },
+                modifier = Modifier.testTag("storage-access-learn-more"),
+                trailing = {
+                    Icon(
+                        if (detailsExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+            )
+        }
+    }
+}
+
+/** Inline warning inside the advanced group: the mode is on but the system permission is not. */
+@Composable
+private fun PermissionOffRow(hasHidden: Boolean, onAllow: () -> Unit) {
+    // errorContainer pairs with onErrorContainer.
+    Surface(
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        modifier = Modifier.fillMaxWidth().padding(GallerySpacing.Sm).testTag("storage-access-revoked-warning"),
+    ) {
+        Row(
+            Modifier.padding(start = GallerySpacing.Lg, top = GallerySpacing.Md, bottom = GallerySpacing.Md, end = GallerySpacing.Md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Lg),
+        ) {
+            Icon(Icons.Outlined.Warning, contentDescription = null, modifier = Modifier.size(24.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.storage_access_permission_off_title), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(if (hasHidden) R.string.storage_access_permission_off_hidden else R.string.storage_access_permission_off_waiting),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
-            if (state.advancedStatus == AdvancedStatus.WaitingForPermission) {
-                SectionBody(stringResource(R.string.storage_access_waiting_body))
-                // The explanation comes first, also for a mode that arrived through an import.
-                FilledTonalButton(
-                    onClick = onRequestEnable,
-                    modifier = Modifier.padding(horizontal = GallerySpacing.Md).testTag("storage-access-permission-button"),
-                ) { Text(stringResource(R.string.storage_access_open_system)) }
-            }
+            // The inverse of the container pair keeps the button readable on the error container.
+            Button(
+                onClick = onAllow,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.onErrorContainer,
+                    contentColor = MaterialTheme.colorScheme.errorContainer,
+                ),
+                modifier = Modifier.testTag("storage-access-permission-button"),
+            ) { Text(stringResource(R.string.storage_access_allow)) }
         }
     }
 }
@@ -301,39 +398,49 @@ private fun AdvancedSection(
 /** Folders MediaStore does not index that the user added to the library (ADR-046). */
 @Composable
 private fun ScannedFoldersSection(state: StorageAccessUiState, actions: StorageAccessActions, onAdd: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-        SectionTitle(stringResource(R.string.storage_access_included_title))
-        SectionBody(stringResource(R.string.storage_access_included_body))
+    StorageAccessSection(
+        title = stringResource(R.string.storage_access_included_title),
+        footer = stringResource(R.string.storage_access_included_body),
+    ) {
         state.scannedFolders.forEach { path ->
-            val name = readableHiddenPath(path)
-            val description = stringResource(R.string.storage_access_included_remove_description, name)
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).testTag("storage-access-included-row"),
-                trailingContent = {
-                    TextButton(
-                        onClick = { actions.onRemoveScannedFolder(path) },
-                        enabled = !state.busy,
-                        modifier = Modifier.semantics { contentDescription = description },
-                    ) { Text(stringResource(R.string.storage_access_included_remove)) }
-                },
-            ) { Text(name, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            row {
+                val readable = readableHiddenPath(path)
+                val name = path.trimEnd('/').substringAfterLast('/').ifEmpty { readable }
+                val description = stringResource(R.string.storage_access_included_remove_description, name)
+                StorageAccessRow(
+                    title = name,
+                    icon = Icons.Outlined.Folder,
+                    supporting = readable,
+                    supportingMaxLines = 1,
+                    modifier = Modifier.testTag("storage-access-included-row"),
+                    trailing = {
+                        IconButton(
+                            onClick = { actions.onRemoveScannedFolder(path) },
+                            enabled = !state.busy,
+                            modifier = Modifier.semantics { contentDescription = description },
+                        ) { Icon(Icons.Outlined.Close, contentDescription = null) }
+                    },
+                )
+            }
         }
-        Row(
-            Modifier.padding(horizontal = GallerySpacing.Md),
-            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
-        ) {
-            FilledTonalButton(
-                onClick = onAdd,
+        row {
+            StorageAccessRow(
+                title = stringResource(R.string.storage_access_included_add),
+                icon = Icons.Outlined.Add,
                 enabled = !state.busy,
+                onClick = onAdd,
                 modifier = Modifier.testTag("storage-access-included-add"),
-            ) { Text(stringResource(R.string.storage_access_included_add)) }
-            if (state.scannedFolders.isNotEmpty()) {
-                TextButton(
-                    onClick = actions.onRescanScannedFolders,
+            )
+        }
+        if (state.scannedFolders.isNotEmpty()) {
+            row {
+                StorageAccessRow(
+                    title = stringResource(R.string.storage_access_included_rescan),
+                    icon = Icons.Outlined.Refresh,
                     enabled = !state.busy,
+                    onClick = actions.onRescanScannedFolders,
                     modifier = Modifier.testTag("storage-access-included-rescan"),
-                ) { Text(stringResource(R.string.storage_access_included_rescan)) }
+                )
             }
         }
     }
@@ -342,53 +449,64 @@ private fun ScannedFoldersSection(state: StorageAccessUiState, actions: StorageA
 @Composable
 private fun HiddenFoldersSection(state: StorageAccessUiState, actions: StorageAccessActions, chooseFolder: (String) -> Unit) {
     val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM) }
-    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-        SectionTitle(stringResource(R.string.storage_access_hidden_title))
-        SectionBody(stringResource(R.string.storage_access_hidden_body))
+    StorageAccessSection(
+        title = stringResource(R.string.storage_access_hidden_title),
+        footer = stringResource(R.string.storage_access_hidden_body),
+    ) {
         state.hidden.forEach { entry ->
-            val name = readableHiddenPath(entry.absolutePath)
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-                modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).testTag("storage-access-hidden-row"),
-                supportingContent = {
-                    Text(stringResource(R.string.storage_access_hidden_on, dateFormat.format(Date(entry.createdAtMillis))))
-                },
-                trailingContent = {
-                    val needsFolder = entry.absolutePath in state.treeGrantPaths
-                    val description = stringResource(
-                        if (needsFolder) R.string.storage_access_unhide_choose_folder_description else R.string.storage_access_unhide_description,
-                        name,
-                    )
-                    TextButton(
-                        onClick = { if (needsFolder) chooseFolder(entry.absolutePath) else actions.onUnhide(entry.absolutePath) },
-                        enabled = !state.busy,
-                        modifier = Modifier.semantics { contentDescription = description },
-                    ) {
-                        Text(stringResource(if (needsFolder) R.string.storage_access_unhide_choose_folder else R.string.storage_access_unhide))
-                    }
-                },
-            ) { Text(name, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            row {
+                val name = hiddenItemName(entry)
+                val needsFolder = entry.absolutePath in state.treeGrantPaths
+                val description = stringResource(
+                    if (needsFolder) R.string.storage_access_unhide_choose_folder_description else R.string.storage_access_unhide_description,
+                    name,
+                )
+                StorageAccessRow(
+                    title = name,
+                    icon = if (entry.isFile) Icons.Outlined.Image else Icons.Outlined.FolderOff,
+                    supporting = stringResource(
+                        R.string.storage_access_hidden_row_supporting,
+                        hiddenItemParent(entry),
+                        dateFormat.format(Date(entry.createdAtMillis)),
+                    ),
+                    modifier = Modifier.testTag("storage-access-hidden-row"),
+                    trailing = {
+                        IconButton(
+                            onClick = { if (needsFolder) chooseFolder(entry.absolutePath) else actions.onUnhide(entry.absolutePath) },
+                            enabled = !state.busy,
+                            modifier = Modifier.semantics { contentDescription = description },
+                        ) { Icon(Icons.Outlined.Visibility, contentDescription = null) }
+                    },
+                )
+            }
         }
         if (state.hidden.size > 1) {
-            FilledTonalButton(
-                onClick = actions.onUnhideAll,
-                enabled = !state.busy,
-                modifier = Modifier.padding(horizontal = GallerySpacing.Md).testTag("storage-access-unhide-all"),
-            ) { Text(stringResource(R.string.storage_access_unhide_all)) }
+            row {
+                StorageAccessRow(
+                    title = stringResource(R.string.storage_access_unhide_all),
+                    icon = Icons.Outlined.VisibilityOff,
+                    enabled = !state.busy,
+                    onClick = actions.onUnhideAll,
+                    modifier = Modifier.testTag("storage-access-unhide-all"),
+                )
+            }
         }
     }
 }
 
-/** The hidden folders list behind the app lock: a labelled section with its own explanation and action. */
+/** The hidden items list behind the app lock: the same group with one row that unlocks it. */
 @Composable
 private fun LockedHiddenFoldersSection(onShow: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-        SectionTitle(stringResource(R.string.storage_access_hidden_title))
-        SectionBody(stringResource(R.string.storage_access_hidden_locked))
-        FilledTonalButton(
-            onClick = onShow,
-            modifier = Modifier.padding(horizontal = GallerySpacing.Md).testTag("storage-access-hidden-show-list"),
-        ) { Text(stringResource(R.string.storage_access_hidden_show_list)) }
+    StorageAccessSection(title = stringResource(R.string.storage_access_hidden_title)) {
+        row {
+            StorageAccessRow(
+                title = stringResource(R.string.storage_access_hidden_show_list),
+                icon = Icons.Outlined.Lock,
+                supporting = stringResource(R.string.storage_access_hidden_locked),
+                onClick = onShow,
+                modifier = Modifier.testTag("storage-access-hidden-show-list"),
+            )
+        }
     }
 }
 
@@ -413,37 +531,6 @@ fun StorageAccessUnhidePrompt(state: StorageAccessUiState, actions: StorageAcces
             TextButton(onClick = actions.onKeepHidden) { Text(stringResource(R.string.storage_access_keep_hidden)) }
         },
     )
-}
-
-@Composable
-private fun RevokedWarning(state: StorageAccessUiState, actions: StorageAccessActions, context: Context) {
-    // errorContainer/onErrorContainer is the matching pair; the buttons inherit the container content colour.
-    Surface(
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.errorContainer,
-        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-        modifier = Modifier.fillMaxWidth().testTag("storage-access-revoked-warning"),
-    ) {
-        Column(Modifier.padding(GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-            Text(
-                stringResource(R.string.storage_access_revoked_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.semantics { heading() },
-            )
-            Text(
-                pluralStringResource(R.plurals.storage_access_revoked_body, state.hidden.size, state.hidden.size),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-                TextButton(onClick = { context.startSafely(actions.permissionIntent()) }, colors = onContainerButtonColors()) {
-                    Text(stringResource(R.string.storage_access_open_system))
-                }
-                TextButton(onClick = actions.onUnhideAll, enabled = !state.busy, colors = onContainerButtonColors()) {
-                    Text(stringResource(R.string.storage_access_unhide_all))
-                }
-            }
-        }
-    }
 }
 
 @Composable

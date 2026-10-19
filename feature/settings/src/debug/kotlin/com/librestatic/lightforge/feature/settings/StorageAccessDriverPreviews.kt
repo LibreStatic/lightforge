@@ -25,13 +25,22 @@ private val TwoHidden = listOf(
     HiddenFolderUi("/storage/1A2B-3C4D/DCIM/Private", FixedNow - 40 * DayMillis),
 )
 
+/** Two files and one folder, the mix the turn-off dialog has to name correctly. */
+private val ThreeHidden = listOf(
+    HiddenFolderUi("/storage/emulated/0/Pictures/Travel/.IMG_20260710_173000.jpg", FixedNow, isFile = true),
+    HiddenFolderUi("/storage/emulated/0/Pictures/Travel/.VID_20260711_091500.mp4", FixedNow - DayMillis, isFile = true),
+    HiddenFolderUi("/storage/emulated/0/DCIM/Private", FixedNow - 40 * DayMillis),
+)
+
+private val TwoIncluded = listOf("/storage/emulated/0/Download/Scans", "/storage/1A2B-3C4D/Camera backup")
+
 /** Supported build, mode off, media management not granted. Toggle the switch to see the explanation dialog. */
 @Composable
 fun StorageAccessOffPreview() = StorageAccessPreviewFrame(
     StorageAccessUiState(manageMediaSupported = true, advancedSupported = true),
 )
 
-/** Mode on but the permission is gone, with two hidden folders: warning card, status and list. */
+/** Mode on but the permission is gone, with two hidden folders: inline warning row and the list. */
 @Composable
 fun StorageAccessRevokedPreview() = StorageAccessPreviewFrame(
     StorageAccessUiState(
@@ -45,7 +54,7 @@ fun StorageAccessRevokedPreview() = StorageAccessPreviewFrame(
     ),
 )
 
-/** Mode active with two hidden folders; turning the switch off asks about them. */
+/** Mode on and granted, two included folders and three hidden items; the switch opens the turn-off dialog. */
 @Composable
 fun StorageAccessActivePreview() = StorageAccessPreviewFrame(
     StorageAccessUiState(
@@ -53,8 +62,21 @@ fun StorageAccessActivePreview() = StorageAccessPreviewFrame(
         advancedSupported = true,
         advancedEnabled = true,
         allFilesGranted = true,
-        hidden = TwoHidden,
+        hidden = ThreeHidden,
+        scannedFolders = TwoIncluded,
         showHidden = true,
+    ),
+)
+
+/** Same as the active page with the app lock protecting the hidden items list. */
+@Composable
+fun StorageAccessLockedPreview() = StorageAccessPreviewFrame(
+    StorageAccessUiState(
+        manageMediaSupported = true,
+        advancedSupported = true,
+        advancedEnabled = true,
+        allFilesGranted = true,
+        hidden = ThreeHidden,
         appLockEnabled = true,
         protectHiddenItems = true,
     ),

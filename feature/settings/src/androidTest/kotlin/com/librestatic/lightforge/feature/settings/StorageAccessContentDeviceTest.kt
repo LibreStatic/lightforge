@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.preferences.AppearanceSettings
 import org.junit.Assert.assertEquals
@@ -34,10 +35,11 @@ class StorageAccessContentDeviceTest {
         compose.onNodeWithTag("storage-access-delete-empty-switch").assertIsDisplayed()
     }
 
-    @Test fun inactive_mode_hides_the_two_switches() {
+    @Test fun inactive_mode_disables_the_two_switches_and_warns() {
         show(StorageAccessUiState(advancedSupported = true, advancedEnabled = true, allFilesGranted = false))
-        compose.onAllNodesWithTag("storage-access-show-hidden-switch").assertCountEquals(0)
-        compose.onAllNodesWithTag("storage-access-delete-empty-switch").assertCountEquals(0)
+        compose.onNodeWithTag("storage-access-show-hidden-switch").assertIsNotEnabled()
+        compose.onNodeWithTag("storage-access-delete-empty-switch").assertIsNotEnabled()
+        compose.onNodeWithTag("storage-access-revoked-warning").assertIsDisplayed()
     }
 
     @Test fun protected_list_stays_closed_until_the_unlock_succeeds() {

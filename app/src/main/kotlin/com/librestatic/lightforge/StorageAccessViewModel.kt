@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
 import com.librestatic.lightforge.core.mediastore.AdvancedStorage
 import com.librestatic.lightforge.core.mediastore.HiddenEntry
+import com.librestatic.lightforge.core.mediastore.HiddenKind
 import com.librestatic.lightforge.core.mediastore.MediaManagementAccess
 import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
 import com.librestatic.lightforge.feature.settings.HiddenFolderUi
@@ -85,7 +86,7 @@ internal class StorageAccessModel(
             advancedSupported = advanced.isSupported,
             advancedEnabled = readEnabled(),
             allFilesGranted = advanced.isSupported && advanced.isGranted(),
-            hidden = hidden.sortedBy { it.absolutePath }.map { HiddenFolderUi(it.absolutePath, it.createdAtMillis) },
+            hidden = hidden.sortedBy { it.absolutePath }.map { HiddenFolderUi(it.absolutePath, it.createdAtMillis, it.kind == HiddenKind.DotPrefix) },
             treeGrantPaths = needsTreeGrant.toSet(),
             showHidden = extras.showHidden,
             deleteEmptyFolders = extras.deleteEmptyFolders,

@@ -3,8 +3,11 @@ package com.librestatic.lightforge.feature.settings
 import android.content.Intent
 import android.net.Uri
 
-/** A folder Lightforge hid with a `.nomedia` file, as shown in Settings (ADR-046). */
-data class HiddenFolderUi(val absolutePath: String, val createdAtMillis: Long)
+/**
+ * An item Lightforge hid, as shown in Settings (ADR-046): a folder with a `.nomedia` file, or, when [isFile] is true,
+ * a single file renamed with a leading dot. [absolutePath] is the hidden path.
+ */
+data class HiddenFolderUi(val absolutePath: String, val createdAtMillis: Long, val isFile: Boolean = false)
 
 enum class StorageAccessMessageKind { PermissionNeeded, NotAllUnhidden, IncludeFailed }
 
@@ -110,6 +113,16 @@ private val PrimaryVolumePrefixes = listOf(
     Regex("^/storage/self/primary/"),
 )
 private val OtherVolumePrefix = Regex("^/storage/([^/]+)/")
+
+/** The name to show for a hidden item: its last path segment, without the leading dot that hides a file. */
+fun hiddenItemName(entry: HiddenFolderUi): String {
+    val name = entry.absolutePath.trimEnd('/').substringAfterLast('/')
+    return (if (entry.isFile) name.removePrefix(".") else name).ifEmpty { readableHiddenPath(entry.absolutePath) }
+}
+
+/** The readable path of the folder that holds a hidden item. */
+fun hiddenItemParent(entry: HiddenFolderUi): String =
+    readableHiddenPath(entry.absolutePath.trimEnd('/').substringBeforeLast('/', missingDelimiterValue = "/").ifEmpty { "/" })
 
 /** `/storage/emulated/0/Pictures/Trip` becomes `Pictures/Trip`; other volumes keep their label as a prefix. */
 fun readableHiddenPath(absolutePath: String): String {
