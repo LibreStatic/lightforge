@@ -56,6 +56,7 @@ The Baseline Profile (`app/src/main/baseline-prof.txt`) and Startup Profile (`st
 - Run `--dry-run` first: it validates the edit and discards it.
 - If the commit says the changes cannot be sent automatically, rerun with `--no-review`, then send them from Publishing overview.
 - `tools/play-publish.py listings [--dry-run] [--no-review]` sets the title, short and full description of every locale folder under `store/play/listings/` (images and other locales are untouched) and prints which locales changed. Run `python3 store/play/check_listings.py` first.
+- Build every Play bundle with `-Plightforge.allFilesAccess=false`. Play rejected `MANAGE_EXTERNAL_STORAGE` for this app on 2026-10-28 ("Not a core feature"); the advanced storage mode stays in non-Play builds only.
 - The package is read from `applicationId` (`com.librestatic.lightforge`).
 - The closed track is `alpha`; production is `--track production` (add `--rollout 0.2` for a staged rollout). Production must target countries first, which only the Console can set; `publish` checks it before uploading.
 - If the API answers 403, the service account lacks access in Play Console > Users and permissions. Ask the user; do not grant it yourself.

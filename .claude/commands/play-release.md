@@ -23,6 +23,7 @@ swap the build of a release that Google has not approved yet. Any remaining word
 | Release notes | `store/play/release-notes/<versionName>.txt`, one `<locale>…</locale>` block per folder in `store/play/listings/` |
 | Signing | Gradle signs `bundleOfflineRelease` with the upload key from `~/.android/lightforge/keystore.properties` |
 | Upload certificate SHA-256 | `1dbd3d04b427de3469e946f3dd87d317fabf6b2ff32ab6925883ed97a9e8ab9c` |
+| All files access | Off in every Play build: pass `-Plightforge.allFilesAccess=false`. Play rejected `MANAGE_EXTERNAL_STORAGE` for a gallery on 2026-10-28 ("Not a core feature"), and the listings say no all-files access is needed |
 | CI gate | `./gradlew :app:assembleOfflineDebug :app:assembleOfflineRelease test lint :app:bundleOfflineRelease` then `python tools/verify_offline_release.py` |
 | Outputs | `app/build/outputs/bundle/offlineRelease/*.aab` and `app/build/outputs/mapping/offlineRelease/mapping.txt` |
 
@@ -67,8 +68,9 @@ swap the build of a release that Google has not approved yet. Any remaining word
    - Create a clean worktree:
      `git worktree add --detach ~/.cache/claude-tmp/ugallery/release-wt main`. Never use /tmp or /dev/shm.
    - The worktree has no `local.properties`, so export `ANDROID_HOME=ANDROID_SDK_ROOT=$HOME/Android/Sdk`.
-   - Run the CI gate there with `--continue -Plightforge.versionCode=<code> --max-workers=4 --parallel`,
+   - Run the CI gate there with `--continue -Plightforge.versionCode=<code> -Plightforge.allFilesAccess=false --max-workers=4 --parallel`,
      `-Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m"` and `-Pkotlin.compiler.execution.strategy=in-process`.
+   - Use the system JDK (`/usr/lib/jvm/java-27-openjdk`): on Java 17, Robolectric's SDK 36 tests and lint fail.
    - Run it from a script file in the background; the context-mode hook blocks raw `./gradlew` in Bash.
    - Redirect output to a log and print `exit=$?`. Never pipe Gradle through `rtk err`, which hides failures.
      Grep the log for `^e:|FAILED`.
@@ -79,6 +81,7 @@ swap the build of a release that Google has not approved yet. Any remaining word
 6. **Verify and stage the bundle.**
    - Check that `jarsigner -verify` passes on the AAB.
    - Check that `keytool -printcert -jarfile <aab>` shows the upload certificate SHA-256 above.
+   - Check that the bundle's manifest has no `MANAGE_EXTERNAL_STORAGE`: `bundletool dump manifest --bundle <aab> | grep -c MANAGE_EXTERNAL_STORAGE` must print 0.
    - Copy it to `~/Downloads/lightforge-<versionName>-<code>.aab` and write a `.sha256` next to it.
    - Copy `mapping.txt` too, renamed to `lightforge-<versionName>-<code>-mapping.txt`.
    - Remove the older bundles there.
