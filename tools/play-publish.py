@@ -208,13 +208,17 @@ def cmd_publish(play, args):
             # Validation fails while a permission declaration is still missing, and the
             # Console only offers that declaration once a release using the permission exists.
             print("draft: validation skipped")
-        else:
+        query = "?changesNotSentForReview=true" if args.no_review else ""
+        if args.no_review and not args.draft:
+            # :validate takes no changesNotSentForReview and fails with "cannot be sent for review
+            # automatically" (e.g. after a rejection); the commit still validates the edit.
+            print("no review: validation left to the commit")
+        elif not args.draft:
             play.call("POST", play.edit_url(edit, ":validate"))
             print("edit validated")
         if args.dry_run:
             print("dry run: edit discarded")
             return
-        query = "?changesNotSentForReview=true" if args.no_review else ""
         play.call("POST", play.edit_url(edit, ":commit") + query)
         committed = True
         print("committed: left in Publishing overview" if args.no_review else "committed and sent for review")
@@ -267,12 +271,12 @@ def cmd_listings(play, args):
         if not changed:
             print("nothing to change: edit discarded")
             return
+        query = "?changesNotSentForReview=true" if args.no_review else ""
         play.call("POST", play.edit_url(edit, ":validate"))
         print("edit validated")
         if args.dry_run:
             print("dry run: edit discarded")
             return
-        query = "?changesNotSentForReview=true" if args.no_review else ""
         play.call("POST", play.edit_url(edit, ":commit") + query)
         committed = True
         print("committed: left in Publishing overview" if args.no_review else "committed and sent for review")
