@@ -87,16 +87,51 @@ class MlSchedulerPolicyDeviceTest {
         assertEquals(0, engine.processCalls)
     }
 
-    @Test fun moderateThermalStatusBacksOffBeforeOpeningMedia() = runBlocking {
+    @Test fun severeThermalStatusBacksOffBeforeOpeningMedia() = runBlocking {
         val engine = FakeEngine()
         state.setConsent(engine.task, true)
         val runner = MlChunkRunner(
             state,
-            MlExecutionController(ThermalStatusProvider { PowerManager.THERMAL_STATUS_MODERATE }),
+            MlExecutionController(ThermalStatusProvider { PowerManager.THERMAL_STATUS_SEVERE }),
         )
 
         assertEquals(MlRunnerResult.Backoff(MlBackoffWait.Thermal), runner.run(engine, MlWorkPolicy.forMode(MlRunMode.Recent)))
         assertEquals(0, engine.processCalls)
+    }
+
+    @Test fun moderateThermalStatusKeepsWorkingAndRestsBetweenChunks() = runBlocking {
+        val engine = FakeEngine(outcomes = ArrayDeque(listOf(MlChunkOutcome.More(MediaKey("external_primary", 49), 50))))
+        state.setConsent(engine.task, true)
+        var now = 0L
+        val runner = MlChunkRunner(
+            state,
+            MlExecutionController(ThermalStatusProvider { PowerManager.THERMAL_STATUS_MODERATE }),
+            nanoTime = { now.also { now += java.time.Duration.ofSeconds(12).toNanos() } },
+        )
+
+        val result = runner.run(engine, MlWorkPolicy.forMode(MlRunMode.Recent))
+
+        assertEquals(1, engine.processCalls)
+        assertEquals(java.time.Duration.ofSeconds(12), (result as MlRunnerResult.Continue).rest)
+    }
+
+    @Test fun heatHoldResumesOnlyBelowTheResumeForecast() = runBlocking {
+        val engine = FakeEngine()
+        state.setConsent(engine.task, true)
+        state.setWaitReason(engine.task, MlBackoffWait.Thermal)
+        var headroom = 0.9f
+        val thermal = object : ThermalStatusProvider {
+            override fun status() = PowerManager.THERMAL_STATUS_MODERATE
+            override fun headroom() = headroom
+        }
+        val runner = MlChunkRunner(state, MlExecutionController(thermal))
+
+        assertEquals(MlRunnerResult.Backoff(MlBackoffWait.Thermal), runner.run(engine, MlWorkPolicy.forMode(MlRunMode.Recent)))
+        assertEquals(0, engine.processCalls)
+
+        headroom = 0.8f
+        assertTrue(runner.run(engine, MlWorkPolicy.forMode(MlRunMode.Recent)) is MlRunnerResult.Finished)
+        assertNull(state.waitReason(engine.task))
     }
 
     @Test fun permissionLossPurgesDerivedDataAndCheckpoint() = runBlocking {

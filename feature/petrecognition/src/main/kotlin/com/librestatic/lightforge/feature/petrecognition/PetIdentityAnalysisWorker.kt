@@ -28,9 +28,13 @@ import com.librestatic.lightforge.core.ml.MlRunMode
 import com.librestatic.lightforge.core.ml.MlScheduler
 import com.librestatic.lightforge.core.ml.MlTaskType
 import com.librestatic.lightforge.core.ml.MlWorkPolicy
+import com.librestatic.lightforge.core.ml.ThermalHoldWait
+import com.librestatic.lightforge.core.ml.ThermalPace
 import com.librestatic.lightforge.core.ml.requiringCharging
+import com.librestatic.lightforge.core.ml.thermalRest
 import java.time.Duration
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withContext
@@ -79,15 +83,22 @@ class PetIdentityAnalysisWorker(context: Context, parameters: WorkerParameters) 
         // WorkManager stops the worker when constraints are lost; the signal aborts a running inference.
         val stop = coroutineContext.job.invokeOnCompletion { signal.cancel() }
         var analyzed = 0L; var detected = 0L; var skipped = 0L
+        // Only the first photo after a heat hold needs the cooler resume threshold.
+        var heldForHeat = inputData.getBoolean(KeyHeldForHeat, false)
+        var lastGate = System.nanoTime()
         try {
             PetIdentityAnalysis(applicationContext, repository, models).run(
                 signal,
                 gate = {
-                    when (controller.decide(consent = true, paused = false, permission = true, mode = MlRunMode.FullLibrary)) {
+                    when (controller.decide(consent = true, paused = false, permission = true, mode = MlRunMode.FullLibrary, heldForHeat = heldForHeat)) {
                         MlExecutionDecision.Run -> Unit
                         MlExecutionDecision.PowerBackoff -> throw Backoff(MlBackoffWait.Charging)
                         else -> throw Backoff(MlBackoffWait.Thermal)
                     }
+                    heldForHeat = false
+                    // Warm but not hot: rest as long as the last photo took, about half speed.
+                    if (controller.pace() == ThermalPace.Slow) delay(thermalRest(Duration.ofNanos(System.nanoTime() - lastGate)).toMillis())
+                    lastGate = System.nanoTime()
                 },
             ) { a, d, s ->
                 analyzed = a; detected = d; skipped = s
@@ -133,19 +144,19 @@ class PetIdentityAnalysisWorker(context: Context, parameters: WorkerParameters) 
         const val KeyDetected = "detected"
         const val KeySkipped = "skipped"
         private const val KeyForce = "force"
+        private const val KeyHeldForHeat = "heldForHeat"
         private const val Channel = "pet-identity-analysis"
         private const val NotificationId = 0x7065
         private const val MaxAttempts = 3
-        private val ThermalWait = Duration.ofMinutes(2)
         private val SpeciesPassWait = Duration.ofMinutes(10)
 
         internal fun request(wait: MlBackoffWait?, forced: Boolean, expedited: Boolean, delay: Duration? = null): OneTimeWorkRequest {
             val constraints = MlWorkPolicy.forMode(MlRunMode.FullLibrary).constraints
             val builder = OneTimeWorkRequestBuilder<PetIdentityAnalysisWorker>()
-                .setInputData(Data.Builder().putBoolean(KeyForce, forced).build())
+                .setInputData(Data.Builder().putBoolean(KeyForce, forced).putBoolean(KeyHeldForHeat, wait == MlBackoffWait.Thermal).build())
                 .setConstraints(if (wait == MlBackoffWait.Charging) constraints.requiringCharging() else constraints)
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, Duration.ofSeconds(30))
-            val initialDelay = delay ?: ThermalWait.takeIf { wait == MlBackoffWait.Thermal }
+            val initialDelay = delay ?: ThermalHoldWait.takeIf { wait == MlBackoffWait.Thermal }
             if (initialDelay != null) builder.setInitialDelay(initialDelay)
             if (expedited && initialDelay == null) builder.setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
             return builder.build()

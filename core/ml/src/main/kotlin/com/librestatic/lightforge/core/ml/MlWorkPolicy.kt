@@ -5,6 +5,7 @@ import android.content.IntentFilter
 import android.content.Context
 import android.os.BatteryManager
 import android.os.PowerManager
+import android.os.SystemClock
 import androidx.work.Constraints
 import androidx.work.NetworkType
 import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
@@ -84,11 +85,34 @@ class AndroidFullAnalysisEligibility(
     }
 }
 
-fun interface ThermalStatusProvider { fun status(): Int }
+fun interface ThermalStatusProvider {
+    fun status(): Int
+
+    /** The 10 s forecast of [PowerManager.getThermalHeadroom]; NaN when unknown. */
+    fun headroom(): Float = Float.NaN
+}
 
 class AndroidThermalStatusProvider(context: Context) : ThermalStatusProvider {
     private val power = context.applicationContext.getSystemService(PowerManager::class.java)
     override fun status(): Int = power.currentThermalStatus
+    private var cachedHeadroom = Float.NaN
+    private var headroomReadAt = Long.MIN_VALUE
+
+    /** The platform answers NaN to calls less than a second apart, so a recent reading is reused. */
+    @Synchronized
+    override fun headroom(): Float {
+        val now = SystemClock.elapsedRealtime()
+        if (headroomReadAt == Long.MIN_VALUE || now - headroomReadAt >= HeadroomRefreshMillis) {
+            cachedHeadroom = power.getThermalHeadroom(HeadroomForecastSeconds)
+            headroomReadAt = now
+        }
+        return cachedHeadroom
+    }
+
+    private companion object {
+        const val HeadroomForecastSeconds = 10
+        const val HeadroomRefreshMillis = 1_000L
+    }
 }
 
 enum class MlExecutionDecision {
@@ -105,13 +129,18 @@ class MlExecutionController(
         paused: Boolean,
         permission: Boolean,
         mode: MlRunMode,
+        /** The previous run stopped for heat; resuming needs a cooler device than staying on does. */
+        heldForHeat: Boolean = false,
     ): MlExecutionDecision = when {
         !consent -> MlExecutionDecision.ConsentRequired
         paused -> MlExecutionDecision.Paused
         userWorkloadActive() -> MlExecutionDecision.UserPriority
         !permission -> MlExecutionDecision.PermissionLost
         mode == MlRunMode.FullLibrary && !fullAnalysisEligibility.isEligible() -> MlExecutionDecision.PowerBackoff
-        thermal.status() >= PowerManager.THERMAL_STATUS_MODERATE -> MlExecutionDecision.ThermalBackoff
+        pace(heldForHeat) == ThermalPace.Hold -> MlExecutionDecision.ThermalBackoff
         else -> MlExecutionDecision.Run
     }
+
+    fun pace(heldForHeat: Boolean = false): ThermalPace =
+        thermalPace(thermal.status(), thermal.headroom(), heldForHeat)
 }

@@ -39,7 +39,7 @@ class MlChunkWorker(
                 WorkManager.getInstance(applicationContext).enqueueUniqueWork(
                     uniqueName(task),
                     ExistingWorkPolicy.APPEND_OR_REPLACE,
-                    request(task, mode),
+                    request(task, mode, delay = result.rest),
                 )
                 Result.success()
             }
@@ -93,12 +93,13 @@ class MlChunkWorker(
             MlTaskType.FaceEmbeddings -> MlTaskType.PersonClustering
             else -> null
         }
-        private val ThermalWait = Duration.ofMinutes(2)
         internal fun uniqueName(task: MlTaskType) = "lightforge-ml-${task.name}"
         internal fun request(
             task: MlTaskType,
             mode: MlRunMode,
             wait: MlBackoffWait? = null,
+            /** A cooling rest before the next chunk at [ThermalPace.Slow]. */
+            delay: Duration? = null,
         ): OneTimeWorkRequest {
             val policy = MlWorkPolicy.forMode(mode)
             val request = OneTimeWorkRequestBuilder<MlChunkWorker>()
@@ -111,7 +112,7 @@ class MlChunkWorker(
                     },
                 )
                 .addTag(uniqueName(task))
-            if (wait == MlBackoffWait.Thermal) request.setInitialDelay(ThermalWait)
+            (delay ?: ThermalHoldWait.takeIf { wait == MlBackoffWait.Thermal })?.let { request.setInitialDelay(it) }
             // Android's JobScheduler rejects backoff criteria for idle-mode jobs.
             // Keep this guard if a future background-only mode adds that constraint.
             if (!policy.constraints.requiresDeviceIdle()) {

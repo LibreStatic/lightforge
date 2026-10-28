@@ -1,10 +1,12 @@
 package com.librestatic.lightforge.core.ml
 
 import android.util.Log
+import java.time.Duration
 import kotlinx.coroutines.CancellationException
 
 sealed interface MlRunnerResult {
-    data class Continue(val checkpoint: MlCheckpoint) : MlRunnerResult
+    /** [rest] is how long the device should cool before the next chunk; null starts it right away. */
+    data class Continue(val checkpoint: MlCheckpoint, val rest: Duration? = null) : MlRunnerResult
     data class Finished(val checkpoint: MlCheckpoint) : MlRunnerResult
     data class Retry(val reason: String) : MlRunnerResult
     /** Power or thermal state blocks the run; not a failure and never counted toward giving up. */
@@ -15,6 +17,7 @@ sealed interface MlRunnerResult {
 class MlChunkRunner(
     private val state: MlStateStore,
     private val controller: MlExecutionController,
+    private val nanoTime: () -> Long = System::nanoTime,
 ) {
     suspend fun run(engine: MlTaskEngine, policy: MlWorkPolicy): MlRunnerResult {
         val decision = controller.decide(
@@ -22,6 +25,7 @@ class MlChunkRunner(
             state.isPaused(engine.task),
             engine.hasCurrentPermission(),
             policy.mode,
+            heldForHeat = state.waitReason(engine.task) == MlBackoffWait.Thermal,
         )
         state.setWaitReason(
             engine.task,
@@ -58,6 +62,7 @@ class MlChunkRunner(
             engine.task, engine.modelVersion, null, 0, MlCheckpoint.Status.Ready,
         )
         state.write(current.copy(status = MlCheckpoint.Status.Running))
+        val started = nanoTime()
         val outcome = try {
             engine.process(current.afterExclusive, policy.chunkSize)
         } catch (cancelled: CancellationException) {
@@ -86,7 +91,9 @@ class MlChunkRunner(
                     status = MlCheckpoint.Status.Ready,
                 )
                 state.write(updated)
-                MlRunnerResult.Continue(updated)
+                val rest = thermalRest(Duration.ofNanos(nanoTime() - started))
+                    .takeIf { controller.pace() == ThermalPace.Slow }
+                MlRunnerResult.Continue(updated, rest)
             }
             is MlChunkOutcome.Complete -> {
                 require(outcome.processedItems in 0..policy.chunkSize)
