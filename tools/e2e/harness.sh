@@ -47,7 +47,9 @@
 # tap1 tap_by_text tap_by_desc all keep their old names and call signatures.
 #
 # QUICK REFERENCE
-#   shot <name>              screenshot to $SHOTS/<name>.png
+#   shot <name>              screenshot to $SHOTS/<name>.png, then print what to
+#                            Read (tools/e2e/shot-slim.py): a half-size view, a
+#                            crop of what changed, or UNCHANGED. SHOT_SLIM=0 to skip.
 #   dump                     raw uiautomator XML (cached, see redump)
 #   redump                   force a fresh dump
 #   nodes [query]            TSV of nodes (tier text desc clickable bounds tapx
@@ -102,7 +104,11 @@ _e2e_err() { echo "E2E FAIL: $*" >&2; }
 # NOTE: every adb call below redirects </dev/null. `adb shell`/`adb exec-out`
 # forward stdin to the device and will otherwise swallow the rest of a script
 # that is being piped into bash (see failure mode 4 in the header).
-shot()  { adb exec-out screencap -p </dev/null > "$SHOTS/$1.png"; echo "saved $SHOTS/$1.png"; }
+_E2E_SLIM="$(dirname "${BASH_SOURCE[0]}")/shot-slim.py"
+shot()  {
+  adb exec-out screencap -p </dev/null > "$SHOTS/$1.png"; echo "saved $SHOTS/$1.png"
+  if [ "${SHOT_SLIM:-1}" != 0 ] && [ -f "$_E2E_SLIM" ]; then python3 -I "$_E2E_SLIM" "$SHOTS/$1.png"; fi
+}
 
 _E2E_DUMP_CACHE=""
 redump() {
