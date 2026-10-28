@@ -81,7 +81,7 @@ swap the build of a release that Google has not approved yet. Any remaining word
 6. **Verify and stage the bundle.**
    - Check that `jarsigner -verify` passes on the AAB.
    - Check that `keytool -printcert -jarfile <aab>` shows the upload certificate SHA-256 above.
-   - Check that the bundle's manifest has no `MANAGE_EXTERNAL_STORAGE`: `bundletool dump manifest --bundle <aab> | grep -c MANAGE_EXTERNAL_STORAGE` must print 0.
+   - Check that the bundle's manifest has no `MANAGE_EXTERNAL_STORAGE`: `unzip -p <aab> base/manifest/AndroidManifest.xml | grep -a -c MANAGE_EXTERNAL_STORAGE` must print 0 (the same command finds `MANAGE_MEDIA`, so it reads the protobuf manifest).
    - Copy it to `~/Downloads/lightforge-<versionName>-<code>.aab` and write a `.sha256` next to it.
    - Copy `mapping.txt` too, renamed to `lightforge-<versionName>-<code>-mapping.txt`.
    - Remove the older bundles there.
