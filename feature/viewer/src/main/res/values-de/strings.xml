@@ -41,4 +41,11 @@
         <item quantity="one">%1$d Sekunde vor</item>
         <item quantity="other">%1$d Sekunden vor</item>
     </plurals>
+    <string name="viewer_show_on_outer_screen">Auf externem Display zeigen</string>
+    <string name="viewer_face_to_face">Face to Face</string>
+    <string name="viewer_shared_stop">Beenden</string>
+    <string name="viewer_showing_on_outer_screen">Wird auf externem Display gezeigt</string>
+    <string name="viewer_face_to_face_switch_axis">Teilungsrichtung wechseln</string>
+    <string name="viewer_face_to_face_exit">Face to Face beenden</string>
+    <string name="viewer_face_to_face_position">%1$d / %2$d</string>
 </resources>

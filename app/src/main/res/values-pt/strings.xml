@@ -174,4 +174,5 @@
     <string name="selection_hide_by_name">Ocultar pelo nome</string>
     <string name="adv_hide_files_failed">Não foi possível ocultar esses arquivos.</string>
     <plurals name="adv_hide_files_done"><item quantity="one">%1$d arquivo oculto</item><item quantity="many">%1$d arquivos ocultos</item><item quantity="other">%1$d arquivos ocultos</item></plurals>
+    <string name="outer_display_failed">Não foi possível mostrar na tela externa</string>
 </resources>

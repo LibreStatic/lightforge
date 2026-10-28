@@ -23,6 +23,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Effect
 import androidx.media3.common.util.UnstableApi
+import com.librestatic.lightforge.core.designsystem.GalleryFoldInfo
+import com.librestatic.lightforge.core.designsystem.GalleryFoldOrientation
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationBackend
 import com.librestatic.lightforge.core.designsystem.galleryAdaptiveLayoutInfo
@@ -32,6 +34,9 @@ import com.librestatic.lightforge.core.model.ViewerMedia
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.feature.details.DetailsContent
 import com.librestatic.lightforge.feature.details.DetailsPreviewData
+import com.librestatic.lightforge.feature.viewer.shared.FaceToFaceViewer
+import com.librestatic.lightforge.feature.viewer.shared.OuterDisplayContent
+import com.librestatic.lightforge.feature.viewer.shared.SharedZoom
 
 // Debug-only, zero-argument entry points for tools/compose-driver and Android Studio previews.
 // They feed fake media into the real ViewerContent inside the real ViewerDetailsScaffold, so the
@@ -56,6 +61,40 @@ fun ViewerVideoPreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false
 @Preview
 @Composable
 fun ViewerMotionPhotoPreview() = ViewerPreviewFrame(selected = 13, detailsOpen = false, motion = true)
+
+/** Face to face on a foldable with a vertical hinge: left and right halves around the gap (w673dp-h841dp). */
+@Preview
+@Composable
+fun ViewerFaceToFaceVerticalHingePreview() = FaceToFacePreviewFrame(selected = 13, hinge = PreviewHinge.Vertical)
+
+/** Face to face without a fold on a portrait window: top and bottom halves, the top one upside down. */
+@Preview
+@Composable
+fun ViewerFaceToFaceHorizontalPreview() = FaceToFacePreviewFrame(selected = 13, hinge = PreviewHinge.None)
+
+/** Face to face on a video: surfaces per half are mirror outputs, here shown with their posters. */
+@Preview
+@Composable
+fun ViewerFaceToFaceVideoPreview() = FaceToFacePreviewFrame(selected = 12, hinge = PreviewHinge.Vertical)
+
+/** What the outer screen shows: the photo fitted full screen at the presenter's zoom (w411dp-h960dp). */
+@Preview
+@Composable
+fun ViewerOuterDisplayPanePreview() = LightforgeTheme {
+    val photo = remember { PhotoLoadState.Thumbnail(fakePhoto(1200, 900, 13)) }
+    OuterDisplayContent(
+        media = previewItems[13],
+        photoState = photo,
+        videoController = null,
+        thumbnailLoader = null,
+        zoom = SharedZoom(scale = 1.6f, panX = 0.1f, panY = 0f),
+    )
+}
+
+/** The viewer while the media is mirrored on the outer screen: the chip sits in the top bar. */
+@Preview
+@Composable
+fun ViewerSharingIndicatorPreview() = ViewerPreviewFrame(selected = 13, detailsOpen = false, sharing = true)
 
 /** An item that cannot be opened (expired grant, moved or deleted file). */
 @Preview
@@ -206,6 +245,7 @@ private fun ViewerPreviewFrame(
     detailsOpen: Boolean,
     motion: Boolean = false,
     trashed: Boolean = false,
+    sharing: Boolean = false,
     overlay: (@Composable BoxScope.() -> Unit)? = null,
 ) = LightforgeTheme {
     val items = previewItems
@@ -265,6 +305,10 @@ private fun ViewerPreviewFrame(
                     deleteActionLabel = if (trashed) "Delete permanently" else null,
                     onSelectMedia = { current = it },
                     detailsState = detailsState,
+                    onShowOnOuterDisplay = if (trashed) null else ({}),
+                    onFaceToFace = if (trashed) null else ({}),
+                    outerDisplayActive = sharing,
+                    onStopOuterDisplay = if (sharing) ({}) else null,
                     modifier = Modifier.fillMaxSize(),
                 )
                 overlay?.invoke(this)
@@ -283,5 +327,55 @@ private fun ViewerPreviewFrame(
                 contentPadding = padding,
             )
         },
+    )
+}
+
+private enum class PreviewHinge { None, Vertical }
+
+/** The real face-to-face viewer over fake media; a vertical hinge is a 13 dp gap at the window centre. */
+@Composable
+private fun FaceToFacePreviewFrame(selected: Int, hinge: PreviewHinge) = LightforgeTheme {
+    val items = previewItems
+    var current by remember { mutableStateOf(items[selected]) }
+    val configuration = LocalConfiguration.current
+    val fold = when (hinge) {
+        PreviewHinge.None -> null
+        PreviewHinge.Vertical -> {
+            val center = configuration.screenWidthDp / 2f
+            GalleryFoldInfo(
+                orientation = GalleryFoldOrientation.Vertical,
+                isSeparating = true,
+                left = (center - 6.5f).dp,
+                top = 0.dp,
+                right = (center + 6.5f).dp,
+                bottom = configuration.screenHeightDp.dp,
+            )
+        }
+    }
+    val thumbnails = remember {
+        ThumbnailLoader(
+            source = { request, _ -> fakePhoto(request.widthPx, request.heightPx, request.mediaKey.mediaStoreId) },
+            maxCacheBytes = 32L * 1024 * 1024,
+            threadCount = 1,
+        )
+    }
+    val video = remember(current.viewerId) {
+        if (current.kind != MediaKind.Video) null
+        else VideoViewerController(PreviewVideoEngine()).also { it.select(Uri.parse("content://preview/${current.viewerId}")) }
+    }
+    DisposableEffect(video) { onDispose { video?.close() } }
+    val photo = remember(current.viewerId) {
+        PhotoLoadState.Thumbnail(fakePhoto(1200, 900, current.mediaKey?.mediaStoreId ?: 0))
+    }
+    FaceToFaceViewer(
+        media = current,
+        mediaItems = items,
+        photoState = if (current.kind == MediaKind.Image) photo else null,
+        videoController = video,
+        thumbnailLoader = thumbnails,
+        foldInfo = fold,
+        onSelectMedia = { current = it },
+        onExit = {},
+        modifier = Modifier.fillMaxSize(),
     )
 }

@@ -5,6 +5,8 @@ package com.librestatic.lightforge.feature.viewer
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import android.view.Surface
+import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.TextureView
 import androidx.annotation.MainThread
@@ -19,6 +21,7 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import com.librestatic.lightforge.core.legacyvideo.LegacyMediaSourceFactory
 import com.librestatic.lightforge.core.legacyvideo.LegacyRenderersFactory
+import com.librestatic.lightforge.feature.viewer.shared.MirroredVideoRenderer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -70,6 +73,16 @@ internal interface VideoEngine {
     fun attachSurface(surfaceView: SurfaceView?)
     /** Renders into [textureView], which (unlike a SurfaceView) honours view transforms. */
     fun attachTextureView(textureView: TextureView?) = Unit
+
+    /**
+     * Also draws the video onto [surface] (sized [width] x [height]) turned clockwise by
+     * [rotationDegrees]. The first mirror output moves rendering to a shared GL fan-out; the same
+     * [key] replaces its previous output.
+     */
+    fun attachMirrorOutput(key: Any, surface: Surface, width: Int, height: Int, rotationDegrees: Int) = Unit
+
+    /** Removes a mirror output; with the last one gone the direct surface path comes back. */
+    fun detachMirrorOutput(key: Any) = Unit
     fun setVolume(volume: Float)
     fun setPlaybackSpeed(speed: Float) = Unit
     fun setRepeatEnabled(enabled: Boolean)
@@ -289,6 +302,20 @@ class VideoViewerController internal constructor(
         if (released) return
         engine.attachTextureView(textureView)
     }
+    /**
+     * Shows the playing video on [surface] too, turned clockwise by [rotationDegrees], from the
+     * same decode. The caller must call [detachMirrorOutput] before the surface is destroyed.
+     */
+    @MainThread
+    fun attachMirrorOutput(key: Any, surface: Surface, width: Int, height: Int, rotationDegrees: Int) {
+        if (released) return
+        engine.attachMirrorOutput(key, surface, width, height, rotationDegrees)
+    }
+    @MainThread
+    fun detachMirrorOutput(key: Any) {
+        if (released) return
+        engine.detachMirrorOutput(key)
+    }
     @MainThread
     fun setVideoEffects(effects: List<Effect>) {
         if (released) return
@@ -390,6 +417,19 @@ private class Media3VideoEngine(
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var surfaceView: SurfaceView? = null
     private var textureView: TextureView? = null
+    // Mirroring: while any key is attached the player renders into [mirror] instead of a view.
+    private var mirror: MirroredVideoRenderer? = null
+    private val mirrorKeys = HashSet<Any>()
+    private var primaryHolder: SurfaceHolder? = null
+    private var videoDisplayWidth = 0f
+    private var videoDisplayHeight = 0f
+    private val primaryCallback = object : SurfaceHolder.Callback {
+        override fun surfaceCreated(holder: SurfaceHolder) = publishPrimary(holder)
+        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = publishPrimary(holder)
+        override fun surfaceDestroyed(holder: SurfaceHolder) {
+            mirror?.removeOutput(PrimaryOutputKey)
+        }
+    }
     private var volume = 1f
     private var speed = 1f
     private var repeat = false
@@ -413,7 +453,7 @@ private class Media3VideoEngine(
         player.volume = volume
         player.setPlaybackSpeed(speed)
         player.repeatMode = if (repeat) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-        textureView?.let(player::setVideoTextureView) ?: surfaceView?.let(player::setVideoSurfaceView)
+        showOnPlayer()
         return true
     }
 
@@ -441,6 +481,11 @@ private class Media3VideoEngine(
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 val width = videoSize.width.toFloat() * videoSize.pixelWidthHeightRatio
                 val height = videoSize.height.toFloat()
+                if (width > 0f && height > 0f) {
+                    videoDisplayWidth = width
+                    videoDisplayHeight = height
+                    mirror?.setVideoSize(width, height)
+                }
                 val aspectRatio = width / height
                 if (aspectRatio.isFinite() && aspectRatio > 0f) {
                     listener?.onVideoAspectRatioChanged(aspectRatio)
@@ -494,8 +539,23 @@ private class Media3VideoEngine(
     override fun setScrubbingModeEnabled(enabled: Boolean) = player.setScrubbingModeEnabled(enabled)
     override fun seekTo(positionMillis: Long) = player.seekTo(positionMillis)
     override fun stopAndClear() { player.stop(); player.clearMediaItems() }
-    override fun release() = player.release()
+    override fun release() {
+        player.release()
+        val renderer = mirror ?: return
+        unhookPrimary()
+        mirror = null
+        mirrorKeys.clear()
+        renderer.release()
+    }
     override fun attachSurface(surfaceView: SurfaceView?) {
+        if (mirror != null) {
+            // The renderer owns the player's surface; the view becomes one of its outputs.
+            unhookPrimary()
+            this.surfaceView = surfaceView
+            if (surfaceView != null) textureView = null
+            hookPrimary()
+            return
+        }
         player.clearVideoSurface()
         this.surfaceView = surfaceView
         if (surfaceView != null) {
@@ -506,6 +566,15 @@ private class Media3VideoEngine(
         }
     }
     override fun attachTextureView(textureView: TextureView?) {
+        if (mirror != null) {
+            // Mirroring only fans out to SurfaceViews; remember the view for when it ends.
+            this.textureView = textureView
+            if (textureView != null) {
+                unhookPrimary()
+                surfaceView = null
+            }
+            return
+        }
         player.clearVideoSurface()
         this.textureView = textureView
         if (textureView != null) {
@@ -514,6 +583,64 @@ private class Media3VideoEngine(
         } else {
             surfaceView?.let(player::setVideoSurfaceView)
         }
+    }
+
+    override fun attachMirrorOutput(key: Any, surface: Surface, width: Int, height: Int, rotationDegrees: Int) {
+        val renderer = mirror ?: MirroredVideoRenderer().also { created ->
+            mirror = created
+            if (videoDisplayWidth > 0f) created.setVideoSize(videoDisplayWidth, videoDisplayHeight)
+            player.clearVideoSurface()
+            player.setVideoSurface(created.inputSurface)
+            hookPrimary()
+        }
+        mirrorKeys += key
+        renderer.setOutput(key, surface, width, height, rotationDegrees)
+    }
+
+    override fun detachMirrorOutput(key: Any) {
+        val renderer = mirror ?: return
+        renderer.removeOutput(key)
+        mirrorKeys -= key
+        if (mirrorKeys.isEmpty()) stopMirroring()
+    }
+
+    /** Points the player at the active view (or the renderer while mirroring). */
+    private fun showOnPlayer() {
+        val renderer = mirror
+        if (renderer != null) {
+            player.setVideoSurface(renderer.inputSurface)
+        } else {
+            textureView?.let(player::setVideoTextureView) ?: surfaceView?.let(player::setVideoSurfaceView)
+        }
+    }
+
+    private fun hookPrimary() {
+        val holder = surfaceView?.holder ?: return
+        primaryHolder = holder
+        holder.addCallback(primaryCallback)
+        if (holder.surface.isValid) publishPrimary(holder)
+    }
+
+    private fun unhookPrimary() {
+        primaryHolder?.removeCallback(primaryCallback)
+        primaryHolder = null
+        mirror?.removeOutput(PrimaryOutputKey)
+    }
+
+    private fun publishPrimary(holder: SurfaceHolder) {
+        val frame = holder.surfaceFrame
+        mirror?.setOutput(PrimaryOutputKey, holder.surface, frame.width(), frame.height(), 0)
+    }
+
+    /** Back to the direct path: the player gets its view again before the renderer goes away. */
+    private fun stopMirroring() {
+        val renderer = mirror ?: return
+        unhookPrimary()
+        mirror = null
+        mirrorKeys.clear()
+        player.clearVideoSurface()
+        showOnPlayer()
+        renderer.release()
     }
     override fun setVolume(volume: Float) {
         this.volume = volume.coerceIn(0f, 1f)
@@ -535,6 +662,9 @@ private class Media3VideoEngine(
         lastRenderedFrameUs.takeIf { it != C.TIME_UNSET && it >= 0 }?.let { it / 1_000 }
 
     private companion object {
+        /** Output key of the on-screen SurfaceView while mirroring. */
+        val PrimaryOutputKey = Any()
+
         val UnsupportedErrorCodes = setOf(
             PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
             PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,

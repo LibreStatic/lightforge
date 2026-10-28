@@ -178,6 +178,7 @@ import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
 import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
 import com.librestatic.lightforge.core.designsystem.GalleryMenuIcons
+import com.librestatic.lightforge.feature.viewer.shared.SharedZoom
 
 @Composable
 fun ViewerContent(
@@ -223,6 +224,14 @@ fun ViewerContent(
     textRecognizer: ViewerTextRecognizer? = null,
     /** Details surface driven by the swipe-up gesture; null opens Details through [onDetails]. */
     detailsState: ViewerDetailsState? = null,
+    /** Shows the media on the outer screen; null hides the menu item. */
+    onShowOnOuterDisplay: (() -> Unit)? = null,
+    /** Opens the face-to-face split view; null hides the menu item. */
+    onFaceToFace: (() -> Unit)? = null,
+    outerDisplayActive: Boolean = false,
+    onStopOuterDisplay: (() -> Unit)? = null,
+    /** Reports the photo's zoom and pan, normalized, so a shared view can mirror it. */
+    onPhotoZoomChanged: ((SharedZoom) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // Held for the whole viewer route (photos and videos share the pager), not per page.
@@ -504,6 +513,11 @@ fun ViewerContent(
     val coroutineScope = rememberCoroutineScope()
     val layoutDirection = LocalLayoutDirection.current
     var viewerSize by remember { mutableStateOf(IntSize.Zero) }
+    var topChromeHeightPx by remember { mutableIntStateOf(0) }
+    // A short landscape window (the razr's outer screen on its side) cannot stack the scrubber,
+    // filmstrip and action pill under the media, so they share rows and the pill drops its labels.
+    val compactChrome = viewerSize.width > viewerSize.height &&
+        with(LocalDensity.current) { viewerSize.height.toDp() } < COMPACT_CHROME_MAX_HEIGHT
     var deleteKeyConfirmVisible by remember(media.viewerId) { mutableStateOf(false) }
     val deleteKeyLabel = when {
         onDelete != null && deleteActionLabel != null -> deleteActionLabel
@@ -809,6 +823,7 @@ fun ViewerContent(
                             onZoomedChange = { contentZoomed = it },
                             textRecognizer = textRecognizer,
                             onTextSelectionActiveChange = { textSelectionActive = it },
+                            onZoomChanged = onPhotoZoomChanged,
                         )
                     }
                 } else {
@@ -838,7 +853,9 @@ fun ViewerContent(
                 onInteraction = { chromeInteractionGeneration++ },
                 modifier = Modifier.align(Alignment.Center).graphicsLayer {
                     alpha = chromeAutoHideAlpha
-                    translationY = -mediaLiftPx
+                    // Centred in the space the bars leave free, so it never sits on the scrubber.
+                    val barsOffset = if (compactChrome) (topChromeHeightPx - bottomChromeHeightPx) / 2f else 0f
+                    translationY = barsOffset - mediaLiftPx
                 },
             )
         }
@@ -875,9 +892,10 @@ fun ViewerContent(
         ) {
             Row(
                 Modifier.fillMaxWidth()
+                    .onSizeChanged { topChromeHeightPx = it.height }
                     .viewerTopScrim()
                     .windowInsetsPadding(viewerTopInsets())
-                    .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 20.dp),
+                    .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = if (compactChrome) 8.dp else 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 val backLabel = stringResource(R.string.viewer_back)
@@ -895,6 +913,9 @@ fun ViewerContent(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (outerDisplayActive && onStopOuterDisplay != null) {
+                    SharingIndicator(onStop = onStopOuterDisplay)
+                }
                 // Icon-only so a long localized label cannot squeeze the date.
                 if (onMotionPhoto != null && motionPhotoLabel != null) {
                     ViewerTooltip(motionPhotoLabel, null) {
@@ -930,6 +951,16 @@ fun ViewerContent(
                             text = stringResource(R.string.viewer_print),
                             onClick = { menuExpanded = false; action() },
                             icon = GalleryMenuIcons.Print,
+                        ) }
+                        onShowOnOuterDisplay?.let { action -> GalleryMenuItem(
+                            text = stringResource(R.string.viewer_show_on_outer_screen),
+                            onClick = { menuExpanded = false; action() },
+                            icon = GalleryMenuIcons.ShowOnOuterDisplay,
+                        ) }
+                        onFaceToFace?.let { action -> GalleryMenuItem(
+                            text = stringResource(R.string.viewer_face_to_face),
+                            onClick = { menuExpanded = false; action() },
+                            icon = GalleryMenuIcons.FaceToFace,
                         ) }
                         if (onRename != null || onCopy != null || onMove != null || onSetAs != null || onOpenWith != null || onRepairDate != null) {
                             GalleryMenuDivider()
@@ -967,7 +998,7 @@ fun ViewerContent(
                     .onSizeChanged { bottomChromeHeightPx = it.height }
                     .viewerBottomScrim()
                     .windowInsetsPadding(viewerBottomInsets())
-                    .padding(top = 24.dp),
+                    .padding(top = if (compactChrome) 8.dp else 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 if (media.kind == MediaKind.Video && videoDurationMillis > 0L && videoController != null) {
@@ -987,34 +1018,53 @@ fun ViewerContent(
                         },
                     )
                 }
-                ViewerFilmstrip(
-                    items = displayedItems,
-                    selectedIndex = selectedIndex,
-                    thumbnailLoader = thumbnailLoader,
-                    onSelectMedia = onSelectMedia,
-                    expandedVideo = expandedVideoFilmstrip,
-                    onSelectedVideoTap = if (
-                        media.kind == MediaKind.Video &&
-                        videoScrubbingMode == VideoScrubbingMode.Filmstrip &&
-                        !filmstripUnavailable
+                val filmstrip = @Composable { stripModifier: Modifier ->
+                    ViewerFilmstrip(
+                        items = displayedItems,
+                        selectedIndex = selectedIndex,
+                        thumbnailLoader = thumbnailLoader,
+                        onSelectMedia = onSelectMedia,
+                        expandedVideo = expandedVideoFilmstrip,
+                        onSelectedVideoTap = if (
+                            media.kind == MediaKind.Video &&
+                            videoScrubbingMode == VideoScrubbingMode.Filmstrip &&
+                            !filmstripUnavailable
+                        ) {
+                            { filmstripExpanded = true }
+                        } else null,
+                        collapsed = media.kind == MediaKind.Video && videoStripCollapsed,
+                        onToggleCollapsed = if (media.kind == MediaKind.Video) ({ videoStripCollapsed = !videoStripCollapsed }) else null,
+                        compact = compactChrome,
+                        modifier = stripModifier,
+                    )
+                }
+                val actionPill = @Composable { pillModifier: Modifier ->
+                    ViewerActionPill(
+                        onShare = onShare,
+                        onEdit = onEdit,
+                        onToggleFavorite = onToggleFavorite,
+                        isFavorite = isFavorite,
+                        // Trash and delete sit in the pill, as in Google Photos, not in the ⋮ menu.
+                        onRestore = onTrash.takeIf { trashActionLabel != null },
+                        restoreLabel = trashActionLabel,
+                        onDelete = deleteKeyAction,
+                        deleteLabel = deleteKeyLabel,
+                        compact = compactChrome,
+                        modifier = pillModifier,
+                    )
+                }
+                if (compactChrome) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        { filmstripExpanded = true }
-                    } else null,
-                    collapsed = media.kind == MediaKind.Video && videoStripCollapsed,
-                    onToggleCollapsed = if (media.kind == MediaKind.Video) ({ videoStripCollapsed = !videoStripCollapsed }) else null,
-                )
-                ViewerActionPill(
-                    onShare = onShare,
-                    onEdit = onEdit,
-                    onToggleFavorite = onToggleFavorite,
-                    isFavorite = isFavorite,
-                    // Trash and delete sit in the pill, as in Google Photos, not in the ⋮ menu.
-                    onRestore = onTrash.takeIf { trashActionLabel != null },
-                    restoreLabel = trashActionLabel,
-                    onDelete = deleteKeyAction,
-                    deleteLabel = deleteKeyLabel,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                )
+                        Box(Modifier.weight(1f)) { filmstrip(Modifier) }
+                        actionPill(Modifier.padding(start = 8.dp, end = 16.dp))
+                    }
+                } else {
+                    filmstrip(Modifier)
+                    actionPill(Modifier.padding(horizontal = 16.dp, vertical = 10.dp))
+                }
             }
         }
     }
@@ -1111,8 +1161,13 @@ private fun ViewerFilmstrip(
     onSelectedVideoTap: (() -> Unit)? = null,
     collapsed: Boolean = false,
     onToggleCollapsed: (() -> Unit)? = null,
+    /** Smaller thumbnails for a short window, where the strip shares its row with the action pill. */
+    compact: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     if (items.size <= 1 && expandedVideo == null && onSelectedVideoTap == null) return
+    val selectedSize = if (compact) 52.dp else 66.dp
+    val thumbnailSize = if (compact) 46.dp else 58.dp
     if (thumbnailLoader == null && expandedVideo == null) return
     // Only a window around the selection is composed, so a scope of thousands of items costs the
     // same as a short one; a collapsed (video) strip keeps just the neighbours.
@@ -1125,7 +1180,7 @@ private fun ViewerFilmstrip(
     LaunchedEffect(selectedIndex, window.first, collapsed) {
         // Wait for the first layout so the selection can be centred in the real viewport.
         val viewport = snapshotFlow { listState.layoutInfo.viewportSize.width }.first { it > 0 }
-        val offset = -((viewport - with(density) { 66.dp.roundToPx() }) / 2)
+        val offset = -((viewport - with(density) { selectedSize.roundToPx() }) / 2)
         if (stripCentered) {
             listState.animateScrollToItem(localSelected, offset)
         } else {
@@ -1134,7 +1189,7 @@ private fun ViewerFilmstrip(
         }
     }
     Row(
-        Modifier.widthIn(max = VIEWER_STRIP_MAX_WIDTH).fillMaxWidth().padding(top = 8.dp),
+        modifier.widthIn(max = VIEWER_STRIP_MAX_WIDTH).fillMaxWidth().padding(top = if (compact) 0.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
     LazyRow(
@@ -1152,12 +1207,12 @@ private fun ViewerFilmstrip(
             if (selected && expandedVideo != null) {
                 VideoFrameScrubber(
                     config = expandedVideo,
-                    modifier = Modifier.width(280.dp).heightIn(min = 66.dp),
+                    modifier = Modifier.width(if (compact) 240.dp else 280.dp).heightIn(min = selectedSize),
                 )
             } else {
                 Box(
                     Modifier
-                        .size(if (selected) 66.dp else 58.dp)
+                        .size(if (selected) selectedSize else thumbnailSize)
                         .then(
                             if (selected) {
                                 Modifier
@@ -1235,6 +1290,9 @@ private fun ViewerFilmstrip(
 
 /** Thumbnails composed on each side of the selected one. */
 private const val VIEWER_STRIP_RADIUS = 30
+
+/** Landscape windows shorter than this get the compact chrome. */
+private val COMPACT_CHROME_MAX_HEIGHT = 480.dp
 
 /** Keeps the strip next to the media on wide windows instead of stretching edge to edge. */
 private val VIEWER_STRIP_MAX_WIDTH = 840.dp
@@ -1352,7 +1410,7 @@ private fun VideoFrameScrubber(
 }
 
 @Composable
-private fun MediaThumbnail(
+internal fun MediaThumbnail(
     media: ViewerMedia,
     thumbnailLoader: ThumbnailLoader?,
     modifier: Modifier = Modifier,
@@ -1409,6 +1467,7 @@ private fun PhotoSurface(
     onZoomedChange: (Boolean) -> Unit,
     textRecognizer: ViewerTextRecognizer?,
     onTextSelectionActiveChange: (Boolean) -> Unit,
+    onZoomChanged: ((SharedZoom) -> Unit)? = null,
 ) {
     val reducedMotion = rememberGalleryReducedMotion()
     val motionScheme = MaterialTheme.motionScheme
@@ -1442,6 +1501,7 @@ private fun PhotoSurface(
             onZoomedChange = onZoomedChange,
             textRecognizer = textRecognizer,
             onTextSelectionActiveChange = onTextSelectionActiveChange,
+            onZoomChanged = onZoomChanged,
         )
     }
 }
@@ -1455,6 +1515,7 @@ private fun PhotoSurfaceState(
     onZoomedChange: (Boolean) -> Unit,
     textRecognizer: ViewerTextRecognizer?,
     onTextSelectionActiveChange: (Boolean) -> Unit,
+    onZoomChanged: ((SharedZoom) -> Unit)? = null,
 ) {
     when (state) {
         is PhotoLoadState.Thumbnail -> Image(
@@ -1494,6 +1555,23 @@ private fun PhotoSurfaceState(
                         )
                     },
                 )
+            }
+            val latestOnZoomChanged by rememberUpdatedState(onZoomChanged)
+            LaunchedEffect(zoom, state.drawable) {
+                snapshotFlow { Triple(zoom.scale.value, zoom.offsetX.value, zoom.offsetY.value) }
+                    .collect { (scale, offsetX, offsetY) ->
+                        val report = latestOnZoomChanged ?: return@collect
+                        val fitted = fittedPhotoSize(
+                            containerSize.width.toFloat(),
+                            containerSize.height.toFloat(),
+                            state.drawable.intrinsicWidth.toFloat(),
+                            state.drawable.intrinsicHeight.toFloat(),
+                        )
+                        report(
+                            if (scale <= 1f || fitted.first <= 0f || fitted.second <= 0f) SharedZoom()
+                            else SharedZoom(scale, offsetX / fitted.first, offsetY / fitted.second),
+                        )
+                    }
             }
             LaunchedEffect(zoomTapGeneration) {
                 if (zoomTapGeneration == 0) return@LaunchedEffect
@@ -1639,7 +1717,7 @@ private fun PhotoSurfaceState(
     }
 }
 
-private suspend fun PointerInputScope.detectViewerTransformGestures(
+internal suspend fun PointerInputScope.detectViewerTransformGestures(
     isZoomed: () -> Boolean,
     allowPinch: Boolean = true,
     onRotate: ((degrees: Float) -> Unit)? = null,
@@ -1709,6 +1787,41 @@ private suspend fun PointerInputScope.detectViewerTransformGestures(
             onGestureEnd(Offset(velocity.x, velocity.y))
         }
         if (rotating) onRotateEnd()
+    }
+}
+
+/** Width and height of an image fitted (FIT_CENTER) inside a container, or 0 x 0 while unmeasured. */
+private fun fittedPhotoSize(containerWidth: Float, containerHeight: Float, imageWidth: Float, imageHeight: Float): Pair<Float, Float> {
+    if (containerWidth <= 0f || containerHeight <= 0f || imageWidth <= 0f || imageHeight <= 0f) return 0f to 0f
+    val fit = min(containerWidth / imageWidth, containerHeight / imageHeight)
+    return imageWidth * fit to imageHeight * fit
+}
+
+/** The "Showing on outer screen" chip of the top bar; tapping it stops the sharing. */
+@Composable
+private fun SharingIndicator(onStop: () -> Unit, modifier: Modifier = Modifier) {
+    val stopLabel = stringResource(R.string.viewer_shared_stop)
+    androidx.compose.material3.Surface(
+        onClick = onStop,
+        modifier = modifier.widthIn(max = 280.dp).padding(horizontal = 4.dp),
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Row(
+            Modifier.padding(start = 12.dp, end = 8.dp).heightIn(min = 40.dp).semantics { contentDescription = stopLabel },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(GalleryMenuIcons.ShowOnOuterDisplay, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(
+                stringResource(R.string.viewer_showing_on_outer_screen),
+                Modifier.weight(1f, fill = false).padding(horizontal = 8.dp),
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(GalleryIcons.Close, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
     }
 }
 

@@ -41,4 +41,11 @@
         <item quantity="one">Forward %1$d second</item>
         <item quantity="other">Forward %1$d seconds</item>
     </plurals>
+    <string name="viewer_show_on_outer_screen">Show on outer screen</string>
+    <string name="viewer_face_to_face">Face to face</string>
+    <string name="viewer_shared_stop">Stop</string>
+    <string name="viewer_showing_on_outer_screen">Showing on outer screen</string>
+    <string name="viewer_face_to_face_switch_axis">Switch split direction</string>
+    <string name="viewer_face_to_face_exit">Exit face to face</string>
+    <string name="viewer_face_to_face_position">%1$d / %2$d</string>
 </resources>

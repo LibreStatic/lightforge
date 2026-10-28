@@ -43,4 +43,11 @@
         <item quantity="many">Avanti di %1$d secondi</item>
         <item quantity="other">Avanti di %1$d secondi</item>
     </plurals>
+    <string name="viewer_show_on_outer_screen">Mostra sullo schermo esterno</string>
+    <string name="viewer_face_to_face">Faccia a faccia</string>
+    <string name="viewer_shared_stop">Interrompi</string>
+    <string name="viewer_showing_on_outer_screen">Visualizzazione sullo schermo esterno</string>
+    <string name="viewer_face_to_face_switch_axis">Cambia direzione della divisione</string>
+    <string name="viewer_face_to_face_exit">Esci da faccia a faccia</string>
+    <string name="viewer_face_to_face_position">%1$d / %2$d</string>
 </resources>

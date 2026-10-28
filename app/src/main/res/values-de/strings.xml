@@ -165,4 +165,5 @@
     <string name="selection_hide_by_name">Per Namen ausblenden</string>
     <string name="adv_hide_files_failed">Diese Dateien konnten nicht ausgeblendet werden.</string>
     <plurals name="adv_hide_files_done"><item quantity="one">%1$d Datei ausgeblendet</item><item quantity="other">%1$d Dateien ausgeblendet</item></plurals>
+    <string name="outer_display_failed">Anzeige auf dem Außendisplay nicht möglich</string>
 </resources>

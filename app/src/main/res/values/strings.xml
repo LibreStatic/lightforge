@@ -187,4 +187,5 @@
     <string name="selection_hide_by_name">Hide by name</string>
     <string name="adv_hide_files_failed">Could not hide those files.</string>
     <plurals name="adv_hide_files_done"><item quantity="one">Hid %1$d file</item><item quantity="other">Hid %1$d files</item></plurals>
+    <string name="outer_display_failed">Couldn’t show on the outer screen</string>
 </resources>

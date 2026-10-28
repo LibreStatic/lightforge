@@ -43,4 +43,11 @@
         <item quantity="many">Avancer de %1$d secondes</item>
         <item quantity="other">Avancer de %1$d secondes</item>
     </plurals>
+    <string name="viewer_show_on_outer_screen">Afficher sur l’écran externe</string>
+    <string name="viewer_face_to_face">Face à face</string>
+    <string name="viewer_shared_stop">Arrêter</string>
+    <string name="viewer_showing_on_outer_screen">Affichage sur l’écran externe</string>
+    <string name="viewer_face_to_face_switch_axis">Changer le sens de la séparation</string>
+    <string name="viewer_face_to_face_exit">Quitter le face à face</string>
+    <string name="viewer_face_to_face_position">%1$d / %2$d</string>
 </resources>

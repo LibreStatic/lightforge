@@ -110,6 +110,8 @@ internal fun ViewerActionPill(
     restoreLabel: String? = null,
     onDelete: (() -> Unit)? = null,
     deleteLabel: String? = null,
+    /** Icon-only buttons for a short window; the names stay in tooltips and accessibility. */
+    compact: Boolean = false,
 ) {
     if (onShare == null && onEdit == null && onToggleFavorite == null && onRestore == null && onDelete == null) return
     Surface(
@@ -124,8 +126,8 @@ internal fun ViewerActionPill(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            onShare?.let { ViewerPillAction(it, GalleryIcons.Share, stringResource(R.string.viewer_share)) }
-            onEdit?.let { ViewerPillAction(it, GalleryIcons.Edit, stringResource(R.string.viewer_edit)) }
+            onShare?.let { ViewerPillAction(it, GalleryIcons.Share, stringResource(R.string.viewer_share), compact = compact) }
+            onEdit?.let { ViewerPillAction(it, GalleryIcons.Edit, stringResource(R.string.viewer_edit), compact = compact) }
             onToggleFavorite?.let {
                 ViewerPillAction(
                     onClick = it,
@@ -134,6 +136,7 @@ internal fun ViewerActionPill(
                     label = stringResource(R.string.viewer_favorite),
                     description = if (isFavorite) stringResource(R.string.viewer_unfavorite) else null,
                     shortcut = ViewerShortcutKeys.Favorite,
+                    compact = compact,
                 )
             }
             onRestore?.let {
@@ -142,6 +145,7 @@ internal fun ViewerActionPill(
                     icon = GalleryIcons.RestoreFromTrash,
                     label = stringResource(R.string.viewer_pill_restore),
                     description = restoreLabel,
+                    compact = compact,
                 )
             }
             onDelete?.let {
@@ -151,6 +155,7 @@ internal fun ViewerActionPill(
                     label = stringResource(R.string.viewer_pill_delete),
                     description = deleteLabel,
                     shortcut = ViewerShortcutKeys.Delete,
+                    compact = compact,
                 )
             }
         }
@@ -165,6 +170,7 @@ private fun RowScope.ViewerPillAction(
     shortcut: String? = null,
     /** The full action name for tooltips and accessibility when [label] is a short caption. */
     description: String? = null,
+    compact: Boolean = false,
 ) {
     val fullLabel = description ?: label
     // An equal share of the pill, so a long localized label ellipsizes instead of pushing Delete
@@ -174,8 +180,8 @@ private fun RowScope.ViewerPillAction(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .widthIn(min = 72.dp, max = 112.dp)
-                    .heightIn(min = 56.dp)
+                    .widthIn(min = if (compact) 48.dp else 72.dp, max = if (compact) 56.dp else 112.dp)
+                    .heightIn(min = if (compact) 48.dp else 56.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .clickable(role = Role.Button, onClick = onClick)
                     .semantics { contentDescription = fullLabel }
@@ -184,7 +190,7 @@ private fun RowScope.ViewerPillAction(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
-                Text(
+                if (!compact) Text(
                     label,
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,

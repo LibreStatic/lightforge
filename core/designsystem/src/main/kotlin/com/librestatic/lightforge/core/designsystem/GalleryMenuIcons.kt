@@ -58,6 +58,7 @@ import androidx.compose.material.icons.outlined.FlipToFront
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.GridOn
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.ImageSearch
@@ -94,6 +95,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.RestoreFromTrash
+import androidx.compose.material.icons.outlined.ScreenShare
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
@@ -129,6 +131,8 @@ object GalleryMenuIcons {
     val Check: ImageVector get() = Icons.Outlined.Check
 
     val Print: ImageVector get() = Icons.Outlined.Print
+    val ShowOnOuterDisplay: ImageVector get() = Icons.Outlined.ScreenShare
+    val FaceToFace: ImageVector get() = Icons.Outlined.Group
     val SetAsWallpaper: ImageVector get() = Icons.Outlined.Wallpaper
     val MoveUp: ImageVector get() = Icons.Outlined.ArrowUpward
     val MoveDown: ImageVector get() = Icons.Outlined.ArrowDownward

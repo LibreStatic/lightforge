@@ -4780,6 +4780,15 @@ private fun ViewerRoute(
         }
     }
     val viewerDetailsState = com.librestatic.lightforge.feature.viewer.rememberViewerDetailsState()
+    val sharedView = rememberSharedViewState(
+        media = media,
+        photoState = photoState,
+        videoController = videoController,
+        thumbnailLoader = thumbnailLoader,
+        appearance = gallerySettings.appearance,
+        trashContext = trashContext,
+        adaptiveInfo = adaptiveInfo,
+    )
     val viewer: @Composable () -> Unit = {
         ViewerContent(
             media = media,
@@ -4864,9 +4873,29 @@ private fun ViewerRoute(
             textRecognizer = rememberViewerTextRecognizer(),
             detailsState = viewerDetailsState,
             modifier = Modifier.fillMaxSize(),
+            onShowOnOuterDisplay = sharedView.onShowOnOuterDisplay,
+            onFaceToFace = sharedView.onFaceToFace,
+            outerDisplayActive = sharedView.outerDisplayActive,
+            onStopOuterDisplay = sharedView.onStopOuterDisplay,
+            onPhotoZoomChanged = sharedView.onPhotoZoomChanged,
         )
     }
-    com.librestatic.lightforge.feature.viewer.ViewerDetailsScaffold(
+    if (sharedView.faceToFace) {
+        com.librestatic.lightforge.feature.viewer.shared.FaceToFaceViewer(
+            media = media,
+            mediaItems = mediaItems,
+            photoState = photoState,
+            adjacentPhotoStates = adjacentPhotoStates,
+            videoController = videoController,
+            thumbnailLoader = thumbnailLoader,
+            foldInfo = adaptiveInfo.foldInfo,
+            onSelectMedia = { selected ->
+                mediaItems.firstOrNull { it.viewerId == selected.viewerId }?.let(viewModel::selectViewerMedia)
+            },
+            onExit = sharedView.onExitFaceToFace,
+            modifier = Modifier.fillMaxSize(),
+        )
+    } else com.librestatic.lightforge.feature.viewer.ViewerDetailsScaffold(
         open = showDetails,
         onOpen = onShowDetails,
         onClose = onHideDetails,
