@@ -15,7 +15,7 @@ MediaStore owns every shared photo and video. Room's `media_items` table is a re
 - [LibraryEntities.kt](../../core/database/src/main/kotlin/com/librestatic/lightforge/core/database/LibraryEntities.kt): `MediaItemEntity` (`media_items`, `needsProbe`), `MediaStoreCheckpointEntity` (`media_store_checkpoints`), `MediaScanMarkEntity` (`media_scan_marks`), `PendingProbeRow`, `ProbeResultRow`.
 - [GalleryDatabase.kt](../../core/database/src/main/kotlin/com/librestatic/lightforge/core/database/GalleryDatabase.kt): version 36. `Migration33To34` adds `needsProbe`, `Migration34To35` adds `search_index_journal`, `Migration35To36` adds `media_scan_marks`.
 - [SearchIndexJournal.kt](../../core/database/src/main/kotlin/com/librestatic/lightforge/core/database/SearchIndexJournal.kt): `SearchIndexJournalEntity` (`search_index_journal`), `SearchIndexJournalSchema.installTriggers`.
-- [GallerySearchIndexRepository.kt](../../core/data/src/main/kotlin/com/librestatic/lightforge/core/data/GallerySearchIndexRepository.kt): `RoomSearchIndexJournal`, `indexKey`, `rebuild`, `synchronize`, `pendingChangeCount`, `hasInterruptedRebuild`.
+- [GallerySearchIndexRepository.kt](../../core/data/src/main/kotlin/com/librestatic/lightforge/core/data/GallerySearchIndexRepository.kt): `RoomSearchIndexJournal`, `rebuild`, `synchronize`, `pendingChangeCount`, `hasInterruptedRebuild`.
 - [SearchIndexCoordinator.kt](../../core/search/src/main/kotlin/com/librestatic/lightforge/core/search/SearchIndexCoordinator.kt): `synchronize`, `drain`, `SearchSyncResult`.
 - [GalleryViewModel.kt](../../app/src/main/kotlin/com/librestatic/lightforge/GalleryViewModel.kt): `createRuntime`, the monitor callback in `init`, `refreshLibrary`, `scanVolume`, `startMediaDetails`, `syncSearchIndex`, `observeSearchJournal`, `onForeground`, `reconcileFolder`, `processWideRefreshMutex`.
 
@@ -149,10 +149,9 @@ sequenceDiagram
     Note over Co: each submit restarts the quiet window<br/>350 ms default
     Co->>Mon: onBatch(set of uris)
     Mon->>VM: MediaStoreChangeBatch via mediaStoreChangeBatch
-    loop each rowHint from mediaKeyFromObserverUri
+    loop each key in rowHints, parsed by mediaKeyFromObserverUriString
         VM->>Sy: applyRowHint(key)
         Sy->>Db: upsertHintedMedia, markMediaInaccessible or deleteMedia
-        VM->>Ix: indexKey(key)
     end
     VM->>VM: refreshLibrary(reconcileUnobservedChanges = requiresFullVolumeReconciliation)
     VM->>Sy: sync(volume, reconcileUnobservedChanges)
@@ -171,7 +170,7 @@ sequenceDiagram
    - `MediaStoreRow.Present`: upsert (`RowHintResult.Upserted`).
    - `MediaStoreRow.Hidden`: `markMediaInaccessible` (`Hidden`).
    - `MediaStoreRow.Absent`: `deleteMedia` (`Deleted`) only with full image and video access and no file left on disk; otherwise `PermissionLost` or `Hidden`.
-5. `observeSearchJournal` collects `pendingChangeCount()` and drains it only while the engine is `Ready`, so it never overlaps a scan.
+5. Row hints are not indexed directly: the journal triggers record their writes. `observeSearchJournal` collects `pendingChangeCount()` and drains it only while the engine is `Ready`, so it never overlaps a scan.
 
 ## Failure and edge cases
 

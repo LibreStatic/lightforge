@@ -123,7 +123,7 @@ sequenceDiagram
 - **Two activities:** each has its own view model, but `processWideRefreshMutex` keeps their scans from running concurrently.
 - **Secondary processes:** `DocumentAutoArchiveWorker.install` returns early outside the main process. `DetectedContentRuntime.install` and `ModelDownloads.install` have no such check.
 - **WorkManager runs ML before the UI:** engines are registered in `Application.onCreate`, which runs for every process start including worker-only ones. A missing engine makes `MlChunkWorker` return `Result.retry()`, never success.
-- **Pet worker without a factory:** if `PetIdentityRuntime` has no factory, `PetIdentityAnalysisWorker` returns `Result.success()`. Because `install` runs in `Application.onCreate`, this cannot happen in the app process.
+- **Pet worker without a factory:** if `PetIdentityRuntime` has no factory, `PetIdentityAnalysisWorker` returns `Result.retry()`, so WorkManager runs it again later and the backlog is kept. Because `install` runs in `Application.onCreate`, this cannot happen in the app process.
 - **Benchmark builds** without `PRODUCTION_TIMELINE_EXTRA` never create the production runtime; they render `PhotosRoute` with synthetic items.
 
 ## Invariants
