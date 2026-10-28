@@ -1,0 +1,72 @@
+<en-US>
+Lightforge Studio 1.0:
+• Foldables: Show on outer screen, or Face to face.
+• Hold on video and Double tap on video: choose slow motion, fast forward, rewind, zoom or skip for each side.
+• Local analysis shows real progress, what is left and an estimate.
+• Individual pets are recognized in the background; you confirm the suggested groups.
+• Faster start with large libraries.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+Lightforge Studio 1.0:
+• Plegables: Mostrar en la pantalla externa, o Cara a cara.
+• Mantener presionado y Doble toque en el video: elegí cámara lenta, avance o retroceso rápido, zoom o salto para cada lado.
+• El análisis local muestra el progreso real, lo que falta y una estimación.
+• Las mascotas individuales se reconocen en segundo plano; vos confirmás los grupos sugeridos.
+• Inicio más rápido con bibliotecas grandes.
+Informá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+Lightforge Studio 1.0:
+• Plegables: Mostrar en la pantalla externa, o Cara a cara.
+• Mantener pulsado y Doble toque en el vídeo: elige cámara lenta, avance o retroceso rápido, zoom o salto para cada lado.
+• El análisis local muestra el progreso real, lo que falta y una estimación.
+• Las mascotas individuales se reconocen en segundo plano; tú confirmas los grupos sugeridos.
+• Inicio más rápido con bibliotecas grandes.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+Lightforge Studio 1.0:
+• Dobráveis: Mostrar na tela externa, ou Cara a cara.
+• Manter pressionado e Toque duplo no vídeo: escolha câmera lenta, avançar ou voltar rápido, zoom ou pular para cada lado.
+• A análise local mostra o progresso real, o que falta e uma estimativa.
+• Animais individuais são reconhecidos em segundo plano; você confirma os grupos sugeridos.
+• Início mais rápido com bibliotecas grandes.
+Informe problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+Lightforge Studio 1.0:
+• Dobráveis: Mostrar no ecrã externo, ou Cara a cara.
+• Manter pressionado e Toque duplo no vídeo: escolha câmara lenta, avançar ou recuar rápido, zoom ou saltar para cada lado.
+• A análise local mostra o progresso real, o que falta e uma estimativa.
+• Os animais individuais são reconhecidos em segundo plano; confirma os grupos sugeridos.
+• Arranque mais rápido com bibliotecas grandes.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+Lightforge Studio 1.0 :
+• Pliables : Afficher sur l’écran externe, ou Face à face.
+• Appui long et Double appui sur la vidéo : ralenti, avance ou retour rapide, zoom ou saut par côté.
+• L’analyse locale affiche la progression réelle, le reste à traiter et une estimation.
+• Les animaux individuels sont reconnus en arrière-plan ; vous confirmez les groupes suggérés.
+• Démarrage plus rapide avec les grandes bibliothèques.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+Lightforge Studio 1.0:
+• Faltbare Geräte: Auf externem Display zeigen, oder Face to Face.
+• Gedrückt halten und Doppeltippen im Video: Zeitlupe, Vor- oder Rücklauf, Zoom oder Springen je Seite wählbar.
+• Die lokale Analyse zeigt den echten Fortschritt, was noch fehlt, und eine Schätzung.
+• Einzelne Haustiere werden im Hintergrund erkannt; vorgeschlagene Gruppen bestätigst du.
+• Schnellerer Start bei großen Mediatheken.
+Probleme melden: github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+Lightforge Studio 1.0:
+• Pieghevoli: Mostra sullo schermo esterno, o Faccia a faccia.
+• Tocco prolungato e Doppio tocco sul video: scegli rallentatore, avanti o indietro veloce, zoom o salto per ogni lato.
+• L’analisi locale mostra il progresso reale, quanto manca e una stima.
+• Gli animali individuali vengono riconosciuti in background; confermi tu i gruppi suggeriti.
+• Avvio più rapido con librerie grandi.
+Segnala problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
