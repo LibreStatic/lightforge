@@ -14,20 +14,26 @@
 namespace {
 constexpr const char* TAG = "LightforgeRife";
 std::mutex gpu_mutex;
-int gpu_users = 0;
+bool gpu_instance_created = false;
+
+// The ncnn GPU instance lives for the whole process and is never destroyed: the pipeline cache
+// survives across windows, and repeated VkInstance/VkDevice teardown next to HWUI's Vulkan is
+// suspected of crashing the Adreno driver (SIGSEGV in vkGetFenceStatus on the RenderThread).
+void ensure_gpu_instance() {
+    std::lock_guard<std::mutex> lock(gpu_mutex);
+    if (gpu_instance_created) return;
+    ncnn::create_gpu_instance();
+    gpu_instance_created = true;
+}
 
 struct Engine {
     std::unique_ptr<RIFE> rife;
     bool vulkan;
-    bool gpu_instance_acquired;
 
     Engine(const std::string& model_dir, bool prefer_vulkan) {
         int gpu_id = -1;
-        gpu_instance_acquired = false;
         if (prefer_vulkan) {
-            std::lock_guard<std::mutex> lock(gpu_mutex);
-            if (gpu_users++ == 0) ncnn::create_gpu_instance();
-            gpu_instance_acquired = true;
+            ensure_gpu_instance();
             if (ncnn::get_gpu_count() > 0) gpu_id = ncnn::get_default_gpu_index();
             vulkan = gpu_id >= 0;
         } else {
@@ -37,13 +43,7 @@ struct Engine {
         if (rife->load(model_dir) != 0) throw std::runtime_error("Could not load bundled RIFE model");
     }
 
-    ~Engine() {
-        rife.reset();
-        if (gpu_instance_acquired) {
-            std::lock_guard<std::mutex> lock(gpu_mutex);
-            if (--gpu_users == 0) ncnn::destroy_gpu_instance();
-        }
-    }
+    ~Engine() { rife.reset(); }
 };
 
 bool bitmap_to_rgb(JNIEnv* env, jobject bitmap, ncnn::Mat& out, AndroidBitmapInfo& info) {
