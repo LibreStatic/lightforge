@@ -290,6 +290,8 @@ data class AnalysisSettings(
     val fullAnalysisMinimumBatteryPercent: Int = 20,
     /** Off by default: model downloads and updates wait for unmetered Wi-Fi. */
     val modelDownloadsOnMobileData: Boolean = false,
+    /** Shows the indexing and analysis status cards at the top of Photos. */
+    val showLibraryStatus: Boolean = true,
 )
 
 

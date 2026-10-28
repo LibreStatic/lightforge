@@ -66,4 +66,29 @@
         <item quantity="other">%1$d selezionati</item>
     </plurals>
     <string name="pet_more">Altre opzioni</string>
+    <string name="pet_analysis_notification_channel">Analisi degli animali</string>
+    <string name="pet_analysis_notification_title">Analisi degli animali su questo dispositivo</string>
+    <string name="pet_suggestions_title">Possibili animali</string>
+    <string name="pet_suggestions_hint">Foto che sembrano mostrare lo stesso animale. Non viene raggruppato nulla finché non crei il gruppo.</string>
+    <string name="pet_suggestion_create">Crea gruppo</string>
+    <string name="pet_suggestion_dismiss">Ignora</string>
+    <string name="pet_suggestion_summary">%1$s · %2$s</string>
+    <plurals name="pet_suggestion_photos">
+        <item quantity="one">%d foto</item>
+        <item quantity="many">%d foto</item>
+        <item quantity="other">%d foto</item>
+    </plurals>
+    <plurals name="pet_progress_of">
+        <item quantity="one">Analisi… %1$d di %2$d foto</item>
+        <item quantity="many">Analisi… %1$d di %2$d foto</item>
+        <item quantity="other">Analisi… %1$d di %2$d foto</item>
+    </plurals>
+    <string name="pet_analysis_waiting">L\'analisi attende la ricarica o il raffreddamento del dispositivo</string>
+    <string name="pet_empty_none">Nessun animale rilevato per ora. L\'analisi continua in background.</string>
+    <plurals name="pet_empty_unassigned">
+        <item quantity="one">%d foto con un animale non ancora raggruppata</item>
+        <item quantity="many">%d foto con animali non ancora raggruppate</item>
+        <item quantity="other">%d foto con animali non ancora raggruppate</item>
+    </plurals>
+    <string name="pet_empty_review">Controlla</string>
 </resources>

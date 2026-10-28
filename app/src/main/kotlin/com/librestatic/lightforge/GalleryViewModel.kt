@@ -103,6 +103,12 @@ import com.librestatic.lightforge.core.search.SearchConcept
 import com.librestatic.lightforge.core.search.SearchRankingDebug
 import com.librestatic.lightforge.core.search.SearchVocabulary
 import com.librestatic.lightforge.core.model.AlbumKey
+import com.librestatic.lightforge.core.model.AnalysisEta
+import com.librestatic.lightforge.core.model.AnalysisProgress
+import com.librestatic.lightforge.core.model.AnalysisWait
+import com.librestatic.lightforge.feature.settings.PetIdentitySettingsUi
+import com.librestatic.lightforge.core.ml.FaceDetectionMlEngine
+import com.librestatic.lightforge.core.ml.ImageLabelMlEngine
 import com.librestatic.lightforge.core.model.AlbumSummary
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.CheapMediaDetails
@@ -221,6 +227,7 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -601,6 +608,16 @@ class GalleryViewModel @Inject constructor(
     val petCollectionsEnabled = mutablePetCollectionsEnabled.asStateFlow()
     private val mutablePetAnalysis = MutableStateFlow(mlScheduler.controlState(MlTaskType.ImageLabels))
     val petAnalysis = mutablePetAnalysis.asStateFlow()
+    val faceAnalysisProgress = analysisProgress(
+        state = mutablePeopleAnalysis,
+        processed = { it.observeFaceDetectionProcessedCount(FaceDetectionMlEngine.ModelVersion) },
+        completionTimes = { dao, since -> dao.faceDetectionCompletionTimes(FaceDetectionMlEngine.ModelVersion, since) },
+    )
+    val petAnalysisProgress = analysisProgress(
+        state = mutablePetAnalysis,
+        processed = { it.observeLabelProcessedCount(ImageLabelMlEngine.ModelVersion) },
+        completionTimes = { dao, since -> dao.labelCompletionTimes(ImageLabelMlEngine.ModelVersion, since) },
+    )
     private val petRefreshGeneration = MutableStateFlow(0L)
     val petSummary = combine(runtime.filterNotNull(), petRefreshGeneration) { current, _ -> current }
         .flatMapLatest { PetCollectionRepository(it.database).summary() }
@@ -1029,6 +1046,70 @@ class GalleryViewModel @Inject constructor(
     val localSharingController = mutableLocalSharingController.asStateFlow()
     private val mutablePetIdentityRepository = MutableStateFlow<com.librestatic.lightforge.feature.petrecognition.PetIdentityRepository?>(null)
     val petIdentityRepository = mutablePetIdentityRepository.asStateFlow()
+    /**
+     * Individual-pet analysis progress; null while it is off or its model is missing. Room stamps carry no
+     * time, so completion times are sampled here from processed-count increments (bounded to [PetIdentityEtaSamples]).
+     */
+    val petIdentityProgress: StateFlow<AnalysisProgress?> = mutablePetIdentityRepository.filterNotNull()
+        .flatMapLatest { repository ->
+            repository.summary.map { it.enabled }.distinctUntilChanged().flatMapLatest { enabled ->
+                val installed = enabled && com.librestatic.lightforge.feature.petrecognition.PetModelStore(getApplication()).installed()
+                if (!installed) flowOf<AnalysisProgress?>(null) else {
+                    val stamps = ArrayDeque<Long>()
+                    var last = -1L
+                    com.librestatic.lightforge.feature.petrecognition.PetIdentityAnalysisRunner
+                        .identityProgress(getApplication(), repository)
+                        .map { progress ->
+                            val now = System.currentTimeMillis()
+                            if (last >= 0 && progress.processed > last) {
+                                repeat((progress.processed - last).coerceAtMost(PetIdentityEtaSamples.toLong()).toInt()) { stamps.addLast(now) }
+                            }
+                            last = progress.processed
+                            while (stamps.size > PetIdentityEtaSamples || (stamps.isNotEmpty() && stamps.first() < now - AnalysisEta.WindowMillis)) stamps.removeFirst()
+                            AnalysisProgress.of(progress.processed, progress.total, progress.running, null, stamps.toList(), now)
+                        }
+                }
+            }
+        }
+        .flowOn(Dispatchers.IO)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    /** Suggested groups are an embedding scan, so they are recomputed at most every few seconds and only while observed. */
+    private val petSuggestedGroupCount: Flow<Int> = mutablePetIdentityRepository.filterNotNull()
+        .flatMapLatest { repository ->
+            repository.summary.conflate().map { summary ->
+                val fingerprint = summary.modelFingerprint
+                val count = if (!summary.enabled || fingerprint == null) 0 else {
+                    runCatching { com.librestatic.lightforge.feature.petrecognition.PetGroupSuggestions.load(repository, fingerprint).size }.getOrDefault(0)
+                }
+                delay(10_000)
+                count
+            }
+        }
+        .flowOn(Dispatchers.Default)
+    /** The "Individual pets" row on the Local analysis settings page. */
+    val petIdentitySettings: StateFlow<PetIdentitySettingsUi> = mutablePetIdentityRepository.filterNotNull()
+        .flatMapLatest { repository ->
+            combine(repository.summary, petIdentityProgress, petSuggestedGroupCount.onStart { emit(0) }) { summary, progress, groups ->
+                PetIdentitySettingsUi(
+                    enabled = summary.enabled,
+                    identityCount = summary.identityCount,
+                    suggestedGroups = groups,
+                    photosWithPets = summary.observationCount,
+                    progress = progress,
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PetIdentitySettingsUi())
+    /** Whether Photos shows its indexing/analysis status cards. */
+    val showLibraryStatus: StateFlow<Boolean> = gallerySettingsRepository.settings
+        .map { it.analysis.showLibraryStatus }.distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
+    /** Whole-library item count for the Photos status card; the timeline index follows the active filter. */
+    val libraryItemCount: StateFlow<Long?> by lazy {
+        runtime.filterNotNull().flatMapLatest { it.database.libraryDao().observeLibraryItemCount() }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    }
     val ownSyncController = GalleryOwnSyncWorker.controller(application)
     val offlinePlacesController = GalleryOfflinePlacesWorker.controller(application)
     private val mutablePlacesSource = MutableStateFlow<GalleryPlacesSource?>(null)
@@ -1994,8 +2075,8 @@ class GalleryViewModel @Inject constructor(
                 return@launch
             }
             runtime.value = created
-            mutablePetIdentityRepository.value = GalleryPetIdentityRepository(created.database,application.contentResolver)
             observeSearchJournal(created)
+            mutablePetIdentityRepository.value = GalleryPetIdentityRepository(created.database,application.contentResolver).also(::observePetIdentityBacklog)
             mutableLocalSharingController.value = GalleryLocalSharingWorker.controller(application,created.database)
             mutableLocalSharingController.value?.reconcile()
             mutablePlacesSource.value = GalleryPlacesSource(application,created.database)
@@ -2082,6 +2163,7 @@ class GalleryViewModel @Inject constructor(
         mutablePlacesSource.value?.refreshPermission()
         ownSyncController.reconcile()
         mlScheduler.onAppForegrounded()
+        if (mutablePetIdentityRepository.value != null) kickPetIdentityAnalysis()
         semanticModelManager?.onAppForegrounded()
         if (mlScheduler.hasConsent(MlTaskType.FaceDetection)) monitorFaceProgress()
         if (mlScheduler.hasConsent(MlTaskType.PersonClustering)) monitorPeopleProgress()
@@ -2748,6 +2830,7 @@ class GalleryViewModel @Inject constructor(
             mlScheduler.restart(MlTaskType.ImageLabels, MlRunMode.FullLibrary)
             mutablePetAnalysis.value = mlScheduler.controlState(MlTaskType.ImageLabels)
             monitorPetProgress()
+            kickPetIdentityAnalysis()
         }
         mutableDetectedContentEnabled.value = true
     }
@@ -2772,6 +2855,31 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    /** Background individual-pet analysis (WorkManager). Safe to call often; a running pass is never interrupted. */
+    private fun kickPetIdentityAnalysis() {
+        viewModelScope.launch {
+            runCatching {
+                com.librestatic.lightforge.feature.petrecognition.PetIdentityAnalysisWorker.enqueue(
+                    getApplication(), com.librestatic.lightforge.feature.petrecognition.PetAnalysisTrigger.Kick,
+                )
+            }
+        }
+    }
+
+    /**
+     * Library changes, a new opt-in and app start all surface as photos left to analyze. A false-to-true
+     * transition queues the worker without replacing a waiting request; it no-ops while pets are off.
+     */
+    private fun observePetIdentityBacklog(repository: com.librestatic.lightforge.feature.petrecognition.PetIdentityRepository) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.progress.map { it.remaining > 0 }.distinctUntilChanged().debounce(3_000L).collect { pending ->
+                if (pending) runCatching {
+                    com.librestatic.lightforge.feature.petrecognition.PetIdentityAnalysisWorker.enqueue(getApplication())
+                }
+            }
+        }
+    }
+
     private fun monitorPetProgress() {
         petProgressJob?.cancel()
         petProgressJob = viewModelScope.launch {
@@ -2784,6 +2892,8 @@ class GalleryViewModel @Inject constructor(
                     // The summary joins label and media tables. Re-subscribe after the final
                     // chunk so every device observes the complete counts immediately.
                     petRefreshGeneration.value++
+                    // Species labels narrow the individual-pet sources, so they are ready now.
+                    kickPetIdentityAnalysis()
                     break
                 }
                 // Nothing requested and nothing running means the worker gave up (or never ran).
@@ -2816,6 +2926,31 @@ class GalleryViewModel @Inject constructor(
             row.coverMediaStoreId?.let { id -> MediaKey(volume, id) }
         },
     )
+
+    /** Distinct eligible photos with a current run, plus an ETA from the recent completion stamps. */
+    private fun analysisProgress(
+        state: kotlinx.coroutines.flow.StateFlow<MlControlState>,
+        processed: (com.librestatic.lightforge.core.database.LibraryDao) -> Flow<Long>,
+        completionTimes: suspend (com.librestatic.lightforge.core.database.LibraryDao, Long) -> List<Long>,
+    ): kotlinx.coroutines.flow.StateFlow<AnalysisProgress> = runtime.filterNotNull()
+        .flatMapLatest { active ->
+            val dao = active.database.libraryDao()
+            combine(processed(dao), dao.observeAnalysisEligiblePhotoCount(), state) { done, total, control ->
+                Triple(done, total, control)
+            }.conflate().map { (done, total, control) ->
+                val running = control.status == com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Running
+                val now = System.currentTimeMillis()
+                val times = if (running && total > done) completionTimes(dao, now - AnalysisEta.WindowMillis) else emptyList()
+                val wait = control.waitReason?.takeIf { control.requested }?.let {
+                    when (it) {
+                        com.librestatic.lightforge.core.ml.MlBackoffWait.Charging -> AnalysisWait.Battery
+                        com.librestatic.lightforge.core.ml.MlBackoffWait.Thermal -> AnalysisWait.Heat
+                    }
+                }
+                AnalysisProgress.of(done, total, running, wait, times, now).also { delay(1_000) }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AnalysisProgress.Empty)
 
     private fun MlControlState.isPending(): Boolean =
         requested || status == com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Running
@@ -8370,6 +8505,7 @@ class GalleryViewModel @Inject constructor(
         const val ViewerWindowRefreshThreshold = 12
         const val AnnotationEraserRadius = 0.028f
         const val PersonMemberPageSize = 200
+        const val PetIdentityEtaSamples = 500
         const val CleanupGroupLimit = 50
         const val CleanupPreviewLimit = 30
     }

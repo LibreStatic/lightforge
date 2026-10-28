@@ -138,6 +138,7 @@ internal class PetUiRepository(uri:Uri) : PetIdentityRepository {
     var rejectEdits = false
     var lastUndo:String? = null
     private var undoRows:List<PetObservationCard> = emptyList()
+    override val progress = MutableStateFlow(PetIdentityProgress(0,2))
     override suspend fun currentSummary() = summary.value
     override suspend fun setAnalysisEnabled(expectedRevision:Long,enabled:Boolean,modelFingerprint:String?):Boolean {
         if (expectedRevision != summary.value.revision) return false
@@ -159,6 +160,8 @@ internal class PetUiRepository(uri:Uri) : PetIdentityRepository {
     override suspend fun commitAnalysis(source:PetMediaSource,modelFingerprint:String,observations:List<PetAnalyzedObservation>)=false
     override suspend fun observationEmbedding(observationId:String,modelFingerprint:String)=FloatArray(512).apply { this[0]=1f }
     override suspend fun referenceEmbeddingsPage(species:PetSpecies,modelFingerprint:String,afterId:String?,limit:Int)=PetPage(listOf(PetReferenceEmbedding("a","created",FloatArray(512).apply { this[0]=1f })),null)
+    // Empty: grouping suggestions need two alike unassigned photos, which this fixture keeps out of the way.
+    override suspend fun unassignedEmbeddingsPage(species:PetSpecies,modelFingerprint:String,afterId:String?,limit:Int)=PetPage(emptyList<PetUnassignedEmbedding>(),null)
     override suspend fun edit(expectedRevision:Long,edit:PetEdit):PetEditResult {
         if (rejectEdits || expectedRevision != summary.value.revision) return PetEditResult(false,summary.value.revision)
         undoRows=observations.toList()

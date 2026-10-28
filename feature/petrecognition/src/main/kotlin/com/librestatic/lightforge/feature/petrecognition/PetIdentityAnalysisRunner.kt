@@ -1,16 +1,15 @@
 package com.librestatic.lightforge.feature.petrecognition
 
 import android.content.Context
-import android.os.CancellationSignal
-import android.util.Log
-import kotlinx.coroutines.CancellationException
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 data class PetAnalysisProgress(
@@ -19,46 +18,43 @@ data class PetAnalysisProgress(
     val detected: Long = 0,
     val skipped: Long = 0,
     val failed: Boolean = false,
+    /** Waiting for its turn (power, heat, a delay) rather than working. */
+    val queued: Boolean = false,
 )
 
 /**
- * Process-scoped owner of a pet analysis run, so leaving the pet screen does not cancel it.
- * The screen only observes [progress] and may cancel explicitly.
+ * Thin facade over [PetIdentityAnalysisWorker]: the work itself is owned by WorkManager, so it
+ * survives leaving the pet screen and process death. The screen only observes and may cancel.
  */
 object PetIdentityAnalysisRunner {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val mutableProgress = MutableStateFlow(PetAnalysisProgress())
-    val progress: StateFlow<PetAnalysisProgress> = mutableProgress
-    private var job: Job? = null
-    private var signal: CancellationSignal? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    @Synchronized
-    fun start(context: Context, repository: PetIdentityRepository) {
-        if (job?.isActive == true) return
+    /** Asks for an expedited pass now ("Analyze local photos"). */
+    fun start(context: Context) {
         val appContext = context.applicationContext
-        val cancellation = CancellationSignal()
-        signal = cancellation
-        mutableProgress.value = PetAnalysisProgress(running = true)
-        job = scope.launch {
-            var failed = false
-            try {
-                PetIdentityAnalysis(appContext, repository, PetModelStore(appContext)).run(cancellation) { analyzed, detected, skipped ->
-                    mutableProgress.update { it.copy(analyzed = analyzed, detected = detected, skipped = skipped) }
-                }
-            } catch (failure: Throwable) {
-                if (!cancellation.isCanceled && failure !is CancellationException) {
-                    Log.w("PetIdentityAnalysis", "Pet analysis failed", failure)
-                    failed = true
-                }
-            } finally {
-                mutableProgress.update { it.copy(running = false, failed = failed) }
-            }
-        }
+        scope.launch { PetIdentityAnalysisWorker.enqueue(appContext, PetAnalysisTrigger.UserRequest) }
     }
 
-    @Synchronized
-    fun cancel() {
-        signal?.cancel()
-        job?.cancel()
-    }
+    fun cancel(context: Context) = PetIdentityAnalysisWorker.cancel(context)
+
+    /** Run state and this run's counters, derived from WorkInfo. */
+    fun progress(context: Context): Flow<PetAnalysisProgress> =
+        WorkManager.getInstance(context.applicationContext).getWorkInfosForUniqueWorkFlow(PetIdentityAnalysisWorker.UniqueName)
+            .map { infos ->
+                val active = infos.firstOrNull { it.state == WorkInfo.State.RUNNING }
+                val counters = (active?.progress ?: infos.lastOrNull { it.state == WorkInfo.State.SUCCEEDED }?.outputData)
+                PetAnalysisProgress(
+                    running = active != null,
+                    analyzed = counters?.getLong(PetIdentityAnalysisWorker.KeyAnalyzed, 0) ?: 0,
+                    detected = counters?.getLong(PetIdentityAnalysisWorker.KeyDetected, 0) ?: 0,
+                    skipped = counters?.getLong(PetIdentityAnalysisWorker.KeySkipped, 0) ?: 0,
+                    failed = infos.none { !it.state.isFinished } && infos.any { it.state == WorkInfo.State.FAILED },
+                    queued = active == null && infos.any { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED },
+                )
+            }
+            .distinctUntilChanged()
+
+    /** Processed/total from Room merged with the worker's running state. */
+    fun identityProgress(context: Context, repository: PetIdentityRepository): Flow<PetIdentityProgress> =
+        combine(repository.progress, progress(context)) { counts, work -> counts.copy(running = work.running) }.distinctUntilChanged()
 }

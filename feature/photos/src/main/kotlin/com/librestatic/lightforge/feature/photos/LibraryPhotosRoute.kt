@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
@@ -26,6 +27,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -109,6 +112,10 @@ fun LibraryPhotosRoute(
     scrubberIndex: TimelineIndex? = null,
     onScrubberJump: (TimelineAnchor?) -> Unit = {},
     backgroundStatus: LibraryBackgroundStatus? = null,
+    /** False hides the library status card in every state, without reserving space. */
+    showStatusCards: Boolean = true,
+    /** Total items in the library, shown on the idle status card; null omits the count. */
+    libraryItemCount: Long? = null,
     /** The kinds shown together; empty shows everything. */
     filters: Set<PhotosFilter> = emptySet(),
     /** Adds or removes a kind (All clears them); null hides the filter row. */
@@ -146,11 +153,21 @@ fun LibraryPhotosRoute(
     androidx.compose.runtime.CompositionLocalProvider(
         androidx.compose.material3.LocalContentColor provides page.content,
     ) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(page.container),
-    ) {
+    val gridState = rememberLazyGridState()
+    val showsGrid = engineState != LibraryUiState.PermissionRequired &&
+        !(engineState == LibraryUiState.Error || pagingError != null) &&
+        !(thumbnailLoader == null || engineState == LibraryUiState.Starting ||
+            entries.loadState.refresh is LoadState.Loading && entries.itemCount == 0) &&
+        entries.itemCount > 0
+    // Like Google Photos the header lives at the top of the timeline and scrolls away with it; it
+    // is not brought back by scrolling up, only by reaching the top again.
+    CollapsingHeaderLayout(
+        modifier = Modifier.fillMaxSize().background(page.container),
+        headerOffsetPx = { headerPx ->
+            if (showsGrid) -gridState.headerScrollPx().coerceAtMost(headerPx).toFloat() else 0f
+        },
+        header = {
+        Column(Modifier.fillMaxWidth().background(page.container)) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
             verticalAlignment = Alignment.CenterVertically,
@@ -165,7 +182,11 @@ fun LibraryPhotosRoute(
                 // Wide windows fold the index status into the toolbar row instead of a second banner.
                 // The Box keeps the weight even while the status is silent, so the actions stay at the end.
                 androidx.compose.foundation.layout.Box(Modifier.weight(1f).padding(horizontal = GallerySpacing.Md)) {
-                    LibraryIndexStatus(state = presentationState, background = backgroundStatus)
+                    if (showStatusCards) LibraryIndexStatus(
+                        state = presentationState,
+                        background = backgroundStatus,
+                        libraryItemCount = libraryItemCount,
+                    )
                 }
             } else {
                 androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
@@ -194,9 +215,10 @@ fun LibraryPhotosRoute(
                 style = MaterialTheme.typography.labelMedium,
             )
         }
-        if (!wideToolbar) LibraryIndexStatus(
+        if (!wideToolbar && showStatusCards) LibraryIndexStatus(
             state = presentationState,
             background = backgroundStatus,
+            libraryItemCount = libraryItemCount,
             modifier = Modifier.padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm),
         )
         if (highlights.isNotEmpty() && thumbnailLoader != null) {
@@ -264,13 +286,18 @@ fun LibraryPhotosRoute(
                 ),
             )
         }
+        }
+        },
+        content = { headerHeight ->
+        val fill = Modifier.fillMaxSize().padding(top = headerHeight)
         when {
-            engineState == LibraryUiState.PermissionRequired -> PermissionRequired(onRequestAccess)
+            engineState == LibraryUiState.PermissionRequired ->
+                androidx.compose.foundation.layout.Box(fill) { PermissionRequired(onRequestAccess) }
             engineState == LibraryUiState.Error || pagingError != null -> GalleryStateContent(
                 title = stringResource(R.string.library_error_title),
                 body = stringResource(R.string.library_error_body),
                 illustrationDescription = stringResource(R.string.library_error_title),
-                modifier = Modifier.fillMaxSize(),
+                modifier = fill,
             )
             thumbnailLoader == null ||
                 engineState == LibraryUiState.Starting ||
@@ -279,7 +306,7 @@ fun LibraryPhotosRoute(
                     title = stringResource(R.string.library_loading_title),
                     body = stringResource(R.string.library_loading_body),
                     illustrationDescription = stringResource(R.string.library_loading_title),
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = fill,
                 )
             }
             entries.itemCount == 0 && engineState == LibraryUiState.Ready && filters.isNotEmpty() &&
@@ -289,9 +316,9 @@ fun LibraryPhotosRoute(
                 actionLabel = stringResource(R.string.photos_filter_empty_action),
                 onAction = { onFilterToggle(PhotosFilter.All) },
                 hero = true,
-                modifier = Modifier.fillMaxSize(),
+                modifier = fill,
             )
-            entries.itemCount == 0 && engineState == LibraryUiState.Ready -> EmptyLibrary(Modifier.fillMaxSize())
+            entries.itemCount == 0 && engineState == LibraryUiState.Ready -> EmptyLibrary(fill)
             else -> {
                 AdaptivePagedPhotosTimeline(
                     entries = entries,
@@ -303,6 +330,8 @@ fun LibraryPhotosRoute(
                     selectionOrder = selectionOrder,
                     onMediaSelectionChange = onMediaSelectionChange,
                     modifier = Modifier.fillMaxSize(),
+                    state = gridState,
+                    topContentPadding = headerHeight,
                     densityState = densityState,
                     preferredColumns = preferredColumns,
                     cropThumbnails = cropThumbnails,
@@ -315,7 +344,8 @@ fun LibraryPhotosRoute(
                 )
             }
         }
-    }
+        },
+    )
     }
     }
 }
@@ -517,3 +547,45 @@ private val PhotosGrouping.labelRes: Int
         PhotosGrouping.Year -> R.string.photos_group_year
         PhotosGrouping.None -> R.string.photos_group_none
     }
+
+/**
+ * Scroll distance of the timeline from its top, in pixels, for a grid whose first item starts
+ * below the header ([topContentPadding]). Large once the first item has left the screen; 0 while
+ * the grid has not laid anything out yet.
+ */
+internal fun LazyGridState.headerScrollPx(): Int {
+    val info = layoutInfo
+    val first = info.visibleItemsInfo.firstOrNull { it.index == 0 }
+    return when {
+        first != null -> (-first.offset.y).coerceAtLeast(0)
+        info.visibleItemsInfo.isEmpty() -> 0
+        else -> Int.MAX_VALUE
+    }
+}
+
+/**
+ * Lays [content] out under [header]: the header is measured first so [content] knows its height
+ * (as a top padding) on the very first frame, and is then drawn above the content and translated
+ * by [headerOffsetPx] without recomposing or relaying out anything per scroll frame.
+ */
+@Composable
+private fun CollapsingHeaderLayout(
+    headerOffsetPx: (headerHeightPx: Int) -> Float,
+    header: @Composable () -> Unit,
+    content: @Composable (headerHeight: androidx.compose.ui.unit.Dp) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    androidx.compose.ui.layout.SubcomposeLayout(modifier.clipToBounds()) { constraints ->
+        val headerPlaceables = subcompose("header", header)
+            .map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
+        val headerHeight = headerPlaceables.maxOfOrNull { it.height } ?: 0
+        val contentPlaceables = subcompose("content") { content(headerHeight.toDp()) }
+            .map { it.measure(constraints) }
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            contentPlaceables.forEach { it.placeRelative(0, 0) }
+            headerPlaceables.forEach {
+                it.placeRelativeWithLayer(0, 0, zIndex = 1f) { translationY = headerOffsetPx(headerHeight) }
+            }
+        }
+    }
+}

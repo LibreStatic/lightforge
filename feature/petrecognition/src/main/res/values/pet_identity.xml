@@ -62,4 +62,26 @@
         <item quantity="other">%1$d selected</item>
     </plurals>
     <string name="pet_more">More options</string>
+    <string name="pet_analysis_notification_channel">Pet analysis</string>
+    <string name="pet_analysis_notification_title">Analyzing pets on this device</string>
+    <string name="pet_suggestions_title">Possible pets</string>
+    <string name="pet_suggestions_hint">Photos that look like the same animal. Nothing is grouped until you create the group.</string>
+    <string name="pet_suggestion_create">Create group</string>
+    <string name="pet_suggestion_dismiss">Dismiss</string>
+    <string name="pet_suggestion_summary">%1$s · %2$s</string>
+    <plurals name="pet_suggestion_photos">
+        <item quantity="one">%d photo</item>
+        <item quantity="other">%d photos</item>
+    </plurals>
+    <plurals name="pet_progress_of">
+        <item quantity="one">Analyzing… %1$d of %2$d photo</item>
+        <item quantity="other">Analyzing… %1$d of %2$d photos</item>
+    </plurals>
+    <string name="pet_analysis_waiting">Analysis is waiting for power or for the device to cool down</string>
+    <string name="pet_empty_none">No pets detected yet. Analysis continues in the background.</string>
+    <plurals name="pet_empty_unassigned">
+        <item quantity="one">%d photo with a pet is not grouped yet</item>
+        <item quantity="other">%d photos with pets are not grouped yet</item>
+    </plurals>
+    <string name="pet_empty_review">Review</string>
 </resources>

@@ -64,13 +64,15 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
     var progress by remember { mutableFloatStateOf(0f) }
-    // Analysis runs in PetIdentityAnalysisRunner so leaving this screen does not cancel it.
-    val analysis by PetIdentityAnalysisRunner.progress.collectAsState()
+    // Analysis is background work (PetIdentityAnalysisWorker), so it outlives this screen and the process.
+    val analysis by remember(context) { PetIdentityAnalysisRunner.progress(context) }.collectAsState(initial = PetAnalysisProgress())
+    val identityProgress by remember(context, repository) { PetIdentityAnalysisRunner.identityProgress(context, repository) }.collectAsState(initial = PetIdentityProgress())
     // Downloads run in PetModelDownloadWorker, so they survive this screen and pause off Wi-Fi.
     val downloads by remember(context) { PetModelDownloadWorker.state(context) }.collectAsState(initial = emptyList())
     val download = downloads.firstOrNull { !it.state.isFinished }
     var downloadWait by remember { mutableStateOf<ModelDownloadWait?>(null) }
-    val working = busy || analysis.running || download != null
+    // Background analysis never blocks browsing or edits: edits use revision CAS and analysis keeps the revision.
+    val working = busy || download != null
     var signal by remember { mutableStateOf<CancellationSignal?>(null) }
     var operation by remember { mutableStateOf<Job?>(null) }
     var removal by remember { mutableStateOf(false) }
@@ -84,6 +86,8 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
     var selected by remember { mutableStateOf(setOf<String>()) }
     var selectedGroups by remember { mutableStateOf(setOf<String>()) }
     var suggestions by remember { mutableStateOf(emptyList<PetSimilaritySuggestion>()) }
+    var possible by remember { mutableStateOf(emptyList<PetGroupSuggestion>()) }
+    var dismissedPossible by remember { mutableStateOf(setOf<String>()) }
     var name by rememberSaveable { mutableStateOf("") }
     var nameAction by remember { mutableStateOf<String?>(null) }
     fun cancel() { signal?.cancel(); operation?.cancel() }
@@ -132,6 +136,12 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
                 else -> PetObservationFilter.All
             }, cursor, 40)
         } catch (failure: Throwable) { if (failure !is CancellationException) error = true }
+    }
+    // Suggested groups are computed off the main thread when the screen opens and as analysis advances.
+    LaunchedEffect(summary.enabled, summary.revision, installed, refresh, analysis.running, identityProgress.processed / 100) {
+        if (!summary.enabled || !installed) { possible = emptyList(); return@LaunchedEffect }
+        try { possible = withContext(Dispatchers.Default) { PetGroupSuggestions.load(repository, PetModelCatalog.Fingerprint) } }
+        catch (failure: Throwable) { if (failure !is CancellationException) possible = emptyList() }
     }
     val picker = rememberLauncherForActivityResult(PetLocalPackContract()) { uri ->
         if (uri != null) run { cancellation -> withContext(Dispatchers.IO) { store.importPack(uri, cancellation) { progress = it } } }
@@ -205,16 +215,20 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
         if (error || analysis.failed) item { Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) { Text(stringResource(R.string.pet_error), Modifier.padding(12.dp).testTag("pet-error")) } }
         if (busy || analysis.running) item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (analysis.running) GalleryIndeterminateProgressIndicator(modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
+                if (analysis.running && identityProgress.total > 0) GalleryProgressIndicator(progress = { identityProgress.processed.toFloat() / identityProgress.total }, modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
+                else if (analysis.running) GalleryIndeterminateProgressIndicator(modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
                 else GalleryProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
-                if (analysis.running) Text(
-                    stringResource(
-                        R.string.pet_progress,
-                        pluralStringResource(R.plurals.pet_progress_photos, analysis.analyzed.toInt(), analysis.analyzed),
-                        pluralStringResource(R.plurals.pet_progress_animals, analysis.detected.toInt(), analysis.detected),
-                    ),
-                )
-                OutlinedButton(onClick = { if (analysis.running) PetIdentityAnalysisRunner.cancel() else cancel() }, modifier = Modifier.testTag("pet-cancel")) { Text(stringResource(R.string.pet_cancel_analysis)) }
+                if (analysis.running) {
+                    if (identityProgress.total > 0) Text(pluralStringResource(R.plurals.pet_progress_of, identityProgress.total.toInt(), identityProgress.processed, identityProgress.total))
+                    Text(
+                        stringResource(
+                            R.string.pet_progress,
+                            pluralStringResource(R.plurals.pet_progress_photos, analysis.analyzed.toInt(), analysis.analyzed),
+                            pluralStringResource(R.plurals.pet_progress_animals, analysis.detected.toInt(), analysis.detected),
+                        ),
+                    )
+                }
+                OutlinedButton(onClick = { if (analysis.running) PetIdentityAnalysisRunner.cancel(context) else cancel() }, modifier = Modifier.testTag("pet-cancel")) { Text(stringResource(R.string.pet_cancel_analysis)) }
             }
         }
         if (analysis.skipped > 0) item {
@@ -255,7 +269,7 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
                 check(repository.setAnalysisEnabled(revision, true, PetModelCatalog.Fingerprint))
             } }
         } else {
-            item { PetActionRow(R.string.pet_analyze, R.string.pet_analyze_summary, !working && installed, "pet-analyze") { error = false; PetIdentityAnalysisRunner.start(context, repository) } }
+            item { PetActionRow(R.string.pet_analyze, R.string.pet_analyze_summary, !working && installed && !analysis.running, "pet-analyze") { error = false; PetIdentityAnalysisRunner.start(context) } }
             item {
                 val sections = listOf(
                     Triple("groups", R.string.pet_groups, "pet-groups"),
@@ -270,7 +284,21 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
                 }
             }
             if (section == "groups") {
-                if (identities.items.isEmpty()) item { GalleryInlineEmpty(stringResource(R.string.pet_no_items)) }
+                val shownPossible = possible.filter { it.key !in dismissedPossible }
+                if (shownPossible.isNotEmpty()) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(R.string.pet_suggestions_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.testTag("pet-possible-title"))
+                            Text(stringResource(R.string.pet_suggestions_hint), style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    items(shownPossible, key = { "possible-${it.key}" }) { suggestion ->
+                        PetPossibleCard(suggestion, repository, enabled = !working, onCreate = { edit(PetEdit.CreateIdentity(suggestion.species, null, suggestion.observationIds.toSet())) }, onDismiss = { dismissedPossible = dismissedPossible + suggestion.key })
+                    }
+                }
+                if (identities.items.isEmpty() && shownPossible.isEmpty()) item {
+                    PetGroupsEmpty(identityProgress, analysis, summary.unassignedCount, onReview = { navigate("unassigned") })
+                }
                 items(identities.items, key = { it.id }) { identity ->
                     Card(Modifier.fillMaxWidth().testTag("pet-group-${identity.id}")) {
                         Column(Modifier.padding(12.dp)) {
@@ -338,9 +366,50 @@ private fun PetActionRow(label: Int, summary: Int, enabled: Boolean, tag: String
     ) { Text(stringResource(label)) }
 }
 
+@Composable
+private fun PetPossibleCard(suggestion: PetGroupSuggestion, repository: PetIdentityRepository, enabled: Boolean, onCreate: () -> Unit, onDismiss: () -> Unit) {
+    Card(
+        Modifier.fillMaxWidth().testTag("pet-possible-${suggestion.key}"),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                stringResource(R.string.pet_suggestion_summary, speciesName(suggestion.species), pluralStringResource(R.plurals.pet_suggestion_photos, suggestion.observationIds.size, suggestion.observationIds.size)),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                suggestion.covers.forEach { PetObservationImage(it, repository, Modifier.weight(1f).height(96.dp)) }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current), enabled = enabled, onClick = onCreate, modifier = Modifier.testTag("pet-possible-create")) { Text(stringResource(R.string.pet_suggestion_create)) }
+                TextButton(colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current), onClick = onDismiss, modifier = Modifier.testTag("pet-possible-dismiss")) { Text(stringResource(R.string.pet_suggestion_dismiss)) }
+            }
+        }
+    }
+}
+
+/** Says why the Groups tab is empty: still analyzing, waiting, ungrouped photos to review, or nothing found yet. */
+@Composable
+private fun PetGroupsEmpty(progress: PetIdentityProgress, analysis: PetAnalysisProgress, unassigned: Long, onReview: () -> Unit) {
+    Column(Modifier.fillMaxWidth().testTag("pet-groups-empty"), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        when {
+            analysis.running && progress.total > 0 -> {
+                GalleryInlineEmpty(pluralStringResource(R.plurals.pet_progress_of, progress.total.toInt(), progress.processed, progress.total))
+                GalleryProgressIndicator(progress = { progress.processed.toFloat() / progress.total })
+            }
+            analysis.queued && !progress.complete -> GalleryInlineEmpty(stringResource(R.string.pet_analysis_waiting))
+            unassigned > 0 -> {
+                GalleryInlineEmpty(pluralStringResource(R.plurals.pet_empty_unassigned, unassigned.toInt(), unassigned))
+                FilledTonalButton(onClick = onReview, modifier = Modifier.testTag("pet-empty-review")) { Text(stringResource(R.string.pet_empty_review)) }
+            }
+            else -> GalleryInlineEmpty(stringResource(R.string.pet_empty_none))
+        }
+    }
+}
+
 @Composable private fun speciesName(species: PetSpecies): String = stringResource(when (species) { PetSpecies.Cat -> R.string.pet_cat; PetSpecies.Dog -> R.string.pet_dog; PetSpecies.Uncertain -> R.string.pet_uncertain })
 
-@Composable private fun PetObservationImage(observation: PetObservationCard, repository: PetIdentityRepository) {
+@Composable private fun PetObservationImage(observation: PetObservationCard, repository: PetIdentityRepository, modifier: Modifier = Modifier.fillMaxWidth().height(180.dp)) {
     val context = LocalContext.current
     val image by produceState<Bitmap?>(null, observation.id, observation.source.generationModified, observation.source.generationAdded) {
         value = withContext(Dispatchers.IO) {
@@ -351,7 +420,7 @@ private fun PetActionRow(label: Int, summary: Int, enabled: Boolean, tag: String
         }
         awaitDispose { value?.recycle() }
     }
-    image?.let { Image(it.asImageBitmap(), contentDescription = speciesName(observation.species), contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth().height(180.dp)) }
+    image?.let { Image(it.asImageBitmap(), contentDescription = speciesName(observation.species), contentScale = ContentScale.Fit, modifier = modifier) }
 }
 
 private fun decodePetThumbnail(context: Context, observation: PetObservationCard, maxSide: Int): Bitmap {

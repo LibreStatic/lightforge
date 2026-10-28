@@ -62,4 +62,26 @@
         <item quantity="other">%1$d ausgewählt</item>
     </plurals>
     <string name="pet_more">Weitere Optionen</string>
+    <string name="pet_analysis_notification_channel">Haustieranalyse</string>
+    <string name="pet_analysis_notification_title">Haustiere auf diesem Gerät werden analysiert</string>
+    <string name="pet_suggestions_title">Mögliche Haustiere</string>
+    <string name="pet_suggestions_hint">Fotos, die dasselbe Tier zeigen könnten. Nichts wird gruppiert, bis du die Gruppe erstellst.</string>
+    <string name="pet_suggestion_create">Gruppe erstellen</string>
+    <string name="pet_suggestion_dismiss">Verwerfen</string>
+    <string name="pet_suggestion_summary">%1$s · %2$s</string>
+    <plurals name="pet_suggestion_photos">
+        <item quantity="one">%d Foto</item>
+        <item quantity="other">%d Fotos</item>
+    </plurals>
+    <plurals name="pet_progress_of">
+        <item quantity="one">Analysiere… %1$d von %2$d Foto</item>
+        <item quantity="other">Analysiere… %1$d von %2$d Fotos</item>
+    </plurals>
+    <string name="pet_analysis_waiting">Die Analyse wartet auf Strom oder darauf, dass das Gerät abkühlt</string>
+    <string name="pet_empty_none">Noch keine Haustiere erkannt. Die Analyse läuft im Hintergrund weiter.</string>
+    <plurals name="pet_empty_unassigned">
+        <item quantity="one">%d Foto mit einem Tier ist noch nicht gruppiert</item>
+        <item quantity="other">%d Fotos mit Tieren sind noch nicht gruppiert</item>
+    </plurals>
+    <string name="pet_empty_review">Prüfen</string>
 </resources>

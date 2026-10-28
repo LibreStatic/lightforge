@@ -32,6 +32,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.offset
 import androidx.compose.ui.layout.boundsInWindow
 import com.librestatic.lightforge.core.model.MediaKey
 import androidx.compose.ui.Modifier
@@ -140,6 +142,8 @@ fun AdaptivePagedPhotosTimeline(
     onSelectAll: (() -> Unit)? = null,
     /** Esc while selecting; null leaves Esc to the window. */
     onClearSelection: (() -> Unit)? = null,
+    /** Room above the first row for a header the caller draws over the grid; it scrolls away with the rows. */
+    topContentPadding: Dp = 0.dp,
 ) {
     var scrubbing by remember { mutableStateOf(false) }
     var fastScrub by remember { mutableStateOf(false) }
@@ -191,6 +195,7 @@ fun AdaptivePagedPhotosTimeline(
             scrubbing = scrubbing,
             deferThumbnails = fastScrub,
             horizontalPadding = edge,
+            topContentPadding = topContentPadding,
             selectionMode = selectionMode,
             groupCounts = groupCounts,
             onSelectAll = onSelectAll,
@@ -205,6 +210,12 @@ fun AdaptivePagedPhotosTimeline(
                 onScrubbingChange = { scrubbing = it },
                 onFastScrubChange = { fastScrub = it },
                 thumbnailLoader = thumbnailLoader,
+                // The track starts below whatever part of the header is still on screen.
+                modifier = Modifier.layout { measurable, constraints ->
+                    val inset = (topContentPadding.roundToPx() - state.headerScrollPx()).coerceAtLeast(0)
+                    val placeable = measurable.measure(constraints.offset(vertical = -inset))
+                    layout(placeable.width, placeable.height) { placeable.place(0, inset) }
+                },
             )
         }
     }
@@ -235,6 +246,8 @@ fun PagedPhotosTimeline(
     deferThumbnails: Boolean = false,
     /** Edge margin on both sides of the grid; headers align their text with it. */
     horizontalPadding: Dp = 0.dp,
+    /** Space above the first row (a header overlaid by the caller). */
+    topContentPadding: Dp = 0.dp,
     selectionMode: Boolean = false,
     /** Item counts for the date headers; null hides the counts. */
     groupCounts: TimelineGroupCounts? = null,
@@ -293,6 +306,7 @@ fun PagedPhotosTimeline(
         contentPadding = PaddingValues(
             start = horizontalPadding,
             end = horizontalPadding,
+            top = topContentPadding,
             bottom = com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding(),
         ),
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),

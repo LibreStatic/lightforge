@@ -19,15 +19,19 @@
     <string name="scrubber_yesterday">Gestern</string>
     <string name="library_background_search">Suche wird im Hintergrund aktualisiert…</string>
     <string name="library_background_moments">Momente werden im Hintergrund erstellt…</string>
+    <string name="library_background_media_details">Video- und Bilddetails werden gelesen…</string>
     <string name="library_background_faces">Gesichter werden im Hintergrund erkannt…</string>
     <string name="library_background_people">Personen werden im Hintergrund gruppiert…</string>
-    <string name="library_background_media_details">Video- und Bilddetails werden gelesen…</string>
     <string name="library_background_pets">Haustiere werden im Hintergrund erkannt…</string>
+    <string name="library_background_pet_identity">Einzelne Haustiere werden im Hintergrund erkannt…</string>
     <string name="library_task_faces">Gesichtserkennung</string>
     <string name="library_task_people">Personengruppierung</string>
     <string name="library_task_pets">Haustiererkennung</string>
+    <string name="library_task_pet_identity">Einzelne Haustiere</string>
     <string name="library_paused_battery">%1$s pausiert, um Akku zu sparen</string>
     <string name="library_paused_heat">%1$s pausiert, bis das Gerät abgekühlt ist</string>
+    <string name="library_wait_battery_short">Pausiert, um Akku zu sparen</string>
+    <string name="library_wait_heat_short">Pausiert · Gerät ist warm</string>
     <string name="photos_more_options">Weitere Optionen</string>
     <string name="photos_menu_settings">Einstellungen</string>
     <string name="photos_menu_device_folders">Auf dem Gerät</string>
@@ -72,4 +76,20 @@
     <string name="photos_group_year">Jahr</string>
     <string name="photos_group_none">Keine Gruppierung</string>
     <string name="timeline_hidden_item">Ausgeblendetes Element</string>
+    <string name="library_up_to_date">Mediathek aktuell</string>
+    <plurals name="library_up_to_date_items">
+        <item quantity="one">Mediathek aktuell · %1$s Element</item>
+        <item quantity="other">Mediathek aktuell · %1$s Elemente</item>
+    </plurals>
+    <string name="library_progress_of">%1$s von %2$s</string>
+    <string name="library_detail_join">%1$s · %2$s</string>
+    <string name="library_eta_under_minute">&lt; 1 Min.</string>
+    <plurals name="library_eta_minutes">
+        <item quantity="one">etwa %1$d Min.</item>
+        <item quantity="other">etwa %1$d Min.</item>
+    </plurals>
+    <plurals name="library_eta_hours">
+        <item quantity="one">etwa %1$d Std.</item>
+        <item quantity="other">etwa %1$d Std.</item>
+    </plurals>
 </resources>

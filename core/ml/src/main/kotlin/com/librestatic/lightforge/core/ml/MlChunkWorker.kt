@@ -140,7 +140,7 @@ internal const val MaxChunkRunAttempts = 5
 enum class MlBackoffWait { Charging, Thermal }
 
 /** Copies these constraints with charging required; the copying Builder constructor is library-restricted. */
-private fun Constraints.requiringCharging(): Constraints =
+fun Constraints.requiringCharging(): Constraints =
     Constraints.Builder()
         .setRequiredNetworkType(requiredNetworkType)
         .setRequiresBatteryNotLow(requiresBatteryNotLow())

@@ -14,6 +14,18 @@ private const val CurrentPet = """ FROM pet_observations o JOIN media_items m
  AND o.generationAdded=m.generationAdded AND o.generationModified=m.generationModified
  AND m.isAccessible=1 AND m.isTrashed=0 AND m.mediaType=1 """
 
+/**
+ * Individual-pet sources: accessible photos that carry a dog/cat label from the current label model
+ * (the ImageLabels species pass), or that have no current label run yet. A photo already labeled
+ * as neither is skipped, which makes the identity pass far cheaper than scanning the whole library.
+ * Needs the :labelVersion bind argument.
+ */
+private const val PetSource = """ m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0 AND (
+ NOT EXISTS (SELECT 1 FROM media_label_runs r WHERE r.volumeName=m.volumeName AND r.mediaStoreId=m.mediaStoreId
+  AND r.generationModified=m.generationModified AND r.modelVersion=:labelVersion)
+ OR EXISTS (SELECT 1 FROM media_labels l WHERE l.volumeName=m.volumeName AND l.mediaStoreId=m.mediaStoreId
+  AND l.canonicalLabel IN ('dog','cat'))) """
+
 /** All multi-step writes belong in the repository's single Room transaction/revision CAS. */
 @Dao
 interface PetIdentityDao {
@@ -44,8 +56,16 @@ interface PetIdentityDao {
     suspend fun identityObservations(ids:List<String>,limit:Int):List<PetObservationEntity>
     @Query("SELECT * FROM pet_observations WHERE volumeName=:volume AND mediaStoreId=:id AND modelFingerprint=:fingerprint")
     suspend fun sourceObservations(volume:String,id:Long,fingerprint:String):List<PetObservationEntity>
-    @Query("SELECT * FROM media_items WHERE isAccessible=1 AND isTrashed=0 AND mediaType=1 AND (volumeName>:volume OR (volumeName=:volume AND mediaStoreId>:id)) ORDER BY volumeName,mediaStoreId LIMIT :limit")
-    suspend fun eligibleSources(volume:String,id:Long,limit:Int):List<MediaItemEntity>
+    @Query("SELECT m.* FROM media_items m WHERE" + PetSource + "AND (m.volumeName>:volume OR (m.volumeName=:volume AND m.mediaStoreId>:id)) ORDER BY m.volumeName,m.mediaStoreId LIMIT :limit")
+    suspend fun eligibleSources(volume:String,id:Long,limit:Int,labelVersion:String):List<MediaItemEntity>
+    /** Eligible photos for the enabled pet model; 0 while analysis is off. */
+    @Query("SELECT COUNT(*) FROM media_items m JOIN pet_state s ON s.id=1 WHERE s.enabled=1 AND s.modelFingerprint IS NOT NULL AND" + PetSource)
+    fun observeEligibleSourceCount(labelVersion:String):Flow<Long>
+    /** Eligible photos whose current generation already has a stamp for the selected model (a subset of the eligible count). */
+    @Query("SELECT COUNT(*) FROM media_items m JOIN pet_state s ON s.id=1 JOIN pet_analysis_stamps p ON p.volumeName=m.volumeName AND p.mediaStoreId=m.mediaStoreId AND p.modelFingerprint=s.modelFingerprint AND p.generationAdded=m.generationAdded AND p.generationModified=m.generationModified WHERE s.enabled=1 AND" + PetSource)
+    fun observeProcessedSourceCount(labelVersion:String):Flow<Long>
+    @Query("SELECT o.*" + CurrentPet + " AND o.identityId IS NULL AND o.excluded=0 AND o.species=:species AND o.modelFingerprint=:fingerprint AND o.id>:afterId ORDER BY o.id LIMIT :limit")
+    suspend fun unassignedPage(species:Int,fingerprint:String,afterId:String,limit:Int):List<PetObservationEntity>
     @Query("SELECT * FROM media_items WHERE volumeName=:volume AND mediaStoreId=:id AND generationAdded=:added AND generationModified=:modified AND isAccessible=1 AND isTrashed=0 AND mediaType=1")
     suspend fun currentSource(volume:String,id:Long,added:Long,modified:Long):MediaItemEntity?
     @Query("SELECT * FROM pet_analysis_stamps WHERE volumeName=:volume AND mediaStoreId=:id AND modelFingerprint=:fingerprint")

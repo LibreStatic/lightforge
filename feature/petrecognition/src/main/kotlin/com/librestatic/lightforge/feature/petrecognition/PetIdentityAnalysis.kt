@@ -14,6 +14,8 @@ class PetIdentityAnalysis(context: Context, private val repository: PetIdentityR
     private val resolver = context.applicationContext.contentResolver
     suspend fun run(
         signal: CancellationSignal,
+        /** Called before each photo is decoded; throw to stop (power, heat or user work). */
+        gate: suspend () -> Unit = {},
         progress: (analyzed: Long, detected: Long, skipped: Long) -> Unit = { _, _, _ -> },
     ) = withContext(Dispatchers.IO) {
         var analyzed = 0L
@@ -30,6 +32,7 @@ class PetIdentityAnalysis(context: Context, private val repository: PetIdentityR
                 for (source in page.items) {
                     signal.throwIfCanceled()
                     if (!repository.isCurrent(source) || repository.isAnalyzed(source, PetModelCatalog.Fingerprint)) continue
+                    gate()
                     val bitmap = try {
                         decode(source)
                     } catch (_: IOException) {

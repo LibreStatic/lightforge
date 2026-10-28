@@ -1,0 +1,19 @@
+<resources>
+    <string name="analysis_eta_under_minute">&lt; 1 Min.</string>
+    <plurals name="analysis_eta_minutes"><item quantity="one">etwa %1$d Min.</item><item quantity="other">etwa %1$d Min.</item></plurals>
+    <plurals name="analysis_eta_hours"><item quantity="one">etwa %1$d Std.</item><item quantity="other">etwa %1$d Std.</item></plurals>
+    <plurals name="analysis_progress_counts"><item quantity="one">%1$s von %2$s Foto</item><item quantity="other">%1$s von %2$s Fotos</item></plurals>
+    <plurals name="analysis_progress_left"><item quantity="one">%1$s verbleibend</item><item quantity="other">%1$s verbleibend</item></plurals>
+    <plurals name="analysis_progress_complete"><item quantity="one">%1$s Foto analysiert</item><item quantity="other">Alle %1$s Fotos analysiert</item></plurals>
+    <plurals name="pet_identity_summary_analyzing"><item quantity="one">Analyse läuft · %1$s verbleibend</item><item quantity="other">Analyse läuft · %1$s verbleibend</item></plurals>
+    <plurals name="pet_identity_summary_pets"><item quantity="one">%1$s Haustier</item><item quantity="other">%1$s Haustiere</item></plurals>
+    <plurals name="pet_identity_summary_groups"><item quantity="one">%1$s vorgeschlagene Gruppe</item><item quantity="other">%1$s vorgeschlagene Gruppen</item></plurals>
+    <plurals name="pet_identity_summary_photos"><item quantity="one">%1$s erkanntes Tier</item><item quantity="other">%1$s erkannte Tiere</item></plurals>
+    <string name="analysis_progress_paused">Pausiert</string>
+    <string name="analysis_progress_preparing">Analyse wird vorbereitet…</string>
+    <string name="analysis_wait_battery">Wartet auf Akku</string>
+    <string name="analysis_wait_heat">Pausiert, bis das Gerät abgekühlt ist</string>
+    <string name="pet_identity_summary_not_set_up">Nicht eingerichtet — Modell herunterladen</string>
+    <string name="show_library_status">Status in Fotos anzeigen</string>
+    <string name="show_library_status_summary">Zeigt Karten mit dem Fortschritt von Indexierung und Analyse oben in Fotos</string>
+</resources>

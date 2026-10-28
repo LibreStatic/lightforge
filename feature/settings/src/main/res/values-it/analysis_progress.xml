@@ -1,0 +1,19 @@
+<resources>
+    <string name="analysis_eta_under_minute">&lt; 1 min</string>
+    <plurals name="analysis_eta_minutes"><item quantity="one">circa %1$d min</item><item quantity="many">circa %1$d min</item><item quantity="other">circa %1$d min</item></plurals>
+    <plurals name="analysis_eta_hours"><item quantity="one">circa %1$d h</item><item quantity="many">circa %1$d h</item><item quantity="other">circa %1$d h</item></plurals>
+    <plurals name="analysis_progress_counts"><item quantity="one">%1$s di %2$s foto</item><item quantity="many">%1$s di %2$s foto</item><item quantity="other">%1$s di %2$s foto</item></plurals>
+    <plurals name="analysis_progress_left"><item quantity="one">manca %1$s</item><item quantity="many">mancano %1$s</item><item quantity="other">mancano %1$s</item></plurals>
+    <plurals name="analysis_progress_complete"><item quantity="one">%1$s foto analizzata</item><item quantity="many">Tutte le foto analizzate (%1$s)</item><item quantity="other">Tutte le foto analizzate (%1$s)</item></plurals>
+    <plurals name="pet_identity_summary_analyzing"><item quantity="one">Analisi in corso · manca %1$s</item><item quantity="many">Analisi in corso · mancano %1$s</item><item quantity="other">Analisi in corso · mancano %1$s</item></plurals>
+    <plurals name="pet_identity_summary_pets"><item quantity="one">%1$s animale</item><item quantity="many">%1$s animali</item><item quantity="other">%1$s animali</item></plurals>
+    <plurals name="pet_identity_summary_groups"><item quantity="one">%1$s gruppo suggerito</item><item quantity="many">%1$s gruppi suggeriti</item><item quantity="other">%1$s gruppi suggeriti</item></plurals>
+    <plurals name="pet_identity_summary_photos"><item quantity="one">%1$s animale rilevato</item><item quantity="many">%1$s animali rilevati</item><item quantity="other">%1$s animali rilevati</item></plurals>
+    <string name="analysis_progress_paused">In pausa</string>
+    <string name="analysis_progress_preparing">Preparazione dell\'analisi…</string>
+    <string name="analysis_wait_battery">In attesa della batteria</string>
+    <string name="analysis_wait_heat">In pausa finché il dispositivo non si raffredda</string>
+    <string name="pet_identity_summary_not_set_up">Non configurato — scarica il modello</string>
+    <string name="show_library_status">Mostra stato in Foto</string>
+    <string name="show_library_status_summary">Mostra schede con l\'avanzamento di indicizzazione e analisi in cima a Foto</string>
+</resources>

@@ -19,15 +19,19 @@
     <string name="scrubber_yesterday">Hier</string>
     <string name="library_background_search">Mise à jour de la recherche en arrière-plan…</string>
     <string name="library_background_moments">Création des moments en arrière-plan…</string>
+    <string name="library_background_media_details">Lecture des détails des vidéos et images…</string>
     <string name="library_background_faces">Détection des visages en arrière-plan…</string>
     <string name="library_background_people">Regroupement des personnes en arrière-plan…</string>
-    <string name="library_background_media_details">Lecture des détails des vidéos et images…</string>
     <string name="library_background_pets">Reconnaissance des animaux en arrière-plan…</string>
+    <string name="library_background_pet_identity">Reconnaissance des animaux individuels en arrière-plan…</string>
     <string name="library_task_faces">Détection des visages</string>
     <string name="library_task_people">Regroupement des personnes</string>
     <string name="library_task_pets">Reconnaissance des animaux</string>
+    <string name="library_task_pet_identity">Animaux individuels</string>
     <string name="library_paused_battery">%1$s en pause pour économiser la batterie</string>
     <string name="library_paused_heat">%1$s en pause le temps que l\'appareil refroidisse</string>
+    <string name="library_wait_battery_short">En pause pour économiser la batterie</string>
+    <string name="library_wait_heat_short">En pause · appareil chaud</string>
     <string name="photos_more_options">Plus d\'options</string>
     <string name="photos_menu_settings">Paramètres</string>
     <string name="photos_menu_device_folders">Sur l’appareil</string>
@@ -75,4 +79,23 @@
     <string name="photos_group_year">Année</string>
     <string name="photos_group_none">Sans regroupement</string>
     <string name="timeline_hidden_item">Élément masqué</string>
+    <string name="library_up_to_date">Bibliothèque à jour</string>
+    <plurals name="library_up_to_date_items">
+        <item quantity="one">Bibliothèque à jour · %1$s élément</item>
+        <item quantity="many">Bibliothèque à jour · %1$s éléments</item>
+        <item quantity="other">Bibliothèque à jour · %1$s éléments</item>
+    </plurals>
+    <string name="library_progress_of">%1$s sur %2$s</string>
+    <string name="library_detail_join">%1$s · %2$s</string>
+    <string name="library_eta_under_minute">&lt; 1 min</string>
+    <plurals name="library_eta_minutes">
+        <item quantity="one">environ %1$d min</item>
+        <item quantity="many">environ %1$d min</item>
+        <item quantity="other">environ %1$d min</item>
+    </plurals>
+    <plurals name="library_eta_hours">
+        <item quantity="one">environ %1$d h</item>
+        <item quantity="many">environ %1$d h</item>
+        <item quantity="other">environ %1$d h</item>
+    </plurals>
 </resources>

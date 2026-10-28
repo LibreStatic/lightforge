@@ -105,7 +105,6 @@ import com.librestatic.lightforge.core.designsystem.GalleryLabelValueLayout
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
-import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -134,6 +133,8 @@ data class FaceAnalysisUiState(
     val paused: Boolean = false,
     val completedItems: Long = 0,
     val status: AnalysisStatus? = null,
+    /** Distinct photos analyzed of those eligible; null until the first count arrives. */
+    val progress: com.librestatic.lightforge.core.model.AnalysisProgress? = null,
 )
 
 enum class SemanticModelCompatibilityUi { Recommended, Supported, Unsupported }
@@ -201,6 +202,7 @@ fun RecognitionSettingsContent(
     onRemoteBackup: (() -> Unit)? = null,
     onLocalSharing: (() -> Unit)? = null,
     onPetIdentity: (() -> Unit)? = null,
+    petIdentity: PetIdentitySettingsUi = PetIdentitySettingsUi(),
     onOwnSync: (() -> Unit)? = null,
     onOfflinePlaces: (() -> Unit)? = null,
     onImportSettings: () -> Unit = {},
@@ -230,6 +232,8 @@ fun RecognitionSettingsContent(
     onStorageAccessOpened: () -> Unit = {},
     showHeader: Boolean = true,
     adaptiveInfo: GalleryAdaptiveLayoutInfo? = null,
+    /** Opens on the local analysis page instead of the list; for previews and tests. */
+    startOnAiAnalysis: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // The master grows from 300 to 360 dp out of the detail's spare room; below 660 dp of content
@@ -237,7 +241,7 @@ fun RecognitionSettingsContent(
     val masterWidth = adaptiveInfo?.let { galleryMasterPaneWidth(it.contentWidth) }
     val twoPane = adaptiveInfo != null && adaptiveInfo.windowClass != GalleryWindowClass.Compact && masterWidth != null
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
-    var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
+    var page by rememberSaveable { mutableStateOf(if (startOnAiAnalysis) SettingsPage.AiAnalysis else SettingsPage.Root) }
     LaunchedEffect(openStorageAccess, storageAccess != null) {
         if (openStorageAccess && storageAccess != null) {
             page = SettingsPage.StorageAccess
@@ -321,7 +325,6 @@ fun RecognitionSettingsContent(
                 BackupSection(onExportSettings, onImportSettings, onResetSettings, onLocalBackup, onRemoteBackup, onOwnSync, onOfflinePlaces, onLocalSharing)
             }
             SettingsPage.AiAnalysis -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.AutoAwesome, title = stringResource(R.string.settings_page_ai), onBack = { page = SettingsPage.Root }) {
-                if (onPetIdentity != null) OutlinedButton(onClick = onPetIdentity, modifier = Modifier.fillMaxWidth().testTag("settings-pet-identity")) { Text(stringResource(R.string.pet_identity_entry)) }
                 AiAnalysisSection(
                     settings = settings,
                     onSettingsChange = onSettingsChange,
@@ -334,6 +337,8 @@ fun RecognitionSettingsContent(
                     onDeleteRequested = { confirmDelete = true },
                     petCollectionsEnabled = petCollectionsEnabled,
                     petAnalysisState = petAnalysisState,
+                    onPetIdentity = onPetIdentity,
+                    petIdentity = petIdentity,
                     onPetCollectionsEnabledChange = onPetCollectionsEnabledChange,
                     onHideDogResults = onHideDogResults,
                     onHideCatResults = onHideCatResults,
@@ -1792,6 +1797,8 @@ private fun AiAnalysisSection(
     onDeleteRequested: () -> Unit,
     petCollectionsEnabled: Boolean,
     petAnalysisState: FaceAnalysisUiState,
+    onPetIdentity: (() -> Unit)?,
+    petIdentity: PetIdentitySettingsUi,
     onPetCollectionsEnabledChange: (Boolean) -> Unit,
     onHideDogResults: () -> Unit,
     onHideCatResults: () -> Unit,
@@ -1862,6 +1869,16 @@ private fun AiAnalysisSection(
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+    SettingsSwitchRow(
+        stringResource(R.string.show_library_status),
+        settings.analysis.showLibraryStatus,
+        modifier = Modifier.testTag("show_library_status_switch"),
+        supporting = stringResource(R.string.show_library_status_summary),
+    ) { shown ->
+        onSettingsChange { current ->
+            current.copy(analysis = current.analysis.copy(showLibraryStatus = shown))
+        }
+    }
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         shape = RoundedCornerShape(20.dp),
@@ -1926,8 +1943,12 @@ private fun AiAnalysisSection(
     if (!peopleAnalysisEnabled) {
         GalleryExpressiveButton(onClick = onEnable) { Text(stringResource(R.string.face_analysis_enable)) }
     } else {
-        GalleryProgressSlot(state.status == AnalysisStatus.Running)
-        Text(pluralStringResource(R.plurals.face_analysis_progress, state.completedItems.toInt(), state.completedItems))
+        AnalysisProgressBlock(
+            progress = state.progress,
+            paused = state.paused,
+            preparing = state.status == AnalysisStatus.Running || state.status == AnalysisStatus.Ready,
+            tag = "face_analysis_progress",
+        )
         SettingsActionRow(
             icon = if (state.paused) GalleryIcons.Play else GalleryIcons.Pause,
             label = stringResource(if (state.paused) R.string.face_analysis_resume else R.string.face_analysis_pause),
@@ -1949,28 +1970,25 @@ private fun AiAnalysisSection(
         )
     }
     Text(stringResource(R.string.pet_collections_title), style = MaterialTheme.typography.titleLarge)
-    if (petCollectionsEnabled) {
-        if (petAnalysisState.status == AnalysisStatus.Running ||
-            petAnalysisState.status == AnalysisStatus.Ready
-        ) {
-            GalleryIndeterminateProgressIndicator(
-                Modifier.fillMaxWidth().testTag("pet_analysis_progress_indicator"),
+    if (!petCollectionsEnabled) {
+        Text(stringResource(R.string.pet_collections_no_identity), color = MaterialTheme.colorScheme.primary)
+        GalleryExpressiveButton(onClick = { onPetCollectionsEnabledChange(true) }) { Text(stringResource(R.string.pet_collections_enable)) }
+    } else {
+        AnalysisProgressBlock(
+            progress = petAnalysisState.progress,
+            paused = petAnalysisState.paused,
+            preparing = petAnalysisState.status == AnalysisStatus.Running || petAnalysisState.status == AnalysisStatus.Ready,
+            tag = "pet_analysis_progress",
+        )
+        if (onPetIdentity != null) {
+            SettingsActionRow(
+                icon = GalleryIcons.Pet,
+                label = stringResource(R.string.pet_identity_entry),
+                summary = petIdentitySummary(petIdentity),
+                modifier = Modifier.testTag("settings-pet-identity"),
+                onClick = onPetIdentity,
             )
         }
-        Text(
-            pluralStringResource(
-                when (petAnalysisState.status) {
-                    AnalysisStatus.Complete -> R.plurals.pet_analysis_complete
-                    AnalysisStatus.Paused -> R.plurals.pet_analysis_paused
-                    AnalysisStatus.Running -> R.plurals.pet_analysis_running
-                    AnalysisStatus.Ready, null -> R.plurals.pet_analysis_preparing
-                },
-                petAnalysisState.completedItems.toInt(),
-                petAnalysisState.completedItems,
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.testTag("pet_analysis_status"),
-        )
         SettingsActionRow(GalleryIcons.Pet, stringResource(R.string.pet_hide_dog), summary = stringResource(R.string.pet_hide_dog_summary), onClick = onHideDogResults)
         SettingsActionRow(GalleryIcons.Pet, stringResource(R.string.pet_hide_cat), summary = stringResource(R.string.pet_hide_cat_summary), onClick = onHideCatResults)
         SettingsActionRow(GalleryIcons.History, stringResource(R.string.pet_restore), summary = stringResource(R.string.pet_restore_summary), onClick = onRestorePetResults)

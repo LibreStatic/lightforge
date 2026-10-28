@@ -27,6 +27,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
+import com.librestatic.lightforge.core.model.AnalysisProgress
+import com.librestatic.lightforge.core.model.AnalysisWait
 import com.librestatic.lightforge.core.model.GrantLevel
 import com.librestatic.lightforge.core.model.LibraryAccess
 import com.librestatic.lightforge.core.model.MediaKey
@@ -91,8 +93,10 @@ fun PhotosDatePickerPreview() {
 }
 
 /**
- * A cold start that indexes for a while: the status pill turns into a "Library ready"
- * confirmation that stays until "Got it". */
+ * A cold start that indexes for a while: the status card turns into a "Library ready" confirmation
+ * (with the running face analysis under the title) that stays until "Got it", and then softens into
+ * a quiet, non-dismissable information card.
+ */
 @Preview
 @Composable
 fun PhotosColdStartPreview() {
@@ -101,8 +105,47 @@ fun PhotosColdStartPreview() {
         delay(3_000)
         engineState = LibraryUiState.Ready
     }
-    PhotosFrame(engineState = engineState)
+    PhotosFrame(engineState = engineState, backgroundStatus = FacesRunning, libraryItemCount = 13_600)
 }
+
+/** Cold start over an already-indexed library while faces are analysed: the soft busy card, no confirmation. */
+@Preview
+@Composable
+fun PhotosStatusSoftBusyPreview() =
+    PhotosFrame(backgroundStatus = FacesRunning, libraryItemCount = 13_600)
+
+/** Cold start over a library with nothing left to do: the soft "up to date" card. */
+@Preview
+@Composable
+fun PhotosStatusSoftIdlePreview() = PhotosFrame(libraryItemCount = 13_600)
+
+/** Analysis held back by the battery saver: the soft card gives the reason instead of progress. */
+@Preview
+@Composable
+fun PhotosStatusSoftWaitingPreview() = PhotosFrame(
+    backgroundStatus = LibraryBackgroundStatus(
+        LibraryBackgroundWork.Faces,
+        waitingOn = LibraryBackgroundWait.Battery,
+        progress = FacesRunning.progress?.copy(running = false, etaMillis = null, waitReason = AnalysisWait.Battery),
+    ),
+)
+
+/** "Show status in Photos" off: no card in any state, and no space reserved for it. */
+@Preview
+@Composable
+fun PhotosStatusHiddenPreview() =
+    PhotosFrame(backgroundStatus = FacesRunning, libraryItemCount = 13_600, showStatusCards = false)
+
+private val FacesRunning = LibraryBackgroundStatus(
+    work = LibraryBackgroundWork.Faces,
+    progress = AnalysisProgress(
+        processed = 4_210,
+        total = 13_600,
+        remaining = 9_390,
+        etaMillis = 25 * 60_000L,
+        running = true,
+    ),
+)
 
 @Composable
 private fun PhotosFrame(
@@ -111,6 +154,9 @@ private fun PhotosFrame(
     initialFilters: Set<PhotosFilter> = emptySet(),
     canShowHidden: Boolean = false,
     days: List<Pair<LocalDate, Int>> = SampleDays,
+    backgroundStatus: LibraryBackgroundStatus? = null,
+    libraryItemCount: Long? = null,
+    showStatusCards: Boolean = true,
 ) {
     var filters by remember { mutableStateOf(initialFilters) }
     var grouping by remember { mutableStateOf(PhotosGrouping.Day) }
@@ -128,6 +174,9 @@ private fun PhotosFrame(
             LibraryPhotosRoute(
                 access = LibraryAccess(GrantLevel.Full, GrantLevel.Full, unredactedLocation = true),
                 engineState = engineState,
+                backgroundStatus = backgroundStatus,
+                libraryItemCount = libraryItemCount,
+                showStatusCards = showStatusCards,
                 entries = entries,
                 thumbnailLoader = loader,
                 onRequestAccess = {},

@@ -66,4 +66,29 @@
         <item quantity="other">%1$d seleccionados</item>
     </plurals>
     <string name="pet_more">Más opciones</string>
+    <string name="pet_analysis_notification_channel">Análisis de mascotas</string>
+    <string name="pet_analysis_notification_title">Analizando mascotas en este dispositivo</string>
+    <string name="pet_suggestions_title">Posibles mascotas</string>
+    <string name="pet_suggestions_hint">Fotos que parecen ser el mismo animal. No se agrupa nada hasta que crees el grupo.</string>
+    <string name="pet_suggestion_create">Crear grupo</string>
+    <string name="pet_suggestion_dismiss">Descartar</string>
+    <string name="pet_suggestion_summary">%1$s · %2$s</string>
+    <plurals name="pet_suggestion_photos">
+        <item quantity="one">%d foto</item>
+        <item quantity="many">%d fotos</item>
+        <item quantity="other">%d fotos</item>
+    </plurals>
+    <plurals name="pet_progress_of">
+        <item quantity="one">Analizando… %1$d de %2$d foto</item>
+        <item quantity="many">Analizando… %1$d de %2$d fotos</item>
+        <item quantity="other">Analizando… %1$d de %2$d fotos</item>
+    </plurals>
+    <string name="pet_analysis_waiting">El análisis espera a que haya carga o a que el dispositivo se enfríe</string>
+    <string name="pet_empty_none">Aún no se detectaron mascotas. El análisis continúa en segundo plano.</string>
+    <plurals name="pet_empty_unassigned">
+        <item quantity="one">%d foto con una mascota sin agrupar</item>
+        <item quantity="many">%d fotos con mascotas sin agrupar</item>
+        <item quantity="other">%d fotos con mascotas sin agrupar</item>
+    </plurals>
+    <string name="pet_empty_review">Revisar</string>
 </resources>

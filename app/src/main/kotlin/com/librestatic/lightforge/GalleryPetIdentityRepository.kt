@@ -5,12 +5,14 @@ import android.content.ContentUris
 import android.provider.MediaStore
 import androidx.room.withTransaction
 import com.librestatic.lightforge.core.database.*
+import com.librestatic.lightforge.core.ml.ImageLabelMlEngine
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.feature.petrecognition.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -21,11 +23,22 @@ import org.json.JSONObject
 class GalleryPetIdentityRepository(
     private val db: GalleryDatabase,
     private val resolver: ContentResolver? = null,
+    /** Current ImageLabels model: sources skip photos already labeled as neither dog nor cat by it. */
+    private val labelModelVersion: String = ImageLabelMlEngine.ModelVersion,
 ) : PetIdentityRepository {
     private val dao
         get() = db.petIdentityDao()
 
     override val summary = dao.observeInputs().map { currentSummary() }.distinctUntilChanged()
+
+    override val progress =
+        combine(
+                dao.observeProcessedSourceCount(labelModelVersion),
+                dao.observeEligibleSourceCount(labelModelVersion),
+            ) { processed, total ->
+                PetIdentityProgress(processed.coerceAtMost(total), total)
+            }
+            .distinctUntilChanged()
 
     private suspend fun state() = dao.state() ?: PetStateEntity().also { dao.ensureState(it) }
 
@@ -115,6 +128,7 @@ class GalleryPetIdentityRepository(
                     afterKey?.volumeName.orEmpty(),
                     afterKey?.mediaStoreId ?: -1,
                     limit + 1,
+                    labelModelVersion,
                 )
             PetSourcePage(
                 page.take(limit).map {
@@ -251,7 +265,9 @@ class GalleryPetIdentityRepository(
                     source.generationModified,
                 )
             )
-            advance(s, null)
+            // Analysis adds observations but must not bump the revision or clear the undo record:
+            // it runs in the background while the user reviews and edits, and edits only touch their
+            // own rows, so neither a pending selection nor the latest undo goes stale because of it.
             true
         }
     }
@@ -275,6 +291,22 @@ class GalleryPetIdentityRepository(
                 page.take(limit).map {
                     PetReferenceEmbedding(it.id, checkNotNull(it.identityId), decode(it.embedding))
                 },
+                if (page.size > limit) page[limit - 1].id else null,
+            )
+        }
+
+    override suspend fun unassignedEmbeddingsPage(
+        species: PetSpecies,
+        modelFingerprint: String,
+        afterId: String?,
+        limit: Int,
+    ): PetPage<PetUnassignedEmbedding> =
+        db.withTransaction {
+            require(species != PetSpecies.Uncertain && limit in 1..64)
+            val page =
+                dao.unassignedPage(species.ordinal, modelFingerprint, afterId.orEmpty(), limit + 1)
+            PetPage(
+                page.take(limit).map { PetUnassignedEmbedding(it.card(), decode(it.embedding)) },
                 if (page.size > limit) page[limit - 1].id else null,
             )
         }

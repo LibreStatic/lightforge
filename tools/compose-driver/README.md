@@ -78,12 +78,14 @@ Current previews: `PhotoEditorPreview`, `PhotoEditorLoadingPreview`, `EraserMode
 `PhotoToolSearchPreview`
 (`feature/photoeditor`), `CleanupPreview`, `CleanupAnalysisOffPreview`, `CleanupEmptyPreview`,
 `CleanupLoadingPreview` (`feature/collections`), `PhotosTimelinePreview`, `PhotosSelectionPreview`,
-`PhotosFilterEmptyPreview` (`feature/photos`), `PickerGridPreview`, `PickerSingleGridPreview`
+`PhotosFilterEmptyPreview`, `PhotosStatusSoftBusyPreview`, `PhotosStatusSoftIdlePreview`,
+`PhotosStatusSoftWaitingPreview`, `PhotosStatusHiddenPreview` (`feature/photos`), `PickerGridPreview`, `PickerSingleGridPreview`
 (`feature/picker`), `DesignSystemCataloguePreview`, `DesignSystemStatesPreview`, `SelectionBarPreview`
 (`core/designsystem`), `VideoEditorPreview`, `VideoFilmstripLoadingPreview`, `VideoOutputSettingsPreview`,
 `VideoEditorForcedAspectPreview` (`feature/videoeditor`),
 `CollageEditorPreview`, `GifEditorPreview` (`feature/collage`), `SettingsPreview`,
-`SettingsDismissedWarningsPreview` (`feature/settings`), `PetIdentityPreview` (`feature/petrecognition`),
+`SettingsDismissedWarningsPreview`, `SettingsAiAnalysisPreview` (`feature/settings`), `PetIdentityPreview`,
+`PetIdentityEmptyPreview` (`feature/petrecognition`),
 `RemoteBackupPreview` (`feature/remotebackup`).
 
 ## Screenshot matrix

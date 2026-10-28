@@ -21,6 +21,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
+import com.librestatic.lightforge.core.model.AnalysisProgress
 import com.librestatic.lightforge.core.designsystem.galleryAdaptiveLayoutInfo
 import com.librestatic.lightforge.core.preferences.GallerySettings
 import com.librestatic.lightforge.core.preferences.FolderSelectionTarget
@@ -209,6 +210,7 @@ class RecognitionSettingsContentDeviceTest {
                         consentGranted = consent,
                         status = if (consent) AnalysisStatus.Running else null,
                         completedItems = 12,
+                        progress = AnalysisProgress(processed = 12, total = 40, remaining = 28, running = true),
                     ),
                     onEnable = { consent = true },
                     onPause = {},
@@ -220,6 +222,7 @@ class RecognitionSettingsContentDeviceTest {
                         consentGranted = true,
                         status = AnalysisStatus.Running,
                         completedItems = 7,
+                        progress = AnalysisProgress(processed = 7, total = 30, remaining = 23, running = true),
                     ),
                     onPetCollectionsEnabledChange = { pets = it },
                     onHideDogResults = {},
@@ -249,7 +252,7 @@ class RecognitionSettingsContentDeviceTest {
             .assertIsDisplayed()
             .performClick()
         compose.waitForIdle()
-        compose.onNode(hasText(context.resources.getQuantityString(R.plurals.face_analysis_progress, 12, 12)))
+        compose.onNode(hasTestTag("face_analysis_progress_status"))
             .performScrollTo()
             .assertIsDisplayed()
         compose.onNode(hasText(context.getString(R.string.face_analysis_delete)))
@@ -264,7 +267,7 @@ class RecognitionSettingsContentDeviceTest {
             .assertIsDisplayed()
         compose.onNode(hasTestTag("pet_collections_switch")).performClick()
         compose.waitForIdle()
-        compose.onNode(hasText(context.resources.getQuantityString(R.plurals.pet_analysis_running, 7, 7)))
+        compose.onNode(hasTestTag("pet_analysis_progress_status"))
             .performScrollTo()
             .assertIsDisplayed()
         compose.onNode(hasTestTag("pet_analysis_progress_indicator")).assertIsDisplayed()

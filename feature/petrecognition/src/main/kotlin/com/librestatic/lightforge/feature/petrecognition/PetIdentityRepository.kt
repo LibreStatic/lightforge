@@ -66,6 +66,19 @@ data class PetAnalyzedObservation(
     }
 }
 
+/** An unassigned, current, non-excluded observation with its embedding, for in-memory grouping only. */
+data class PetUnassignedEmbedding(val observation: PetObservationCard, val embedding: FloatArray)
+
+/**
+ * Individual-pet analysis progress over the photos eligible for the selected model: [processed] is a
+ * subset of [total] (both 0 while analysis is off). [running] is filled by the work facade, never by Room.
+ */
+data class PetIdentityProgress(val processed: Long = 0, val total: Long = 0, val running: Boolean = false) {
+    init { require(processed >= 0 && total >= 0) }
+    val remaining: Long get() = (total - processed).coerceAtLeast(0)
+    val complete: Boolean get() = total > 0 && remaining == 0L
+}
+
 data class PetPage<T>(val items: List<T>, val nextId: String?)
 data class PetSourcePage(val items: List<PetMediaSource>, val nextKey: MediaKey?)
 
@@ -89,6 +102,8 @@ data class PetEditResult(val applied: Boolean, val revision: Long, val undoToken
 interface PetIdentityRepository {
     val summary: Flow<PetSummary>
     suspend fun currentSummary(): PetSummary
+    /** Live processed/total counts (running = false); see [PetIdentityAnalysisRunner.progress] for the merged flow. */
+    val progress: Flow<PetIdentityProgress>
     /** Disabling after UI confirmation erases the pet namespace + undo atomically; never media/person data. */
     suspend fun setAnalysisEnabled(expectedRevision: Long, enabled: Boolean, modelFingerprint: String?): Boolean
     suspend fun identitiesPage(afterId: String? = null, limit: Int = 40): PetPage<PetIdentityCard>
@@ -118,6 +133,13 @@ interface PetIdentityRepository {
         afterId: String? = null,
         limit: Int = 64,
     ): PetPage<PetReferenceEmbedding>
+    /** Paginated current, unassigned, non-excluded embeddings for one species and model space. Limit <=64. */
+    suspend fun unassignedEmbeddingsPage(
+        species: PetSpecies,
+        modelFingerprint: String,
+        afterId: String? = null,
+        limit: Int = 64,
+    ): PetPage<PetUnassignedEmbedding>
     /**
      * Revision CAS; <=2000 selected observations/identities, names trimmed <=80 characters.
      * Validate current source generations, same Cat/Dog species, and no duplicate identity in one photo.

@@ -66,7 +66,7 @@ class LibraryIndexStatusDeviceTest {
     @Test fun readyStaysUntilAcknowledged() {
         var state by mutableStateOf(LibraryUiState.Indexing)
         var background by mutableStateOf<LibraryBackgroundStatus?>(LibraryBackgroundStatus(LibraryBackgroundWork.Faces))
-        setStatus { LibraryIndexStatus(state, background = background) }
+        setStatus { Box(Modifier.testTag("library-status-root")) { LibraryIndexStatus(state, background = background) } }
         compose.mainClock.advanceTimeBy(LibraryPreparingGraceMillis + SettleMillis)
         compose.onNodeWithTag("library-ready-dismiss", useUnmergedTree = true).assertDoesNotExist()
         compose.runOnIdle { state = LibraryUiState.Ready }
@@ -76,15 +76,24 @@ class LibraryIndexStatusDeviceTest {
         compose.onNodeWithTag("library-background-status", useUnmergedTree = true).assertIsDisplayed()
         // A running hint takes the line instead of the "all indexed" detail.
         compose.onNodeWithTag("library-ready-detail", useUnmergedTree = true).assertDoesNotExist()
+        val before = compose.onNodeWithTag("library-ready-dismiss").fetchSemanticsNode().boundsInWindow
+        val cardTop = compose.onNodeWithTag("library-status-root").fetchSemanticsNode().boundsInWindow
         compose.onNodeWithTag("library-ready-dismiss")
             .assertIsDisplayed().assertHasClickAction().assertTextEquals(context.getString(R.string.library_ready_dismiss))
             .performClick()
         compose.mainClock.advanceTimeBy(SettleMillis)
+        // The confirmation softens into an information card: it stays, cannot be dismissed, and the
+        // content below does not move.
         compose.onNodeWithTag("library-index-status", useUnmergedTree = true).assertDoesNotExist()
-        // Later hints stay quiet once acknowledged; new preparing work brings the pill back.
-        compose.runOnIdle { background = LibraryBackgroundStatus(LibraryBackgroundWork.People) }
+        compose.onNodeWithTag("library-ready-dismiss", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("library-soft-status", useUnmergedTree = true).assertIsDisplayed()
+        val after = compose.onNodeWithTag("library-status-root").fetchSemanticsNode().boundsInWindow
+        check(after.top == cardTop.top && after.bottom == cardTop.bottom) { "Layout shift: $cardTop -> $after" }
+        check(before.width > 0f)
+        // Idle again: the card stays as "Library up to date".
+        compose.runOnIdle { background = null }
         compose.mainClock.advanceTimeBy(5_000)
-        compose.onNodeWithTag("library-index-status", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.library_up_to_date), useUnmergedTree = true).assertIsDisplayed()
         compose.runOnIdle { state = LibraryUiState.Indexing }
         compose.mainClock.advanceTimeBy(LibraryPreparingGraceMillis + SettleMillis)
         compose.onNodeWithText(context.getString(R.string.library_loading_title), useUnmergedTree = true).assertIsDisplayed()

@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.designsystem.galleryAdaptiveLayoutInfo
 import com.librestatic.lightforge.core.preferences.DismissibleWarning
+import com.librestatic.lightforge.core.model.AnalysisProgress
+import com.librestatic.lightforge.core.model.AnalysisWait
 import com.librestatic.lightforge.core.preferences.GallerySettings
 
 // Debug-only, zero-argument entry point for tools/compose-driver. It feeds default settings into
@@ -33,21 +35,41 @@ fun SettingsDismissedWarningsPreview() = SettingsPreviewFrame(
     },
 )
 
+/** Local analysis page mid-run: faces with an ETA, pets waiting on battery, and the Individual pets row. */
 @Composable
-private fun SettingsPreviewFrame(initial: GallerySettings) {
+fun SettingsAiAnalysisPreview() = SettingsPreviewFrame(GallerySettings(), startOnAiAnalysis = true)
+
+@Composable
+private fun SettingsPreviewFrame(initial: GallerySettings, startOnAiAnalysis: Boolean = false) {
     var settings by remember { mutableStateOf(initial) }
     LightforgeTheme(settings.appearance) {
         Surface(Modifier.fillMaxSize()) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val adaptiveInfo = galleryAdaptiveLayoutInfo(maxWidth, height = maxHeight).copy(contentWidth = maxWidth)
                 RecognitionSettingsContent(
-                    state = FaceAnalysisUiState(),
+                    state = if (startOnAiAnalysis) {
+                        FaceAnalysisUiState(
+                            consentGranted = true,
+                            status = AnalysisStatus.Running,
+                            progress = AnalysisProgress(4_210, 13_600, 9_390, etaMillis = 25 * 60_000L, running = true),
+                        )
+                    } else FaceAnalysisUiState(),
+                    petAnalysisState = if (startOnAiAnalysis) {
+                        FaceAnalysisUiState(
+                            consentGranted = true,
+                            status = AnalysisStatus.Running,
+                            progress = AnalysisProgress(2_000, 13_600, 11_600, running = true, waitReason = AnalysisWait.Battery),
+                        )
+                    } else FaceAnalysisUiState(),
+                    peopleAnalysisEnabled = startOnAiAnalysis,
+                    petIdentity = PetIdentitySettingsUi(enabled = true, identityCount = 3, suggestedGroups = 2, photosWithPets = 640),
+                    onPetIdentity = if (startOnAiAnalysis) ({}) else null,
                     onEnable = {},
                     onPause = {},
                     onResume = {},
                     onAnalyzeAll = {},
                     onDelete = {},
-                    petCollectionsEnabled = false,
+                    petCollectionsEnabled = startOnAiAnalysis,
                     onPetCollectionsEnabledChange = {},
                     onHideDogResults = {},
                     onHideCatResults = {},
@@ -60,6 +82,7 @@ private fun SettingsPreviewFrame(initial: GallerySettings) {
                     onLocalSharing = {},
                     onOwnSync = {},
                     adaptiveInfo = adaptiveInfo,
+                    startOnAiAnalysis = startOnAiAnalysis,
                 )
             }
         }

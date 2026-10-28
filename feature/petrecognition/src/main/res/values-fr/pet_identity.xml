@@ -66,4 +66,29 @@
         <item quantity="other">%1$d sélectionnés</item>
     </plurals>
     <string name="pet_more">Plus d\'options</string>
+    <string name="pet_analysis_notification_channel">Analyse des animaux</string>
+    <string name="pet_analysis_notification_title">Analyse des animaux sur cet appareil</string>
+    <string name="pet_suggestions_title">Animaux possibles</string>
+    <string name="pet_suggestions_hint">Photos qui semblent montrer le même animal. Rien n\'est regroupé tant que vous ne créez pas le groupe.</string>
+    <string name="pet_suggestion_create">Créer un groupe</string>
+    <string name="pet_suggestion_dismiss">Ignorer</string>
+    <string name="pet_suggestion_summary">%1$s · %2$s</string>
+    <plurals name="pet_suggestion_photos">
+        <item quantity="one">%d photo</item>
+        <item quantity="many">%d photos</item>
+        <item quantity="other">%d photos</item>
+    </plurals>
+    <plurals name="pet_progress_of">
+        <item quantity="one">Analyse… %1$d sur %2$d photo</item>
+        <item quantity="many">Analyse… %1$d sur %2$d photos</item>
+        <item quantity="other">Analyse… %1$d sur %2$d photos</item>
+    </plurals>
+    <string name="pet_analysis_waiting">L\'analyse attend la charge ou que l\'appareil refroidisse</string>
+    <string name="pet_empty_none">Aucun animal détecté pour le moment. L\'analyse continue en arrière-plan.</string>
+    <plurals name="pet_empty_unassigned">
+        <item quantity="one">%d photo avec un animal n\'est pas encore regroupée</item>
+        <item quantity="many">%d photos avec des animaux ne sont pas encore regroupées</item>
+        <item quantity="other">%d photos avec des animaux ne sont pas encore regroupées</item>
+    </plurals>
+    <string name="pet_empty_review">Vérifier</string>
 </resources>

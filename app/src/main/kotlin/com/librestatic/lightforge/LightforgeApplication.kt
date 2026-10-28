@@ -22,6 +22,9 @@ class LightforgeApplication : Application() {
         super.onCreate()
         DetectedContentRuntime.install(this)
         DocumentAutoArchiveWorker.install(this)
+        com.librestatic.lightforge.feature.petrecognition.PetIdentityRuntime.install { context ->
+            GalleryPetIdentityRepository(com.librestatic.lightforge.core.database.GalleryDatabaseFactory.open(context), context.contentResolver)
+        }
         ModelDownloads.install(this, listOf(PetModelDownloadWorker::updateIfNeeded))
     }
 

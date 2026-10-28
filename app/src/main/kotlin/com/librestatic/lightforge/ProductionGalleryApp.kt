@@ -503,6 +503,11 @@ internal fun ProductionGalleryApp(
     // Settings and the Search sheet read the same persisted master/child switches.
     val localAnalysisSwitches by viewModel.localAnalysisSwitches.collectAsState()
     val petAnalysis by viewModel.petAnalysis.collectAsState()
+    val faceAnalysisProgress by viewModel.faceAnalysisProgress.collectAsState()
+    val petAnalysisProgress by viewModel.petAnalysisProgress.collectAsState()
+    val petIdentityProgress by viewModel.petIdentityProgress.collectAsState()
+    val showLibraryStatus by viewModel.showLibraryStatus.collectAsState()
+    val libraryItemCount by viewModel.libraryItemCount.collectAsState()
     val libraryMaintenance by viewModel.libraryMaintenance.collectAsState()
     val localAnalysisOnboarding by viewModel.localAnalysisOnboarding.collectAsState()
     val gallerySettings by viewModel.gallerySettings.collectAsState()
@@ -1595,7 +1600,9 @@ internal fun ProductionGalleryApp(
                         },
                         onSelectAll = viewModel::selectAllTimeline,
                         onClearSelection = viewModel::clearSelection,
-                        backgroundStatus = libraryBackgroundStatus(libraryMaintenance, peopleAnalysis, petAnalysis),
+                        backgroundStatus = libraryBackgroundStatus(libraryMaintenance, peopleAnalysis, petAnalysis, faceAnalysisProgress, petAnalysisProgress, petIdentityProgress),
+                        showStatusCards = showLibraryStatus,
+                        libraryItemCount = libraryItemCount,
                         access = access,
                         engineState = engineState.toUiState(),
                         entries = timeline,
@@ -2464,12 +2471,15 @@ internal fun ProductionGalleryApp(
                     val dspAvailable by produceState(false, context) {
                         value = com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationEngines.isDspAvailable(context)
                     }
+                    // Collected only while Settings is open: suggested groups cost an embedding scan.
+                    val petIdentitySettings by viewModel.petIdentitySettings.collectAsState()
                     RecognitionSettingsContent(
                         adaptiveInfo = adaptiveInfo,
                         state = FaceAnalysisUiState(
                             consentGranted = peopleAnalysis.consentGranted,
                             paused = peopleAnalysis.paused,
                             completedItems = peopleAnalysis.completedItems,
+                            progress = faceAnalysisProgress,
                             status = peopleAnalysis.status?.let {
                                 when (it) {
                                     com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Ready -> AnalysisStatus.Ready
@@ -2489,6 +2499,7 @@ internal fun ProductionGalleryApp(
                             consentGranted = petAnalysis.consentGranted,
                             paused = petAnalysis.paused,
                             completedItems = petAnalysis.completedItems,
+                            progress = petAnalysisProgress,
                             status = when {
                                 petAnalysis.requested -> AnalysisStatus.Running
                                 else -> petAnalysis.status?.let {
@@ -2519,6 +2530,7 @@ internal fun ProductionGalleryApp(
                         onRemoteBackup = { route = SurfaceRoute.RemoteBackup },
                         onLocalSharing = { route = SurfaceRoute.LocalSharing },
                         onPetIdentity = { route = SurfaceRoute.PetIdentity },
+                        petIdentity = petIdentitySettings,
                         onOwnSync = { route = SurfaceRoute.OwnSync },
                         onOfflinePlaces = ::openOfflinePlaces,
                         onImportSettings = { importSettingsLauncher.launch("application/json") },

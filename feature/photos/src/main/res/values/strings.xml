@@ -26,15 +26,19 @@
     <string name="scrubber_yesterday">Yesterday</string>
     <string name="library_background_search">Updating search in the background…</string>
     <string name="library_background_moments">Creating moments in the background…</string>
+    <string name="library_background_media_details">Reading video and image details…</string>
     <string name="library_background_faces">Detecting faces in the background…</string>
     <string name="library_background_people">Grouping people in the background…</string>
-    <string name="library_background_media_details">Reading video and image details…</string>
     <string name="library_background_pets">Recognizing pets in the background…</string>
+    <string name="library_background_pet_identity">Recognizing individual pets in the background…</string>
     <string name="library_task_faces">Face detection</string>
     <string name="library_task_people">People grouping</string>
     <string name="library_task_pets">Pet recognition</string>
+    <string name="library_task_pet_identity">Individual pets</string>
     <string name="library_paused_battery">%1$s paused to save battery</string>
     <string name="library_paused_heat">%1$s paused while the device cools down</string>
+    <string name="library_wait_battery_short">Paused to save battery</string>
+    <string name="library_wait_heat_short">Paused · device is warm</string>
     <string name="photos_more_options">More options</string>
     <string name="photos_menu_settings">Settings</string>
     <string name="photos_menu_device_folders">On device</string>
@@ -79,4 +83,20 @@
     <string name="photos_group_year">Year</string>
     <string name="photos_group_none">No grouping</string>
     <string name="timeline_hidden_item">Hidden item</string>
+    <string name="library_up_to_date">Library up to date</string>
+    <plurals name="library_up_to_date_items">
+        <item quantity="one">Library up to date · %1$s item</item>
+        <item quantity="other">Library up to date · %1$s items</item>
+    </plurals>
+    <string name="library_progress_of">%1$s of %2$s</string>
+    <string name="library_detail_join">%1$s · %2$s</string>
+    <string name="library_eta_under_minute">&lt; 1 min</string>
+    <plurals name="library_eta_minutes">
+        <item quantity="one">about %1$d min</item>
+        <item quantity="other">about %1$d min</item>
+    </plurals>
+    <plurals name="library_eta_hours">
+        <item quantity="one">about %1$d h</item>
+        <item quantity="other">about %1$d h</item>
+    </plurals>
 </resources>

@@ -105,6 +105,24 @@ interface LibraryDao {
     )
     suspend fun pendingFaceDetectionCandidates(modelVersion: String, limit: Int): List<MediaItemEntity>
 
+    /** Every visible library item (photos and videos), regardless of the Photos filter. */
+    @Query("SELECT COUNT(*) FROM media_items WHERE isAccessible=1 AND isTrashed=0")
+    fun observeLibraryItemCount(): kotlinx.coroutines.flow.Flow<Long>
+
+    /** Photos the analysis pipelines work on; same eligibility as the pending-candidate queries. */
+    @Query("SELECT COUNT(*) FROM media_items WHERE mediaType=1 AND isAccessible=1 AND isTrashed=0")
+    fun observeAnalysisEligiblePhotoCount(): kotlinx.coroutines.flow.Flow<Long>
+
+    @Query(
+        "SELECT COUNT(*) FROM media_items m JOIN face_detection_runs r ON r.volumeName=m.volumeName " +
+            "AND r.mediaStoreId=m.mediaStoreId AND r.generationModified=m.generationModified " +
+            "AND r.modelVersion=:modelVersion WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0",
+    )
+    fun observeFaceDetectionProcessedCount(modelVersion: String): kotlinx.coroutines.flow.Flow<Long>
+
+    @Query("SELECT completedAtMillis FROM face_detection_runs WHERE modelVersion=:modelVersion AND completedAtMillis>=:sinceMillis")
+    suspend fun faceDetectionCompletionTimes(modelVersion: String, sinceMillis: Long): List<Long>
+
     @Query("DELETE FROM detected_faces WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
     suspend fun deleteDetectedFaces(volumeName: String, mediaStoreId: Long): Int
 
@@ -247,6 +265,16 @@ interface LibraryDao {
             "ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC LIMIT :limit",
     )
     suspend fun pendingLabelCandidates(modelVersion: String, limit: Int): List<MediaItemEntity>
+
+    @Query(
+        "SELECT COUNT(*) FROM media_items m JOIN media_label_runs r ON r.volumeName=m.volumeName " +
+            "AND r.mediaStoreId=m.mediaStoreId AND r.generationModified=m.generationModified " +
+            "AND r.modelVersion=:modelVersion WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0",
+    )
+    fun observeLabelProcessedCount(modelVersion: String): kotlinx.coroutines.flow.Flow<Long>
+
+    @Query("SELECT completedAtMillis FROM media_label_runs WHERE modelVersion=:modelVersion AND completedAtMillis>=:sinceMillis")
+    suspend fun labelCompletionTimes(modelVersion: String, sinceMillis: Long): List<Long>
 
     @Query(
         "SELECT m.* FROM media_items m WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0 " +
