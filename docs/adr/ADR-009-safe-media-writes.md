@@ -25,3 +25,12 @@ plus a required system delete action; it never deletes the source inside the cop
 Available-space preflight is used only when the destination can report a reliable value. Otherwise
 provider failure still rolls back the unpublished row. Startup cleanup is restricted by owner,
 relative-path prefix, volume, media kind, and age.
+
+## Implementation status (2026-10-28)
+
+The decision stands, but the implementation is incomplete:
+
+- Only `VideoExportQueue` persists the pending URI through `persistPending`. The Private Album `stageStream` caller (`PrivateExportPublication`) records it in its own export receipt through `onInserted`.
+- The other `GalleryViewModel` exporters (`copy`, `publishFile`) use the default no-op `persistPending`.
+- `PendingMediaWriter.recoverOwnedPending` has no production caller, so the startup cleanup described above does not run.
+- Private export keeps its rows on purpose, for a reviewed recovery: `Partial` rows are resolved by the user through `discardExport`.

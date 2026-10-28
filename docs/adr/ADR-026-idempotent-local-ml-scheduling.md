@@ -1,6 +1,6 @@
 # ADR-026: Idempotent local ML scheduling
 
-- Status: Accepted
+- Status: Accepted, amended 2026-10-28
 - Date: 2026-08-17
 
 ## Context
@@ -34,3 +34,11 @@ Workers never hold a full ID list and can expose persisted progress. Process ini
 The physical run also proved that debug-only inference tests are insufficient: without the registrar
 keep rule, the minified benchmark build crashed while constructing the bundled label client. Minified
 physical execution is therefore part of the ML release gate.
+
+## Amendment (2026-10-28)
+
+**Constraints.** `MlWorkPolicy.forMode` still requires `BatteryNotLow` and `StorageNotLow` and no network. It sets `setRequiresCharging(false)` and `setRequiresDeviceIdle(false)` for every mode. `FullLibrary` work runs when the device is charging, or when the app is in the foreground with the battery at or above the configured threshold. `FullAnalysisEligibility` enforces this inside the worker. When that check fails, the worker backs off with `MlBackoffWait.Charging`, and the retry is requeued with a charging constraint.
+
+**Person recognition.** It is no longer deferred. `DetectedContentRuntime.install` registers `FaceDetection`, `FaceEmbeddings` and `PersonClustering`. `MlChunkWorker.nextStage` chains them. They run after People consent (see the ADR-031 amendment).
+
+"Full scans also require charging and device idle" and "Person recognition remains deferred" no longer apply.

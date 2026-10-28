@@ -59,7 +59,7 @@ The dialog (`PrivateKeyProtectionContent`) only presents this; `PrivateAlbumCont
 - Dismissing the dialog calls `cancel()`. It never resets the album.
 - `PrivateLegacyMigrationPolicy.shouldMigrateOnUnlock` starts the same flow automatically, once per unlock, when the index is ready, setup is complete and the status is not `Protected`. Because the user has just authenticated, it first tries without a second prompt. On a device without a screen lock, the automatic attempt hides the dialog.
 
-> **Note — differs from ADR-034:** ADR-034 says existing vaults migrate only on an "explicitly confirmed" protection action. In code, `PrivateLegacyMigrationPolicy` also starts the migration automatically after every successful unlock until the vault is `Protected`. The explicit lock button still exists.
+> ADR-034 was amended on 2026-10-28 to match this behaviour.
 
 ## Unlock, session and lock
 

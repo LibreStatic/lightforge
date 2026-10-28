@@ -19,3 +19,10 @@ is recorded only as authorization, never as a completed mutation.
 - Stale ActivityResult callbacks cannot complete a newer request.
 - Process recreation can resume without serializing binder-backed `IntentSender` objects.
 - UI must distinguish authorized, verified-complete, failed, skipped, and cancelled counts.
+
+## Implementation status (2026-10-28)
+
+The decision stands, but explicit skip is not wired up:
+
+- `MediaActionReducer.skipCancelled` and `MediaStoreActionCoordinator.skipCancelled` exist, but the app never calls them.
+- After a cancellation, the UI offers retry. Leaving the surface discards the action through `GalleryViewModel.dismissCancelledSystemAction`.

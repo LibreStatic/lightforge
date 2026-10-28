@@ -140,15 +140,15 @@ flowchart TD
 - One unique work name per package; all download requests carry the `model-download` tag and the shared constraints.
 - Media, thumbnails, queries and embeddings are never sent; only model bytes are received.
 
-> **Note — differs from ADR-013:** the ADR says release manifests "must not contain INTERNET or related network permissions". `app/src/main/AndroidManifest.xml` declares `INTERNET`, `ACCESS_NETWORK_STATE` and `ACCESS_LOCAL_NETWORK` for every flavor, commented as "User-requested signed model downloads and encrypted connections to user-configured storage".
+> ADR-013 was amended on 2026-10-28 to match this behaviour.
 
-> **Note — differs from ADR-007 and ADR-040:** both say `INTERNET` and `ACCESS_NETWORK_STATE` exist solely for the semantic package downloader. The code also uses them for pet and inpainting model downloads (and the manifest comment adds user-configured storage). Pet and inpainting files are pinned by SHA-256 but not signed.
+> ADR-007 and ADR-040 were amended on 2026-10-28 to match this behaviour.
 
-> **Note — differs from ADR-040:** the ADR describes automatic download "only over validated unmetered Wi-Fi". The code adds a battery gate (`ModelDownloadWait.Battery`) shared with every model download.
+> ADR-040 was amended on 2026-10-28 to match this behaviour.
 
-> **Note — differs from ADR-039:** the ADR says the ML path requires a bundled model and has no network dependency. The code downloads the MI-GAN and generative inpainting packages through `InpaintModelDownloadWorker`.
+> ADR-039 was amended on 2026-10-28 to match this behaviour.
 
-> **Note — differs from ADR-041:** the ADR says the pet model is "not bundled" and has "no cloud or network dependency". The code downloads pinned detector and recognition models through `PetModelDownloadWorker`, or imports them as a zip with `PetModelStore.importPack`.
+> ADR-041 was amended on 2026-10-28 to match this behaviour.
 
 ## Related
 

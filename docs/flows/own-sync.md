@@ -169,4 +169,4 @@ stateDiagram-v2
 - [app-startup.md](app-startup.md): `onForeground`, which calls `OwnSyncController.reconcile`.
 - No ADR covers OwnSync. [ADR-046](../adr/ADR-046-optional-all-files-access.md) notes that SFTP/SMB mirroring works through SAF without all-files access, which matches the code.
 
-> **Note — differs from ADR-013:** [ADR-013](../adr/ADR-013-no-internet-release.md) forbids `INTERNET` in offline release manifests, but the main manifest declares it, together with `ACCESS_LOCAL_NETWORK`, for every flavor, and OwnSync depends on it.
+> [ADR-013](../adr/ADR-013-no-internet-release.md) was amended on 2026-10-28 to match this behaviour.

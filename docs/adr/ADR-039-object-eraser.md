@@ -4,7 +4,7 @@ Date: 2026-08-19
 
 ## Status
 
-Proposed
+Proposed, amended 2026-10-28
 
 ## Context
 
@@ -31,3 +31,14 @@ The original bitmap is never modified; a copy is always returned.
 - The fallback is suitable for small regions on uniform backgrounds
 - The ML path requires bundling an inpainting model (future work)
 - No cloud or network dependency in either path
+
+## Amendment (2026-10-28)
+
+The ML path no longer needs a bundled model. Models are downloaded on the user's request, under the shared model-download gate (`InpaintModelDownloadWorker`, `InpaintModelStore`, `InpaintModelCatalog` in `feature/objecteraser`):
+
+- MI-GAN 512 (about 14 MB): fetched through `PinnedModelDownload` and pinned by size and SHA-256.
+- The generative Moebius package: wired in `InpaintModelCatalog`, but its release assets are not published yet (`TODO(moebius-release)`).
+
+Without a model, `ObjectEraser` still uses `NEIGHBOR_INTERPOLATION_FALLBACK`.
+
+"The ML path requires bundling an inpainting model" and "No cloud or network dependency" no longer apply. Inference stays on the device; only the model download uses the network.

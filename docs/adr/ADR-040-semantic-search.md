@@ -1,6 +1,6 @@
 # ADR-040: Downloadable on-device semantic search
 
-- Status: Accepted
+- Status: Accepted, amended 2026-10-28
 - Date: 2026-08-25
 
 ## Context
@@ -26,3 +26,11 @@ Keyword search remains available whenever semantic search is disabled, has no ac
 - The APK stays small while users retain explicit control over storage and model quality.
 - True ABI/RAM incompatibility blocks activation but not download; a recommendation can be overridden.
 - Catalog updates require a new immutable release asset, descriptor digest/size, P-256 signature, license notice, and regression validation.
+
+## Amendment (2026-10-28)
+
+**Network use.** `INTERNET` and `ACCESS_NETWORK_STATE` are not used only for semantic package delivery. They also serve pet and inpainting model downloads, backup and OwnSync to the user's own servers, and local-network transfer (see the ADR-013 amendment).
+
+**Download gate.** Every model download, semantic included, goes through the shared `ModelDownloadGate` (`core/ml` `ModelDownloads.kt`). It waits for a network, for an unmetered network unless mobile data is allowed, and for the battery (`ModelDownloadWait.Battery` when the device is not charging and below the analysis battery threshold).
+
+"Exist solely for model package delivery" no longer applies. Downloads are gated by battery as well as by Wi-Fi.

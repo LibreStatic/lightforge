@@ -144,9 +144,9 @@ flowchart TD
 - A pending export is published only after byte count and SHA-256 of the destination match the source; on any failure the pending row is deleted.
 - Room mirrors favorite and trash state from MediaStore; the action never writes those columns into Room itself, it sends row hints.
 
-> **Note — differs from ADR-009:** ADR-009 says every generic copy or export persists a recovery descriptor and that a startup cleanup removes stale pending rows. In code only `VideoExportQueue` (and the Private Album `stageStream` caller) persist the pending URI; the `GalleryViewModel` callers use the default no-op `persistPending`, and `PendingMediaWriter.recoverOwnedPending` has no production caller.
+> ADR-009 records this as an open implementation gap (2026-10-28).
 
-> **Note — differs from ADR-022:** ADR-022 keeps a cancelled chunk "for retry or explicit skip". The reducer and coordinator implement `skipCancelled`, but the app UI does not call it; it offers retry, and leaving the surface discards the action through `dismissCancelledSystemAction`.
+> ADR-022 records this as an open implementation gap (2026-10-28).
 
 ## Related
 

@@ -155,11 +155,9 @@ flowchart TD
 - Consent, manual pause, checkpoints and requested modes survive `suspendForUserWork`.
 - `MlStateStore` writes with `commit()`, so state is durable before the worker returns.
 
-> **Note — differs from ADR-026:** the ADR says full scans "also require charging and device idle". The code sets `setRequiresCharging(false)` and `setRequiresDeviceIdle(false)`; `FullLibrary` runs when charging, or in the foreground at or above the configured battery threshold, and is moved to a charging-constrained request when the app goes to the background.
+> ADR-026 was amended on 2026-10-28 to match this behaviour.
 
-> **Note — differs from ADR-026:** the ADR says "Person recognition remains deferred". The code registers `FaceDetection`, `FaceEmbeddings` and `PersonClustering` engines in `DetectedContentRuntime.install` and chains them in `MlChunkWorker`; they run after People consent (see ADR-032).
-
-> **Note — differs from ADR-031:** the ADR keeps the FaceEmbeddings worker "unreachable from production UI"; the People consent flow in `GalleryViewModel` grants consent to all three stages and enqueues them.
+> ADR-031 was amended on 2026-10-28 to match this behaviour.
 
 ## Related
 

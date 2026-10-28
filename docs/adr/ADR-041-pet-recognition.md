@@ -4,7 +4,7 @@ Date: 2026-08-19
 
 ## Status
 
-Proposed (spike complete, model not bundled)
+Proposed (spike complete), amended 2026-10-28
 
 ## Context
 
@@ -35,3 +35,13 @@ embeddings to prevent any accidental crossover.
 - The fallback is explicitly labeled LABEL_ONLY_FALLBACK
 - No misleading stub: the architecture is real but the model is unbundled
 - No cloud or network dependency
+
+## Amendment (2026-10-28)
+
+Pet models are not bundled.
+
+- **Getting the models.** They are downloaded by `PetModelDownloadWorker` through `PetModelStore`, behind the shared model-download gate, or imported as a zip with `PetModelStore.importPack`. The detector and recognition files are pinned by size and SHA-256 (`PetModelCatalog`).
+- **Availability.** `PetRecognitionEngine.isRecognitionAvailable()` and `clusterPets()` no longer exist. Availability is `PetModelStore.installed()`, and analysis runs through `PetIdentityAnalysisWorker`.
+- **Data separation.** Pet data stays in its own Room tables (`pet_identities`, `pet_observations`, …), separate from person data.
+
+"No cloud or network dependency" and the `isRecognitionAvailable` description no longer apply. Inference stays on the device.

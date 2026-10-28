@@ -1,6 +1,6 @@
 # ADR-007: Private model distribution
 
-- Status: Superseded by ADR-040
+- Status: Superseded by ADR-040, amended 2026-10-28
 - Date: 2026-08-16
 
 ## Context
@@ -18,3 +18,13 @@ Every model dependency change requires a release manifest audit. `INTERNET` and 
 ## Consequences
 
 The decision is enforced by module boundaries, an HTTPS-only network security policy, a fixed-host downloader, SHA-256 plus P-256 signature verification, pinned dependencies, tests, build guards, and device evidence. Analysis and indexing remain behind explicit user opt-in.
+
+## Amendment (2026-10-28)
+
+`INTERNET` and `ACCESS_NETWORK_STATE` are no longer used only by the signed semantic package downloader (see the ADR-013 amendment). They also serve these user-initiated actions:
+
+- pet and object-eraser model downloads. These are pinned by size and SHA-256 but not signed (`core/ml` `PinnedModelDownload`, `PetModelStore`).
+- backup and OwnSync to the user's own SFTP/SMB servers.
+- encrypted transfer over the local network.
+
+Bundled distribution is no longer the rule. Semantic, pet and inpainting models are all downloaded, or imported for pets. "Approved only for the signed semantic package downloader" no longer applies. Remote inference stays forbidden, and media, metadata, queries and embeddings never leave the device for a third party.

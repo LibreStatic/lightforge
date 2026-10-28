@@ -1,6 +1,6 @@
 # ADR-034: Encrypted private album container
 
-**Status**: Accepted; authenticated media-master and index/session functional cuts verified; full private acceptance pending
+**Status**: Accepted, amended 2026-10-28; authenticated media-master and index/session functional cuts verified; full private acceptance pending
 **Date**: 2026-08-19; implementation reconciliation 2026-09-09
 **Ticket**: M6-T01
 
@@ -40,3 +40,9 @@ Focused evidence: `docs/evidence/private-index-session/VERIFICATION.txt`. API30 
 
 - [Key generation and authentication parameters](https://developer.android.com/reference/android/security/keystore/KeyGenParameterSpec.Builder)
 - [Biometric or device-credential authentication](https://developer.android.com/identity/sign-in/biometric-auth)
+
+## Amendment (2026-10-28)
+
+Legacy vault key migration no longer waits for an explicitly confirmed protection action. After each successful unlock, `PrivateLegacyMigrationPolicy.shouldMigrateOnUnlock` starts the same resumable migration through `protectKeys(automatic = true)` in `PrivateAlbumContent`. It does this once per unlock while the status is not `Protected`, and it resumes a `Pending` journal. A failure leaves the legacy vault usable, and the migration is retried on the next unlock. The explicit protection action still exists.
+
+"Explicitly confirmed existing-vault migration" and the "explicitly confirmed protection action" for the index wrapper now also cover this automatic start after unlock.

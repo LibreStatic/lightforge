@@ -1,6 +1,6 @@
 # ADR-031 — Bundled SFace embeddings with compact rebuildable storage
 
-Status: accepted for technical integration; person clustering remains gated  
+Status: Accepted, amended 2026-10-28 (originally: accepted for technical integration; person clustering remains gated)  
 Date: 2026-08-18
 
 ## Context
@@ -45,3 +45,9 @@ delivery permissions.
 - CPU is mandatory. GPU/NPU are measured only when LiteRT reports them available; unavailable or
   compile failures are evidence, not hidden success.
 - Clusters, names, People, and Me remain unavailable until M4-T04/T05 validation.
+
+## Amendment (2026-10-28)
+
+FaceEmbeddings can now be reached from production UI. The People consent flow (`GalleryViewModel.analyzeAllPeople` and related) grants consent to `FaceDetection`, `FaceEmbeddings` and `PersonClustering`. It then starts detection, and `MlChunkWorker.nextStage` chains embeddings and clustering after it. People and the clustering stage are therefore exposed too.
+
+"Keep the FaceEmbeddings worker unreachable from production UI" and "Clusters, names, People, and Me remain unavailable" no longer apply. The model, its storage and the local-only inference are unchanged.

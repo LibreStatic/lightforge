@@ -183,6 +183,6 @@ sequenceDiagram
 - [own-sync.md](own-sync.md): folder mirroring that reuses these profiles, the vault and `core/remotestorage`.
 - No ADR covers remote backup itself. [ADR-046](../adr/ADR-046-optional-all-files-access.md) notes that backup and SFTP/SMB work through MediaStore and SAF without all-files access.
 
-> **Note — differs from ADR-013:** [ADR-013](../adr/ADR-013-no-internet-release.md) says offline release manifests must not contain `INTERNET`. `app/src/main/AndroidManifest.xml` declares `INTERNET`, `ACCESS_NETWORK_STATE` and `ACCESS_LOCAL_NETWORK` for every flavor, commented as being for model downloads and "encrypted connections to user-configured storage".
+> [ADR-013](../adr/ADR-013-no-internet-release.md) was amended on 2026-10-28 to match this behaviour.
 
-> **Note — differs from ADR-040:** [ADR-040](../adr/ADR-040-semantic-search.md) (and [ADR-007](../adr/ADR-007-offline-model-distribution.md)) say `INTERNET` exists solely for semantic model package delivery. Remote backup also uses it to send user-selected media, packed in a backup archive, to the user's own server.
+> [ADR-040](../adr/ADR-040-semantic-search.md) and [ADR-007](../adr/ADR-007-offline-model-distribution.md) were amended on 2026-10-28 to match this behaviour.

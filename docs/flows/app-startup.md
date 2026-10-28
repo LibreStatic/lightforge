@@ -1,6 +1,6 @@
 # App startup
 
-This document follows a cold start of Lightforge from process creation to the first usable timeline. It covers the process-level setup in `LightforgeApplication` (ML engine registration, periodic document archiving, model update checks, memory trimming), `MainActivity.onCreate` and its splash handoff, the choice between onboarding and `ProductionGalleryApp`, the media permission check, and the moment the library runtime is created and decides between an initial scan and an incremental sync (detailed in [Library sync](library-sync.md)).
+This document follows a cold start of Lightforge from process creation to the first usable timeline. It covers the process-level setup in `LightforgeApplication` (ML engine registration, periodic document archiving, the pet-identity repository factory, model update checks, memory trimming), `MainActivity.onCreate` and its splash handoff, the choice between onboarding and `ProductionGalleryApp`, the media permission check, and the moment the library runtime is created and decides between an initial scan and an incremental sync (detailed in [Library sync](library-sync.md)).
 
 ## Where it lives
 
@@ -9,6 +9,8 @@ This document follows a cold start of Lightforge from process creation to the fi
 - [MlTask.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/MlTask.kt): `MlTaskType`, `MlTaskEngine`, `MlRuntimeRegistry.register`.
 - [MlChunkWorker.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/MlChunkWorker.kt): `MlRuntimeRegistry.engine(task) ?: Result.retry()`.
 - [DocumentAutoArchiveWorker.kt](../../app/src/main/kotlin/com/librestatic/lightforge/DocumentAutoArchiveWorker.kt): `DocumentAutoArchiveWorker.install`, `WorkName`.
+- [PetIdentityAnalysisWorker.kt](../../feature/petrecognition/src/main/kotlin/com/librestatic/lightforge/feature/petrecognition/PetIdentityAnalysisWorker.kt): `PetIdentityRuntime.install`, `PetIdentityAnalysisWorker`.
+- [GalleryPetIdentityRepository.kt](../../app/src/main/kotlin/com/librestatic/lightforge/GalleryPetIdentityRepository.kt): `GalleryPetIdentityRepository`.
 - [ModelDownloads.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/ModelDownloads.kt): `ModelDownloads.install`, `reschedule`.
 - [PetModelDownloadWorker.kt](../../feature/petrecognition/src/main/kotlin/com/librestatic/lightforge/feature/petrecognition/PetModelDownloadWorker.kt): `updateIfNeeded`.
 - [GpuPhotoGrader.kt](../../core/editing-image/src/main/kotlin/com/librestatic/lightforge/core/editing/image/grade/GpuPhotoGrader.kt): `PhotoGraders.trim`.
@@ -16,7 +18,7 @@ This document follows a cold start of Lightforge from process creation to the fi
 - [PermissionCoordinator.kt](../../feature/permissions/src/main/kotlin/com/librestatic/lightforge/feature/permissions/PermissionCoordinator.kt): `PermissionCoordinator.onResume`, `revalidate`, `access`, `initialMediaRequest`, `reselectionRequest`.
 - [ProductionGalleryApp.kt](../../app/src/main/kotlin/com/librestatic/lightforge/ProductionGalleryApp.kt): `ProductionGalleryApp`, `permissionLauncher`, `requestAccess`.
 - [OnboardingHost.kt](../../app/src/main/kotlin/com/librestatic/lightforge/OnboardingHost.kt): `OnboardingHost`.
-- [GalleryViewModel.kt](../../app/src/main/kotlin/com/librestatic/lightforge/GalleryViewModel.kt): `LibraryEngineState`, `init`, `createRuntime`, `onForeground`, `onBackground`, `onPermissionRequestResult`, `refreshLibrary`.
+- [GalleryViewModel.kt](../../app/src/main/kotlin/com/librestatic/lightforge/GalleryViewModel.kt): `LibraryEngineState`, `init`, `createRuntime`, `onForeground`, `onBackground`, `onPermissionRequestResult`, `refreshLibrary`, `observeSearchJournal`, `observePetIdentityBacklog`, `startMediaDetails`.
 
 ## Process start
 
@@ -28,6 +30,7 @@ sequenceDiagram
     participant Reg as MlRuntimeRegistry
     participant DAW as DocumentAutoArchiveWorker
     participant WM as WorkManager
+    participant PIR as PetIdentityRuntime
     participant MD as ModelDownloads
     participant PG as PhotoGraders
     OS->>App: attachBaseContext (LegacyAppLanguage.wrap)
@@ -38,6 +41,7 @@ sequenceDiagram
     App->>DAW: install(this)
     DAW->>WM: enqueueUniquePeriodicWork KEEP, 15 min, battery not low
     Note over DAW: skipped outside the main process
+    App->>PIR: install(factory of GalleryPetIdentityRepository)
     App->>MD: install(this, PetModelDownloadWorker updateIfNeeded)
     MD->>MD: launch update checks and watch the mobile-data setting
     OS->>App: onTrimMemory(level)
@@ -47,8 +51,9 @@ sequenceDiagram
 1. `attachBaseContext` wraps the context with the per-app language on older Android versions, so workers and notifications started later use it.
 2. `DetectedContentRuntime.install` is idempotent (`@Synchronized`, returns if already installed). It registers one `LazyEngine` per task: `ImageLabels`, `Ocr`, `ExactDuplicates`, `Similarity`, `FaceDetection`, `FaceEmbeddings`, `PersonClustering`. A `LazyEngine` checks permissions and purges derived data without loading a model; the real engine is resolved on the first `process` call.
 3. `DocumentAutoArchiveWorker.install` enqueues the unique periodic `document-auto-archive` work with `ExistingPeriodicWorkPolicy.KEEP`.
-4. `ModelDownloads.install` runs each feature's update check on its own IO scope and reschedules queued downloads whenever `modelDownloadsOnMobileData` changes.
-5. `onTrimMemory` releases the photo editor's GL context through `PhotoGraders.trim` once the UI is hidden; it is rebuilt on demand.
+4. `PetIdentityRuntime.install` only stores a factory that opens `GalleryDatabaseFactory.open(context)` and wraps it in a `GalleryPetIdentityRepository`. `PetIdentityAnalysisWorker` has no view model, so it gets its repository from this factory.
+5. `ModelDownloads.install` runs each feature's update check on its own IO scope and reschedules queued downloads whenever `modelDownloadsOnMobileData` changes.
+6. `onTrimMemory` releases the photo editor's GL context through `PhotoGraders.trim` once the UI is hidden; it is rebuilt on demand.
 
 ## Activity and first composition
 
@@ -87,13 +92,15 @@ sequenceDiagram
     VM->>RT: createRuntime on Dispatchers.IO
     Note over VM,RT: Room, MediaStoreReader, InitialMediaScanner,<br/>IncrementalMediaSynchronizer, search index, moments
     VM->>VM: runtime.value = created
+    VM->>RT: observeSearchJournal and observePetIdentityBacklog
     VM->>RT: MediaStoreChangeMonitor.start
     VM->>VM: refreshLibrary(reconcileUnobservedChanges = true)
     alt no image and no video grant
         VM->>VM: engineState = PermissionRequired
     else some grant
-        VM->>RT: sync each volume, scan when needed
-        VM->>VM: engineState = Ready, then search index and moments
+        VM->>RT: sync with absence sweep, scan when needed
+        VM->>VM: engineState = Ready
+        VM->>RT: startMediaDetails, syncSearchIndex, moments
     end
     Act->>PC: onResume then revalidate
     Act->>VM: onForeground
@@ -104,10 +111,10 @@ sequenceDiagram
 ```
 
 1. `LibraryEngineState` starts at `Starting`. If `createRuntime` throws, it becomes `Error` and pending restorations are dropped.
-2. The first `refreshLibrary` uses `reconcileUnobservedChanges = true`, so removals that happened while the process was dead are not missed. Per volume, `IncrementalMediaSynchronizer.sync` returns `NeedsInitialScan` on a first run (no checkpoint, or a scan that never completed) and the view model runs `InitialMediaScanner.scan`; otherwise it applies a generation delta or returns `NoChange`. See [Library sync](library-sync.md).
+2. The first `refreshLibrary` uses `reconcileUnobservedChanges = true`, so removals that happened while the process was dead are not missed. Per volume, `IncrementalMediaSynchronizer.sync` returns `NeedsInitialScan` on a first run (no checkpoint, or a scan that never completed), and the view model then runs `InitialMediaScanner.scan`. Otherwise it applies any generation delta and then runs the id-only `sweepAbsences`, so the cold-start pass costs an id listing rather than a full rescan. A full scan happens only when the provider version changed or more than 500 ids are missing from the index. After `Ready`, the background media-details probe and the journal-driven search sync run without blocking the timeline. See [Library sync](library-sync.md).
 3. Without any media grant, `refreshLibrary` stops before touching MediaStore and the UI shows `PermissionRequired` (`toUiState`). `requestAccess` uses `reselectionRequest` when access is already limited on API 34+, otherwise `initialMediaRequest`.
 4. `onForeground` also revalidates location access, reconciles sync, sharing and ML schedulers (`mlScheduler.onAppForegrounded`), and launches a plain `refreshLibrary`. If the runtime is not ready yet, that refresh returns immediately; the `init` pass covers it.
-5. The runtime start also restores pending viewer, editor and creation sessions, and schedules the semantic index update.
+5. The runtime start also restores pending viewer, editor and creation sessions, and schedules the semantic index update. `observePetIdentityBacklog` enqueues `PetIdentityAnalysisWorker` while pet identities remain to be analysed.
 
 ## Failure and edge cases
 
@@ -116,19 +123,20 @@ sequenceDiagram
 - **Two activities:** each has its own view model, but `processWideRefreshMutex` keeps their scans from running concurrently.
 - **Secondary processes:** `DocumentAutoArchiveWorker.install` returns early outside the main process. `DetectedContentRuntime.install` and `ModelDownloads.install` have no such check.
 - **WorkManager runs ML before the UI:** engines are registered in `Application.onCreate`, which runs for every process start including worker-only ones. A missing engine makes `MlChunkWorker` return `Result.retry()`, never success.
+- **Pet worker without a factory:** if `PetIdentityRuntime` has no factory, `PetIdentityAnalysisWorker` returns `Result.success()`. Because `install` runs in `Application.onCreate`, this cannot happen in the app process.
 - **Benchmark builds** without `PRODUCTION_TIMELINE_EXTRA` never create the production runtime; they render `PhotosRoute` with synthetic items.
 
 ## Invariants
 
 - Application `onCreate` only registers, enqueues with `KEEP` and launches background checks. It does no MediaStore reads, no model loading and no UI work.
-- ML engine registration does not schedule analysis; `MlScheduler` remains the explicit consent boundary.
+- Neither ML engine registration nor `PetIdentityRuntime.install` schedules analysis; `MlScheduler` remains the explicit consent boundary.
 - The library runtime is created once per view model, off the main thread, and the first refresh always reconciles unobserved changes.
 - No MediaStore query runs without an image or video grant.
 - External content URIs are shown without becoming library identities.
 
-> **Note — differs from ADR-026:** ADR-026 says "Person recognition remains deferred". The code registers `FaceDetection`, `FaceEmbeddings` and `PersonClustering` engines at process start (see ADR-031 and ADR-032). Its other rule, "process initialization must register a bundled local engine", matches the code: `DetectedContentRuntime.install` in `LightforgeApplication.onCreate`.
+> ADR-026 was amended on 2026-10-28 to match this behaviour.
 
-> **Note — differs from ADR-016:** Hilt builds the activity, `PermissionCoordinator` and `GalleryViewModel`, but the library runtime (`GalleryRuntime`) is assembled by hand in `GalleryViewModel.createRuntime`, and the ML runtime is installed through process-wide singletons (`DetectedContentRuntime`, `MlRuntimeRegistry`) rather than through Hilt.
+> ADR-016 was amended on 2026-10-28 to match this behaviour.
 
 ## Related
 

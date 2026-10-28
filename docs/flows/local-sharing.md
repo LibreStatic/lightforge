@@ -185,7 +185,7 @@ flowchart TD
 ## Related
 
 - No ADR covers local network sharing.
-- [ADR-013: No Internet release](../adr/ADR-013-no-internet-release.md). **Note — differs from ADR-013:** ADR-013 says offline release manifests must not contain `INTERNET` or related network permissions. `app/src/main/AndroidManifest.xml` declares `INTERNET`, `ACCESS_NETWORK_STATE` and `ACCESS_LOCAL_NETWORK` for all flavors, and local sharing depends on them.
+- [ADR-013: No Internet release](../adr/ADR-013-no-internet-release.md). ADR-013 was amended on 2026-10-28 to match this behaviour.
 - [ADR-024: Bounded share grants](../adr/ADR-024-bounded-share-grants.md) covers share-sheet sharing through temporary URI grants, a separate path from this peer transfer.
 - [ADR-009: Safe media writes](../adr/ADR-009-safe-media-writes.md): pending MediaStore publication used by the import side.
 - Other flows: [private-album.md](private-album.md), [library-sync.md](library-sync.md).
