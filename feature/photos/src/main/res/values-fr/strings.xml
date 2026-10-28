@@ -21,6 +21,7 @@
     <string name="library_background_moments">Création des moments en arrière-plan…</string>
     <string name="library_background_faces">Détection des visages en arrière-plan…</string>
     <string name="library_background_people">Regroupement des personnes en arrière-plan…</string>
+    <string name="library_background_media_details">Lecture des détails des vidéos et images…</string>
     <string name="library_background_pets">Reconnaissance des animaux en arrière-plan…</string>
     <string name="library_task_faces">Détection des visages</string>
     <string name="library_task_people">Regroupement des personnes</string>

@@ -21,6 +21,7 @@
     <string name="library_background_moments">Momente werden im Hintergrund erstellt…</string>
     <string name="library_background_faces">Gesichter werden im Hintergrund erkannt…</string>
     <string name="library_background_people">Personen werden im Hintergrund gruppiert…</string>
+    <string name="library_background_media_details">Video- und Bilddetails werden gelesen…</string>
     <string name="library_background_pets">Haustiere werden im Hintergrund erkannt…</string>
     <string name="library_task_faces">Gesichtserkennung</string>
     <string name="library_task_people">Personengruppierung</string>

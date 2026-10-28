@@ -32,6 +32,11 @@ data class MediaStoreRecord(
     val dateExpiresSeconds: Long? = null,
     /** More than one frame (GIF, animated WebP, APNG, AVIF or HEIF sequence); set at index time by [AnimatedImageProbe]. */
     val isAnimated: Boolean = false,
+    /**
+     * True when the file probes already ran for this record (single-row reads). Page reads return raw
+     * records: [needsFileProbe] says whether a background pass still has to open the file.
+     */
+    val probed: Boolean = false,
 )
 
 data class MediaStoreIdPage(
@@ -91,6 +96,7 @@ object MediaStoreUriFactory {
 
 /** Bounded, per-volume MediaStore reads for initial indexing. */
 fun interface MediaStorePageSource {
+    /** A page of raw records: no file is opened. See [needsFileProbe] for what a later pass has to fill in. */
     fun readIdPage(volumeName: String, afterId: Long, limit: Int): MediaStoreIdPage
 }
 
@@ -119,12 +125,57 @@ interface MediaStoreDeltaSource {
         afterId: Long,
         limit: Int,
     ): MediaStoreIdPage
+
+    /**
+     * Ids only (no record, no file probe) of the image and video rows of the volume, trashed included,
+     * ascending after [afterId]. Cheap enough to list the whole volume.
+     */
+    fun readIdsOnly(volumeName: String, afterId: Long, limit: Int): LongArray
 }
 
 class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSource, MediaStoreDeltaSource {
     private val videoProbe = UnindexedVideoProbe(resolver)
     private val animatedProbe = AnimatedImageProbe(resolver)
-    private fun MediaStoreRecord.completed(): MediaStoreRecord = animatedProbe.complete(videoProbe.complete(this))
+    // Page reads stay raw; only single-row reads open the file, so the row lands complete.
+    private fun MediaStoreRecord.completed(): MediaStoreRecord =
+        animatedProbe.complete(videoProbe.complete(this)).copy(probed = true)
+
+    override fun readIdsOnly(volumeName: String, afterId: Long, limit: Int): LongArray {
+        require(volumeName.isNotBlank())
+        require(afterId >= -1)
+        require(limit in 1..10_000)
+        val queryArgs = Bundle().apply {
+            putString(
+                ContentResolver.QUERY_ARG_SQL_SELECTION,
+                "(${MediaStore.Files.FileColumns.MEDIA_TYPE}=? OR " +
+                    "${MediaStore.Files.FileColumns.MEDIA_TYPE}=?) AND " +
+                    "${MediaStore.MediaColumns._ID}>?",
+            )
+            putStringArray(
+                ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,
+                arrayOf(
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString(),
+                    afterId.toString(),
+                ),
+            )
+            putStringArray(ContentResolver.QUERY_ARG_SORT_COLUMNS, arrayOf(MediaStore.MediaColumns._ID))
+            putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION, ContentResolver.QUERY_SORT_DIRECTION_ASCENDING)
+            putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+            putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_INCLUDE)
+        }
+        return resolver.query(
+            MediaStore.Files.getContentUri(volumeName),
+            arrayOf(MediaStore.MediaColumns._ID),
+            queryArgs,
+            null,
+        )?.use { cursor ->
+            val out = LongArray(minOf(limit, cursor.count.coerceAtLeast(0)))
+            var n = 0
+            while (n < out.size && cursor.moveToNext()) out[n++] = cursor.getLong(0)
+            if (n == out.size) out else out.copyOf(n)
+        } ?: LongArray(0)
+    }
 
     override fun readIdPage(
         volumeName: String,
@@ -170,7 +221,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
         )?.use { cursor ->
             buildList(capacity = minOf(limit, cursor.count.coerceAtLeast(0))) {
                 while (size < limit && cursor.moveToNext()) {
-                    cursor.toRecord(volumeName)?.completed()?.let(::add)
+                    cursor.toRecord(volumeName)?.let(::add)
                 }
             }
         }.orEmpty()
@@ -227,7 +278,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
             null,
         )?.use { cursor ->
             buildList(capacity = minOf(limit, cursor.count.coerceAtLeast(0))) {
-                while (size < limit && cursor.moveToNext()) cursor.toRecord(volumeName)?.completed()?.let(::add)
+                while (size < limit && cursor.moveToNext()) cursor.toRecord(volumeName)?.let(::add)
             }
         }.orEmpty()
         val last = records.lastOrNull()
@@ -295,7 +346,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
         )?.use { cursor ->
             buildList(capacity = minOf(limit, cursor.count.coerceAtLeast(0))) {
                 while (size < limit && cursor.moveToNext()) {
-                    cursor.toRecord(volumeName)?.completed()?.let(::add)
+                    cursor.toRecord(volumeName)?.let(::add)
                 }
             }
         }.orEmpty()
@@ -345,6 +396,7 @@ private fun Cursor.toRecord(requestedVolume: String): MediaStoreRecord? {
         isFavorite = int(MediaStore.MediaColumns.IS_FAVORITE) != 0,
         isTrashed = int(MediaStore.MediaColumns.IS_TRASHED) != 0,
         dateExpiresSeconds = longOrNull(MediaStore.MediaColumns.DATE_EXPIRES),
+        isAnimated = AnimatedImageSniffer.isAnimatedByMime(stringOrNull(MediaStore.MediaColumns.MIME_TYPE)),
     )
 }
 

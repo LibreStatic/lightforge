@@ -255,4 +255,5 @@ internal fun MediaItemEntity.toTimelineMedia() =
         displayName = displayName,
         sizeBytes = sizeBytes,
         dateModifiedSeconds = dateModifiedSeconds,
+        detailsPending = needsProbe,
     )

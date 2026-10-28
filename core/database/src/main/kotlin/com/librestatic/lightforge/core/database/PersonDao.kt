@@ -53,7 +53,7 @@ interface PersonDao {
             "m.bucketId AS media_bucketId,m.bucketDisplayName AS media_bucketDisplayName," +
             "m.relativePath AS media_relativePath,m.isFavorite AS media_isFavorite,m.isTrashed AS media_isTrashed," +
             "m.isAccessible AS media_isAccessible,m.lastSeenScanId AS media_lastSeenScanId," +
-            "m.dateExpiresSeconds AS media_dateExpiresSeconds, m.isAnimated AS media_isAnimated FROM person_memberships p JOIN media_items m ON " +
+            "m.dateExpiresSeconds AS media_dateExpiresSeconds, m.isAnimated AS media_isAnimated, m.needsProbe AS media_needsProbe FROM person_memberships p JOIN media_items m ON " +
             "m.volumeName=p.volumeName AND m.mediaStoreId=p.mediaStoreId WHERE p.clusterId=:clusterId " +
             "AND m.isAccessible=1 AND m.isTrashed=0 ORDER BY p.similarity DESC, p.volumeName, p.mediaStoreId LIMIT :limit",
     )
@@ -70,7 +70,7 @@ interface PersonDao {
             "m.bucketId AS media_bucketId,m.bucketDisplayName AS media_bucketDisplayName," +
             "m.relativePath AS media_relativePath,m.isFavorite AS media_isFavorite,m.isTrashed AS media_isTrashed," +
             "m.isAccessible AS media_isAccessible,m.lastSeenScanId AS media_lastSeenScanId," +
-            "m.dateExpiresSeconds AS media_dateExpiresSeconds, m.isAnimated AS media_isAnimated FROM me_matches mm JOIN media_items m ON " +
+            "m.dateExpiresSeconds AS media_dateExpiresSeconds, m.isAnimated AS media_isAnimated, m.needsProbe AS media_needsProbe FROM me_matches mm JOIN media_items m ON " +
             "m.volumeName=mm.volumeName AND m.mediaStoreId=mm.mediaStoreId WHERE mm.profileId=:profileId " +
             "AND m.isAccessible=1 AND m.isTrashed=0 ORDER BY mm.similarity DESC LIMIT :limit",
     )

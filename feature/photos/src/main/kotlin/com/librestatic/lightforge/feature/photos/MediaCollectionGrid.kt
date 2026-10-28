@@ -95,7 +95,7 @@ fun MediaCollectionGrid(
                     val isVideo = media.kind == MediaKind.Video
                     val description = com.librestatic.lightforge.core.designsystem.mediaTileDescription(
                         base = if (isVideo) {
-                            com.librestatic.lightforge.core.designsystem.videoDurationDescription(media.durationMillis)
+                            com.librestatic.lightforge.core.designsystem.videoDurationDescription(media.durationMillis, media.detailsPending)
                         } else {
                             stringResource(R.string.photo_thumbnail_description)
                         },
@@ -143,7 +143,10 @@ fun MediaCollectionGrid(
                             modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
                         )
                         if (media.kind == MediaKind.Video) {
-                            VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.BottomEnd).padding(6.dp))
+                            VideoDurationBadge(
+                                media.durationMillis, Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                                pending = media.detailsPending,
+                            )
                         }
                         MediaSelectionOverlay(isSelected(media), shape = GalleryShapes.Thumbnail)
                         com.librestatic.lightforge.core.designsystem.MediaSelectionAffordance(

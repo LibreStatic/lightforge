@@ -217,6 +217,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -265,7 +267,8 @@ import com.librestatic.lightforge.core.model.ViewerMedia
 enum class LibraryEngineState { Starting, Indexing, Ready, PermissionRequired, Error }
 
 /** Post-sync library work that runs while the timeline is already browsable. */
-enum class LibraryMaintenance { SearchIndex, Moments }
+/** [MediaDetails] is the background pass that opens files indexing skipped; it never delays the library. */
+enum class LibraryMaintenance { SearchIndex, Moments, MediaDetails }
 
 data class GallerySearchUiState(
     val query: String = "",
@@ -414,6 +417,7 @@ private data class GalleryRuntime(
     val viewerMedia: RoomViewerMediaSource,
     val searchIndex: GallerySearchIndexRepository,
     val moments: MomentRepository,
+    val mediaProber: com.librestatic.lightforge.core.data.PendingMediaProber,
     var monitor: MediaStoreChangeMonitor? = null,
 )
 
@@ -433,7 +437,11 @@ class GalleryViewModel @Inject constructor(
     private val mutableSearchIndexReady = MutableStateFlow(false)
     private val mutableLibraryMaintenance = MutableStateFlow<LibraryMaintenance?>(null)
     /** Work that follows a sync while the timeline is already browsable; null when idle. */
-    val libraryMaintenance = mutableLibraryMaintenance.asStateFlow()
+    private val mutableMediaDetailsRunning = MutableStateFlow(false)
+    private var mediaDetailsJob: Job? = null
+    val libraryMaintenance = combine(mutableLibraryMaintenance, mutableMediaDetailsRunning) { maintenance, details ->
+        maintenance ?: LibraryMaintenance.MediaDetails.takeIf { details }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val searchIndexReady = mutableSearchIndexReady.asStateFlow()
     private val mlScheduler = MlScheduler(application)
     private val videoExportStore = VideoExportStore.get(application)
@@ -1987,6 +1995,7 @@ class GalleryViewModel @Inject constructor(
             }
             runtime.value = created
             mutablePetIdentityRepository.value = GalleryPetIdentityRepository(created.database,application.contentResolver)
+            observeSearchJournal(created)
             mutableLocalSharingController.value = GalleryLocalSharingWorker.controller(application,created.database)
             mutableLocalSharingController.value?.reconcile()
             mutablePlacesSource.value = GalleryPlacesSource(application,created.database)
@@ -2042,14 +2051,14 @@ class GalleryViewModel @Inject constructor(
                 )
             }
             created.monitor = MediaStoreChangeMonitor(application.contentResolver, viewModelScope) { batch ->
-                batch.rowHints.forEach {
-                    created.synchronizer.applyRowHint(it)
-                    created.searchIndex.indexKey(it)
-                }
+                // The search_index_journal triggers record these writes; observeSearchJournal indexes them.
+                batch.rowHints.forEach { created.synchronizer.applyRowHint(it) }
                 semanticModelManager?.scheduleActiveIndexUpdate()
+                // Most notifications name the synthetic `external` volume and yield no row hint. The
+                // generation delta still finds new and changed rows, and the id-only absence sweep finds
+                // deletions, so a full rescan (minutes on a large library) is left to the synchronizer.
                 refreshLibrary(
-                    indexedHintCount = batch.rowHints.size,
-                    forceFullReconciliation = batch.requiresFullVolumeReconciliation,
+                    reconcileUnobservedChanges = batch.requiresFullVolumeReconciliation,
                 )
             }.also { it.start() }
             reconcilePendingManualMomentCreate(created)
@@ -7715,10 +7724,48 @@ class GalleryViewModel @Inject constructor(
     fun mediaUri(media: TimelineMedia): Uri = media.uri()
 
     private var verifiedRuntime: GalleryRuntime? = null
+    private var searchIndexVerified = false
+
+    /**
+     * Applies journalled changes to the search index. The document count is compared with the
+     * library once per process, after the first drain that leaves the journal empty; a mismatch
+     * or any index failure rebuilds the index from scratch.
+     */
+    private suspend fun syncSearchIndex(active: GalleryRuntime, verifyCount: Boolean) {
+        val result = active.searchIndex.synchronize(verifyCount) { reason ->
+            Log.i(LibraryLogTag, "Rebuilding search index: $reason")
+            mutableLibraryMaintenance.value = LibraryMaintenance.SearchIndex
+        }
+        if (result.rebuildReason != null && mutableLibraryMaintenance.value == LibraryMaintenance.SearchIndex) {
+            mutableLibraryMaintenance.value = null
+        }
+        // A check skipped because new changes were still journalled runs on the next sync.
+        if (result.verified) searchIndexVerified = true
+    }
+
+    /** Drains the search journal soon after library writes settle, never overlapping a rebuild. */
+    private fun observeSearchJournal(created: GalleryRuntime) {
+        viewModelScope.launch(Dispatchers.IO) {
+            created.searchIndex.pendingChangeCount()
+                .filter { it > 0 }
+                .debounce(1_500)
+                .conflate()
+                .collect {
+                    try {
+                        if (mutableEngineState.value == LibraryEngineState.Ready) {
+                            syncSearchIndex(created, verifyCount = !searchIndexVerified)
+                            mutableSearchIndexReady.value = true
+                        }
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (failure: Exception) {
+                        Log.w(LibraryLogTag, "Search index update failed", failure)
+                    }
+                }
+        }
+    }
 
     private suspend fun refreshLibrary(
-        indexedHintCount: Int = 0,
-        forceFullReconciliation: Boolean = false,
         reconcileUnobservedChanges: Boolean = false,
         invalidateViews: Boolean = false,
     ): Unit = refreshMutex.withLock {
@@ -7740,11 +7787,6 @@ class GalleryViewModel @Inject constructor(
             var changedItems = 0L
             val completed = withContext(Dispatchers.IO) {
                 for (volume in active.generations.snapshot()) {
-                    if (forceFullReconciliation) {
-                        scanVolume(active, volume, "full reconciliation")
-                        requiresSearchRebuild = true
-                        continue
-                    }
                     when (val result = active.synchronizer.sync(volume, reconcileUnobservedChanges)) {
                         IncrementalSyncResult.NeedsInitialScan -> {
                             scanVolume(active, volume, "initial scan"); requiresSearchRebuild = true
@@ -7771,16 +7813,26 @@ class GalleryViewModel @Inject constructor(
                 active.albums.invalidateSummaries()
             }
             if (completed) mutableEngineState.value = LibraryEngineState.Ready
+            if (completed) startMediaDetails(active)
             // The timeline is already usable, so failing maintenance is logged instead of
             // replacing it with the library error screen; the next refresh retries.
             if (completed) try { withContext(Dispatchers.IO) {
                 val prefs = getApplication<Application>().getSharedPreferences("search-production", Context.MODE_PRIVATE)
                 val needsInitial = prefs.getLong("schema", 0) != com.librestatic.lightforge.core.search.MediaSearchSchema.Version
-                if (needsInitial || requiresSearchRebuild || changedItems > indexedHintCount) {
+                val reason = when {
+                    needsInitial -> "search schema changed"
+                    active.searchIndex.hasInterruptedRebuild() -> "resuming interrupted rebuild"
+                    else -> null
+                }
+                if (reason != null) {
+                    // Schema changes start over; an interrupted rebuild resumes from its checkpoint.
+                    Log.i(LibraryLogTag, "Rebuilding search index: $reason")
                     mutableLibraryMaintenance.value = LibraryMaintenance.SearchIndex
-                    active.searchIndex.rebuild(restart = true)
+                    active.searchIndex.rebuild(restart = needsInitial)
                     prefs.edit().putLong("schema", com.librestatic.lightforge.core.search.MediaSearchSchema.Version).commit()
                 }
+                // Everything else is journalled by database triggers and applied incrementally.
+                syncSearchIndex(active, verifyCount = !searchIndexVerified)
                 // Moment generation is a resumable Room keyset pass, not a MediaStore scan.
                 // Its durable input revision resumes or regenerates after actual candidate
                 // changes, including old-dated imports; identical reindexing is a no-op.
@@ -7812,6 +7864,26 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Second indexing phase: opens the files pages were indexed without, newest first, in the background.
+     * It takes no refresh lock (its writes are guarded by generation) and never delays Ready.
+     */
+    private fun startMediaDetails(active: GalleryRuntime) {
+        if (mediaDetailsJob?.isActive == true) return
+        mediaDetailsJob = viewModelScope.launch(Dispatchers.IO) {
+            mutableMediaDetailsRunning.value = true
+            try {
+                active.mediaProber.run()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                Log.w(LibraryLogTag, "Reading media details failed", failure)
+            } finally {
+                mutableMediaDetailsRunning.value = false
+            }
+        }
+    }
+
     private suspend fun scanVolume(active: GalleryRuntime, volume: VolumeGeneration, reason: String) {
         // A scan rewrites the timeline, so even an already-browsable library shows it.
         mutableEngineState.value = LibraryEngineState.Indexing
@@ -7821,6 +7893,7 @@ class GalleryViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        mediaDetailsJob?.cancel()
         mutableLocalSharingController.value?.close()
         ownSyncController.close()
         offlinePlacesController.close()
@@ -7875,6 +7948,10 @@ class GalleryViewModel @Inject constructor(
             viewerMedia = RoomViewerMediaSource(database),
             searchIndex = GallerySearchIndexRepository(context, database),
             moments = MomentRepository(database),
+            mediaProber = com.librestatic.lightforge.core.data.PendingMediaProber(
+                com.librestatic.lightforge.core.data.RoomPendingProbeStore(database.libraryDao()),
+                com.librestatic.lightforge.core.mediastore.MediaFileProber(context.contentResolver),
+            ),
         )
     }
 

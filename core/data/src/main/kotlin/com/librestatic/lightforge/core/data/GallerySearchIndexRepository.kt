@@ -10,8 +10,11 @@ import com.librestatic.lightforge.core.search.MediaSearchDocument
 import com.librestatic.lightforge.core.search.MediaSearchIndex
 import com.librestatic.lightforge.core.search.SearchDocumentSource
 import com.librestatic.lightforge.core.search.SearchIndexCoordinator
+import com.librestatic.lightforge.core.search.SearchIndexJournal
+import com.librestatic.lightforge.core.search.SearchSyncResult
 import com.librestatic.lightforge.core.search.SearchRebuildResult
 import com.librestatic.lightforge.core.search.SharedPreferencesSearchRebuildStateStore
+import kotlinx.coroutines.flow.Flow
 import java.io.Closeable
 
 class RoomSearchDocumentSource(database: GalleryDatabase) : SearchDocumentSource {
@@ -28,6 +31,13 @@ class RoomSearchDocumentSource(database: GalleryDatabase) : SearchDocumentSource
 
     suspend fun document(key: MediaKey): MediaSearchDocument? =
         dao.searchRebuildRow(key.volumeName, key.mediaStoreId)?.searchDocument()
+
+    internal suspend fun documents(keys: List<MediaKey>): List<MediaSearchDocument> =
+        keys.groupBy(MediaKey::volumeName).flatMap { (volume, volumeKeys) ->
+            volumeKeys.map(MediaKey::mediaStoreId).chunked(MediaSearchIndex.MaxBatchSize).flatMap {
+                dao.searchRebuildRows(volume, it).map { row -> row.searchDocument() }
+            }
+        }
 
     private fun SearchRebuildRow.searchDocument() = MediaSearchDocument(
         key = MediaKey(media.volumeName, media.mediaStoreId),
@@ -59,6 +69,33 @@ class RoomSearchDocumentSource(database: GalleryDatabase) : SearchDocumentSource
     }
 }
 
+/** The trigger-maintained `search_index_journal` table behind the incremental index. */
+class RoomSearchIndexJournal(
+    database: GalleryDatabase,
+    private val source: RoomSearchDocumentSource,
+) : SearchIndexJournal {
+    private val dao = database.libraryDao()
+
+    override suspend fun maxSeq(): Long = dao.searchJournalMaxSeq()
+
+    override suspend fun keys(throughSeq: Long, limit: Int): List<MediaKey> =
+        dao.searchJournalKeys(throughSeq, limit).map { MediaKey(it.volumeName, it.mediaStoreId) }
+
+    override suspend fun documents(keys: List<MediaKey>): List<MediaSearchDocument> = source.documents(keys)
+
+    override suspend fun acknowledge(throughSeq: Long, keys: List<MediaKey>) {
+        keys.groupBy(MediaKey::volumeName).forEach { (volume, volumeKeys) ->
+            volumeKeys.map(MediaKey::mediaStoreId).chunked(MediaSearchIndex.MaxBatchSize).forEach {
+                dao.deleteSearchJournal(throughSeq, volume, it)
+            }
+        }
+    }
+
+    override suspend fun clear(throughSeq: Long) = dao.clearSearchJournal(throughSeq)
+
+    override suspend fun eligibleCount(): Int = dao.searchEligibleCount()
+}
+
 class GallerySearchIndexRepository(
     context: Context,
     database: GalleryDatabase,
@@ -70,7 +107,19 @@ class GallerySearchIndexRepository(
         index,
         source,
         SharedPreferencesSearchRebuildStateStore(context, databaseName),
+        RoomSearchIndexJournal(database, source),
     )
+    private val dao = database.libraryDao()
+
+    /** Emits the number of journalled changes the index has not absorbed yet. */
+    fun pendingChangeCount(): Flow<Int> = dao.observeSearchJournalCount()
+
+    fun hasInterruptedRebuild(): Boolean = coordinator.hasInterruptedRebuild()
+
+    suspend fun synchronize(
+        verifyCount: Boolean,
+        onRebuild: suspend (reason: String) -> Unit = {},
+    ): SearchSyncResult = coordinator.synchronize(verifyCount, onRebuild)
 
     suspend fun rebuild(
         restart: Boolean = false,
@@ -84,12 +133,6 @@ class GallerySearchIndexRepository(
     suspend fun purgeUnavailableVolume(volumeName: String) = coordinator.onVolumeUnavailable(volumeName)
 
     suspend fun deleteDerivedIndex() = coordinator.deleteAndReset()
-
-    suspend fun indexKey(key: MediaKey) {
-        val document = source.document(key)
-        if (document == null) coordinator.onPermissionRevoked(listOf(key))
-        else coordinator.onMediaChanged(listOf(document))
-    }
 
     override fun close() = index.close()
 }

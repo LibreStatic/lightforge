@@ -130,6 +130,200 @@ class FolderSummariesDeviceTest {
     }
 
     @Test
+    fun thirtyThreeToThirtyFourAddsProbeFlagDefaultingToDone() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val name = "probe-migration-${UUID.randomUUID()}.db"
+        val helper = MigrationTestHelper(instrumentation, GalleryDatabase::class.java)
+        try {
+            helper.createDatabase(name, 33).use { db -> insert(db, 901, 1, 100, 1000, "Pictures/", 10) }
+            helper.runMigrationsAndValidate(name, 34, true, GalleryDatabaseFactory.Migration33To34).use { db ->
+                db.query("SELECT needsProbe FROM media_items WHERE mediaStoreId=901").use {
+                    assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0))
+                }
+            }
+        } finally {
+            check(context.deleteDatabase(name))
+        }
+    }
+
+    @Test
+    fun thirtyFourToThirtyFiveCreatesJournalAndTriggers() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val name = "journal-migration-${UUID.randomUUID()}.db"
+        val helper = MigrationTestHelper(instrumentation, GalleryDatabase::class.java)
+        try {
+            helper.createDatabase(name, 34).use { db -> insert(db, 1, 1, 100, 1000, "Pictures/", 10) }
+            helper.runMigrationsAndValidate(name, 35, true, GalleryDatabaseFactory.Migration34To35).use { db ->
+                // Existing rows are not journalled; the trigger fires for later changes only.
+                assertEquals(emptyList<Long>(), journalIds(db))
+                db.execSQL("UPDATE media_items SET isFavorite=1 WHERE mediaStoreId=1")
+                assertEquals(listOf(1L), journalIds(db))
+            }
+        } finally {
+            check(context.deleteDatabase(name))
+        }
+    }
+
+    @Test
+    fun thirtyFiveToThirtySixCreatesScanMarks() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val name = "scan-marks-migration-${UUID.randomUUID()}.db"
+        val helper = MigrationTestHelper(instrumentation, GalleryDatabase::class.java)
+        try {
+            helper.createDatabase(name, 35).use { db -> insert(db, 1, 1, 100, 1000, "Pictures/", 10) }
+            helper.runMigrationsAndValidate(name, 36, true, GalleryDatabaseFactory.Migration35To36).use { db ->
+                db.execSQL("INSERT INTO media_scan_marks(volumeName,mediaStoreId,scanId) VALUES('external_primary',1,7)")
+                db.query("SELECT COUNT(*) FROM media_items").use { assertTrue(it.moveToFirst()); assertEquals(1, it.getInt(0)) }
+                db.query("SELECT scanId FROM media_scan_marks").use { assertTrue(it.moveToFirst()); assertEquals(7, it.getInt(0)) }
+            }
+        } finally {
+            check(context.deleteDatabase(name))
+        }
+    }
+
+    private fun mediaEntity(id: Long, scanId: Long, accessible: Boolean = true) = MediaItemEntity(
+        volumeName = "external_primary", mediaStoreId = id, mediaType = 1, mimeType = "image/jpeg", displayName = "a.jpg",
+        dateTakenMillis = null, bucketId = 10, bucketDisplayName = "Pictures", relativePath = "Pictures/", sizeBytes = 100,
+        width = 10, height = 10, durationMillis = 0, orientationDegrees = 0, dateAddedSeconds = 1,
+        dateModifiedSeconds = 1, timelineSortMillis = 1000, generationAdded = 1, generationModified = 2,
+        isFavorite = false, isTrashed = false, isAccessible = accessible, lastSeenScanId = scanId,
+    )
+
+    private fun checkpoint(scanId: Long?) =
+        MediaStoreCheckpointEntity("external_primary", "v1", 3, 2, scanId, "Running", null)
+
+    @Test
+    fun reconcilingUnchangedRowsDoesNotWriteMediaItemsAndCompletionUsesMarks() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(
+            InstrumentationRegistry.getInstrumentation().targetContext,
+            GalleryDatabase::class.java,
+        ).build()
+        try {
+            val dao = database.libraryDao()
+            val db = database.openHelper.writableDatabase
+            fun changes(): Long = db.query("SELECT total_changes()").use { it.moveToFirst(); it.getLong(0) }
+            // 1, 2 and 3 are indexed by an earlier scan (lastSeenScanId = 1); 4 is hidden.
+            (1L..3L).forEach { insert(db, it, 1, 100, 1000, "Pictures/", 10) }
+            insert(db, 4, 1, 100, 1000, "Pictures/", 10, accessible = 0)
+            insert(db, 5, 1, 100, 1000, "Pictures/", 10)
+            // A stale mark of an abandoned scan must not keep row 5 visible.
+            dao.upsertScanMarks(listOf(MediaScanMarkEntity("external_primary", 5, 8)))
+
+            // `insert` rows have generationModified 1; a page at that generation is unchanged.
+            fun seen(id: Long) = mediaEntity(id, 9).copy(generationModified = 1)
+            // Unchanged rows 1 and 2: only marks are written.
+            val before = changes()
+            dao.reconcileMediaPage(listOf(seen(1), seen(2)), checkpoint(9))
+            db.query("SELECT COUNT(*) FROM media_items WHERE lastSeenScanId=9").use {
+                assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0))
+            }
+            db.query("SELECT COUNT(*) FROM media_scan_marks WHERE scanId=9").use {
+                assertTrue(it.moveToFirst()); assertEquals(2, it.getInt(0))
+            }
+            // 2 mark inserts + 1 checkpoint upsert, nothing on media_items.
+            assertEquals(3L, changes() - before)
+
+            // Row 4 reappears (hidden row, unchanged generation); row 6 is new and stamped by upsert.
+            dao.reconcileMediaPage(listOf(seen(4), mediaEntity(6, 9)), checkpoint(9))
+            dao.completeVolumeScan(checkpoint(null).copy(scanState = "Complete"), 9)
+
+            fun accessible(id: Long): Int = db.query("SELECT isAccessible FROM media_items WHERE mediaStoreId=$id").use {
+                assertTrue(it.moveToFirst()); it.getInt(0)
+            }
+            assertEquals(1, accessible(1))
+            assertEquals(1, accessible(2))
+            assertEquals(0, accessible(3)) // neither upserted nor marked
+            assertEquals(1, accessible(4)) // reappeared
+            assertEquals(0, accessible(5)) // stale mark of another scan
+            assertEquals(1, accessible(6)) // new row
+            db.query("SELECT COUNT(*) FROM media_scan_marks").use {
+                assertTrue(it.moveToFirst()); assertEquals(0, it.getInt(0))
+            }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun startingANewScanClearsOnlyMarksOfOtherScans() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(
+            InstrumentationRegistry.getInstrumentation().targetContext,
+            GalleryDatabase::class.java,
+        ).build()
+        try {
+            val dao = database.libraryDao()
+            val db = database.openHelper.writableDatabase
+            dao.upsertScanMarks(
+                listOf(
+                    MediaScanMarkEntity("external_primary", 1, 8),
+                    MediaScanMarkEntity("external_primary", 2, 9),
+                    MediaScanMarkEntity("1234-ABCD", 1, 8),
+                ),
+            )
+            dao.resetVolumeForScan(checkpoint(9))
+            db.query("SELECT volumeName, mediaStoreId FROM media_scan_marks ORDER BY volumeName, mediaStoreId").use {
+                val rows = buildList { while (it.moveToNext()) add(it.getString(0) to it.getLong(1)) }
+                assertEquals(listOf("1234-ABCD" to 1L, "external_primary" to 2L), rows)
+            }
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun searchJournalRecordsOnlyChangesThatAlterADocument() {
+        val database = Room.inMemoryDatabaseBuilder(
+            InstrumentationRegistry.getInstrumentation().targetContext,
+            GalleryDatabase::class.java,
+        ).build()
+        try {
+            val db = database.openHelper.writableDatabase
+            SearchIndexJournalSchema.installTriggers(db)
+            SearchIndexJournalSchema.installTriggers(db) // idempotent
+            fun take(): List<Long> = journalIds(db).also { db.execSQL("DELETE FROM search_index_journal") }
+
+            insert(db, 1, 1, 100, 1000, "Pictures/", 10)
+            assertEquals(listOf(1L), take())
+            // Scan bookkeeping and probe state are not part of a document.
+            db.execSQL("UPDATE media_items SET lastSeenScanId=9, needsProbe=1, sizeBytes=5 WHERE mediaStoreId=1")
+            assertEquals(emptyList<Long>(), take())
+            db.execSQL("UPDATE media_items SET displayName='a.jpg' WHERE mediaStoreId=1")
+            assertEquals(listOf(1L), take())
+            db.execSQL("UPDATE media_items SET isTrashed=1 WHERE mediaStoreId=1")
+            assertEquals(listOf(1L), take())
+            db.execSQL("UPDATE media_items SET isTrashed=0 WHERE mediaStoreId=1")
+            take()
+
+            db.execSQL("INSERT INTO media_labels(volumeName,mediaStoreId,canonicalLabel,rawLabel,confidence,modelVersion) VALUES('external_primary',1,'dog','Dog',0.9,'1.0.0')")
+            assertEquals(listOf(1L), take())
+            db.execSQL("INSERT INTO label_suppressions(canonicalLabel,suppressedAtMillis) VALUES('dog',1)")
+            assertEquals(listOf(1L), take())
+            db.execSQL("DELETE FROM label_suppressions WHERE canonicalLabel='dog'")
+            assertEquals(listOf(1L), take())
+            db.execSQL("INSERT INTO label_suppressions(canonicalLabel,suppressedAtMillis) VALUES('cat',1)")
+            assertEquals(emptyList<Long>(), take())
+
+            // Room's @Upsert updates in place: an unchanged row journals nothing.
+            val row = runBlocking { database.libraryDao().searchRebuildRows("external_primary", listOf(1L)).single().media }
+            runBlocking { database.libraryDao().upsertMediaRows(listOf(row)) }
+            assertEquals(emptyList<Long>(), take())
+
+            db.execSQL("DELETE FROM media_items WHERE mediaStoreId=1")
+            assertEquals(listOf(1L), take())
+        } finally {
+            database.close()
+        }
+    }
+
+    private fun journalIds(db: androidx.sqlite.db.SupportSQLiteDatabase): List<Long> =
+        db.query("SELECT mediaStoreId FROM search_index_journal ORDER BY seq").use { c ->
+            generateSequence { if (c.moveToNext()) c.getLong(0) else null }.toList()
+        }
+
+    @Test
     fun physicalAlbumsDropGhostFoldersOfMountedVolumesAndCountOnlyAccessibleRows() = runBlocking {
         val database = Room.inMemoryDatabaseBuilder(
             InstrumentationRegistry.getInstrumentation().targetContext,

@@ -28,6 +28,10 @@ import androidx.room.PrimaryKey
             value = ["volumeName", "relativePath"],
         ),
         Index(
+            name = "index_media_needs_probe",
+            value = ["needsProbe", "timelineSortMillis", "mediaStoreId"],
+        ),
+        Index(
             name = "index_media_moment_scan",
             value = ["isAccessible", "isTrashed", "timelineSortMillis", "mediaStoreId", "volumeName"],
         ),
@@ -60,6 +64,11 @@ data class MediaItemEntity(
     val dateExpiresSeconds: Long? = null,
     /** Set at index time from the file header (GIF, animated WebP, APNG, AVIF/HEIF sequence); drives the Animated filter. */
     @ColumnInfo(defaultValue = "0") val isAnimated: Boolean = false,
+    /**
+     * Pages are indexed without opening files; a background pass reads the video size and image header of the
+     * rows flagged here and clears the flag. Until then duration, size and [isAnimated] may be missing.
+     */
+    @ColumnInfo(defaultValue = "0") val needsProbe: Boolean = false,
 )
 
 data class KnownMediaGeneration(
@@ -67,6 +76,32 @@ data class KnownMediaGeneration(
     val generationModified: Long,
     val durationMillis: Long,
     val width: Int,
+    val isAnimated: Boolean,
+    val height: Int = 0,
+    val needsProbe: Boolean = false,
+)
+
+/** A row waiting for [LibraryDao.applyProbedDetails]. */
+data class PendingProbeRow(
+    val volumeName: String,
+    val mediaStoreId: Long,
+    val mediaType: Int,
+    val mimeType: String?,
+    val generationModified: Long,
+    val dateModifiedSeconds: Long,
+    val durationMillis: Long,
+    val width: Int,
+    val height: Int,
+)
+
+/** The details a probe found for one row; [generationModified] guards against a row rewritten meanwhile. */
+data class ProbeResultRow(
+    val volumeName: String,
+    val mediaStoreId: Long,
+    val generationModified: Long,
+    val durationMillis: Long,
+    val width: Int,
+    val height: Int,
     val isAnimated: Boolean,
 )
 
@@ -99,6 +134,18 @@ data class ActivityEventEntity(
     val occurredAtMillis: Long,
     val itemCount: Long,
     val detail: String? = null,
+)
+
+/**
+ * Rows a full scan saw again without changing them. Kept outside media_items because every UPDATE of
+ * media_items invalidates all observed timeline/folder queries; nothing in the UI reads this table.
+ * Persistent so an interrupted scan resumes with its marks.
+ */
+@Entity(tableName = "media_scan_marks", primaryKeys = ["volumeName", "mediaStoreId"])
+data class MediaScanMarkEntity(
+    val volumeName: String,
+    val mediaStoreId: Long,
+    val scanId: Long,
 )
 
 @Entity(tableName = "media_store_checkpoints")

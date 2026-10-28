@@ -534,7 +534,7 @@ private fun TimelineThumbnail(
     val contentDescription = if (stack != null) {
         stringResource(R.string.timeline_stack_description, stack.count)
     } else if (isVideo) {
-        videoDurationDescription(entry.value.durationMillis)
+        videoDurationDescription(entry.value.durationMillis, entry.value.detailsPending)
     } else {
         stringResource(R.string.photo_thumbnail_description)
     }.let { base ->
@@ -642,6 +642,7 @@ private fun TimelineThumbnail(
             VideoDurationBadge(
                 durationMillis = entry.value.durationMillis,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                pending = entry.value.detailsPending,
             )
         }
         if (stack != null) {

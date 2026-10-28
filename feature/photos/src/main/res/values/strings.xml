@@ -28,6 +28,7 @@
     <string name="library_background_moments">Creating moments in the background…</string>
     <string name="library_background_faces">Detecting faces in the background…</string>
     <string name="library_background_people">Grouping people in the background…</string>
+    <string name="library_background_media_details">Reading video and image details…</string>
     <string name="library_background_pets">Recognizing pets in the background…</string>
     <string name="library_task_faces">Face detection</string>
     <string name="library_task_people">People grouping</string>

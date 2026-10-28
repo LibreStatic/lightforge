@@ -182,7 +182,7 @@ interface MomentDao {
             "m.bucketId AS media_bucketId,m.bucketDisplayName AS media_bucketDisplayName," +
             "m.relativePath AS media_relativePath,m.isFavorite AS media_isFavorite,m.isTrashed AS media_isTrashed," +
             "m.isAccessible AS media_isAccessible,m.lastSeenScanId AS media_lastSeenScanId," +
-            "m.dateExpiresSeconds AS media_dateExpiresSeconds, m.isAnimated AS media_isAnimated FROM moment_members mm JOIN memory_visible m ON " +
+            "m.dateExpiresSeconds AS media_dateExpiresSeconds, m.isAnimated AS media_isAnimated, m.needsProbe AS media_needsProbe FROM moment_members mm JOIN memory_visible m ON " +
             "m.volumeName=mm.volumeName AND m.mediaStoreId=mm.mediaStoreId AND m.visibleMomentId=mm.momentId WHERE mm.momentId=:momentId " +
             "AND m.isAccessible=1 AND m.isTrashed=0 ORDER BY mm.ordinal"
     )
@@ -200,7 +200,7 @@ interface MomentDao {
             "m.bucketId AS media_bucketId,m.bucketDisplayName AS media_bucketDisplayName," +
             "m.relativePath AS media_relativePath,m.isFavorite AS media_isFavorite,m.isTrashed AS media_isTrashed," +
             "m.isAccessible AS media_isAccessible,m.lastSeenScanId AS media_lastSeenScanId," +
-            "m.dateExpiresSeconds AS media_dateExpiresSeconds, m.isAnimated AS media_isAnimated FROM moment_members mm JOIN memory_visible m ON " +
+            "m.dateExpiresSeconds AS media_dateExpiresSeconds, m.isAnimated AS media_isAnimated, m.needsProbe AS media_needsProbe FROM moment_members mm JOIN memory_visible m ON " +
             "m.volumeName=mm.volumeName AND m.mediaStoreId=mm.mediaStoreId AND m.visibleMomentId=mm.momentId WHERE mm.momentId=:momentId " +
             "AND m.isAccessible=1 AND m.isTrashed=0 ORDER BY mm.ordinal"
     )

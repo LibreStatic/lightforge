@@ -21,6 +21,7 @@
     <string name="library_background_moments">Creando momentos en segundo plano…</string>
     <string name="library_background_faces">Detectando caras en segundo plano…</string>
     <string name="library_background_people">Agrupando personas en segundo plano…</string>
+    <string name="library_background_media_details">Leyendo detalles de videos e imágenes…</string>
     <string name="library_background_pets">Reconociendo mascotas en segundo plano…</string>
     <string name="library_task_faces">Detección de caras</string>
     <string name="library_task_people">Agrupación de personas</string>

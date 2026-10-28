@@ -64,6 +64,60 @@ class InitialMediaScannerTest {
         assertEquals(1, store.resetCount)
     }
 
+    @Test
+    fun rawPagesFlagOnlyProbeEligibleRowsPending() = runTest {
+        val store = FakeStore()
+        val video = record(3).copy(kind = MediaKind.Video, mimeType = "video/x-flv", durationMillis = 0)
+        val completeVideo = record(4).copy(kind = MediaKind.Video, mimeType = "video/mp4", durationMillis = 900)
+        val pages = FakePages(listOf(
+            record(1), record(2).copy(mimeType = "image/WebP"), video, completeVideo,
+            record(5).copy(mimeType = "image/gif", isAnimated = true),
+        ))
+
+        scanner(pages, store, ::fullAccess).scan(volume())
+
+        fun pending(id: Long) = store.items.getValue("external_primary" to id).needsProbe
+        assertEquals(listOf(false, true, true, false, false), (1L..5L).map(::pending))
+        assertEquals(emptyList<String>(), store.markedPending)
+    }
+
+    @Test
+    fun unchangedRowsKeepTheirProbedDetailsAndAreNotRewritten() = runTest {
+        val store = FakeStore().apply {
+            checkpoint = checkpoint(version = "v1", lastId = 3, scanState = ScanState.Complete)
+            items["external_primary" to 1L] = record(1).toEntity(1).copy(isAnimated = true, durationMillis = 500)
+        }
+        scanner(FakePages(listOf(record(1).copy(mimeType = "image/webp"))), store, ::fullAccess).scan(volume())
+
+        assertEquals(0, store.reconciledEntityWrites)
+        assertEquals(true, store.items.getValue("external_primary" to 1L).isAnimated)
+        assertEquals(500L, store.items.getValue("external_primary" to 1L).durationMillis)
+        assertEquals(emptyList<String>(), store.markedPending)
+    }
+
+    @Test
+    fun providerVersionChangeQueuesIndexedRowsForTheBackgroundProbe() = runTest {
+        val store = FakeStore().apply {
+            checkpoint = checkpoint(version = "v1+lf2", lastId = 3, scanState = ScanState.Complete)
+            items["external_primary" to 1L] = record(1).toEntity(1)
+        }
+
+        scanner(FakePages(listOf(record(1))), store, ::fullAccess).scan(volume(version = "v1+lf3"))
+
+        assertEquals(listOf("external_primary"), store.markedPending)
+        assertEquals(1, store.resetCount)
+    }
+
+    @Test
+    fun resumedScanDoesNotRequeueRows() = runTest {
+        val store = FakeStore().apply {
+            checkpoint = checkpoint(version = "v1", lastId = -1, scanState = ScanState.Running)
+        }
+        scanner(FakePages(listOf(record(1))), store, ::fullAccess).scan(volume())
+        assertEquals(emptyList<String>(), store.markedPending)
+        assertEquals(0, store.resetCount)
+    }
+
     @Test(expected = IllegalStateException::class)
     fun nonAdvancingProviderPageFailsInsteadOfLoopingForever() = runTest {
         val source = MediaStorePageSource { volume, _, _ ->
@@ -158,6 +212,12 @@ class InitialMediaScannerTest {
             this.checkpoint = checkpoint
             commitCount++
             largestCommit = maxOf(largestCommit, items.size)
+        }
+
+        val markedPending = mutableListOf<String>()
+        override suspend fun markProbeEligibleRowsPending(volumeName: String, sniffedMimeTypes: List<String>): Int {
+            markedPending += volumeName
+            return 0
         }
 
         override suspend fun upsertCheckpoint(checkpoint: MediaStoreCheckpointEntity) {

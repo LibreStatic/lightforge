@@ -41,7 +41,7 @@ import kotlinx.coroutines.delay
 
 /** A visible, operation-level status; thumbnails and animation frames are not live regions. */
 /** Work that keeps running once the library is browsable, most relevant first. */
-enum class LibraryBackgroundWork { SearchIndex, Moments, Faces, People, Pets }
+enum class LibraryBackgroundWork { SearchIndex, Moments, Faces, People, Pets, MediaDetails }
 
 /** An external condition holding analysis back; user-initiated pauses are not reported here. */
 enum class LibraryBackgroundWait { Battery, Heat }
@@ -211,7 +211,7 @@ private fun backgroundHint(status: LibraryBackgroundStatus): String {
         LibraryBackgroundWork.Faces -> R.string.library_task_faces
         LibraryBackgroundWork.People -> R.string.library_task_people
         LibraryBackgroundWork.Pets -> R.string.library_task_pets
-        LibraryBackgroundWork.SearchIndex, LibraryBackgroundWork.Moments -> null
+        LibraryBackgroundWork.SearchIndex, LibraryBackgroundWork.Moments, LibraryBackgroundWork.MediaDetails -> null
     }
     val wait = status.waitingOn
     if (wait != null && pausedTask != null) {
@@ -230,6 +230,7 @@ private fun backgroundHint(status: LibraryBackgroundStatus): String {
             LibraryBackgroundWork.Faces -> R.string.library_background_faces
             LibraryBackgroundWork.People -> R.string.library_background_people
             LibraryBackgroundWork.Pets -> R.string.library_background_pets
+            LibraryBackgroundWork.MediaDetails -> R.string.library_background_media_details
         },
     )
 }

@@ -221,7 +221,10 @@ private fun TrashCell(
             modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
         )
         if (media.kind == MediaKind.Video) {
-            VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.TopEnd).padding(6.dp))
+            VideoDurationBadge(
+                media.durationMillis, Modifier.align(Alignment.TopEnd).padding(6.dp),
+                pending = media.detailsPending,
+            )
         }
         media.dateExpiresMillis?.let { expires ->
             TrashExpiryBadge(expires, Modifier.align(Alignment.BottomStart).padding(6.dp))

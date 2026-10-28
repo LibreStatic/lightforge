@@ -17,8 +17,7 @@ import java.io.IOException
  */
 internal class UnindexedVideoProbe(private val resolver: ContentResolver) {
     fun complete(record: MediaStoreRecord): MediaStoreRecord {
-        if (record.kind != MediaKind.Video) return record
-        if (record.durationMillis > 0 && record.width > 0 && record.height > 0) return record
+        if (record.kind != MediaKind.Video || !record.needsFileProbe()) return record
         val cacheKey = "${record.key.volumeName}/${record.key.mediaStoreId}@${record.dateModifiedSeconds}"
         val probed = cache[cacheKey] ?: (probe(record) ?: Probed.Empty).also { cache[cacheKey] = it }
         if (probed === Probed.Empty) return record
@@ -52,6 +51,8 @@ internal class UnindexedVideoProbe(private val resolver: ContentResolver) {
             }
         } catch (_: IOException) {
             null
+        } catch (denied: SecurityException) {
+            throw denied
         } catch (_: RuntimeException) {
             null
         } finally {

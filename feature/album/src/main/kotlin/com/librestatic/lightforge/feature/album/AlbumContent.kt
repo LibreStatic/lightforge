@@ -487,7 +487,7 @@ private fun AlbumCell(
     }
     val isVideo = media.kind == MediaKind.Video
     val description = if (isVideo) {
-        videoDurationDescription(media.durationMillis)
+        videoDurationDescription(media.durationMillis, media.detailsPending)
     } else {
         stringResource(R.string.album_photo)
     }.let { base ->
@@ -531,6 +531,7 @@ private fun AlbumCell(
             VideoDurationBadge(
                 durationMillis = media.durationMillis,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                pending = media.detailsPending,
             )
         }
         MediaSelectionOverlay(selected)

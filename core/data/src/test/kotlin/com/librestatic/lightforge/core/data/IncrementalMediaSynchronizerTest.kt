@@ -24,18 +24,136 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class IncrementalMediaSynchronizerTest {
+    // Replaces newObserverReconcilesMissedChangesButDoesNotScanUnchangedVolumes: a moved generation used
+    // to force a full volume scan on cold start; it now applies the delta and sweeps absences by id.
     @Test
-    fun newObserverReconcilesMissedChangesButDoesNotScanUnchangedVolumes() = runTest {
-        val source = FakeDeltaSource(emptyList())
+    fun coldStartWithMovedGenerationAppliesDeltaWithoutFullScan() = runTest {
+        val source = FakeDeltaSource(listOf(record(1, 10), record(2, 11)))
+        val store = FakeStore(checkpoint()).apply { items["external_primary" to 1] = record(1, 10).toEntity(1) }
+        val sync = IncrementalMediaSynchronizer(source, store, ::fullAccess)
+        assertEquals(IncrementalSyncResult.Complete(1),
+            sync.sync(volume(11), reconcileUnobservedChanges = true))
+        assertEquals(11L, store.checkpoint!!.generation)
+        assertTrue(store.items.getValue("external_primary" to 2L).isAccessible)
+    }
+
+    @Test
+    fun coldStartPendingDeltaTargetIsResumedNotRescanned() = runTest {
+        val source = FakeDeltaSource(listOf(record(1, 11)))
+        val store = FakeStore(checkpoint().copy(
+            deltaTargetGeneration = 11, deltaGenerationCursor = 10, deltaMediaStoreIdCursor = Long.MAX_VALUE,
+        ))
+        val result = IncrementalMediaSynchronizer(source, store, ::fullAccess)
+            .sync(volume(11), reconcileUnobservedChanges = true)
+        assertEquals(IncrementalSyncResult.Complete(1), result)
+        assertNull(store.checkpoint!!.deltaTargetGeneration)
+    }
+
+    @Test
+    fun coldStartHidesIndexedRowsMediaStoreNoLongerLists() = runTest {
+        val source = FakeDeltaSource(listOf(record(1, 10)))
+        val store = FakeStore(checkpoint()).apply {
+            items["external_primary" to 1] = record(1, 10).toEntity(1)
+            items["external_primary" to 2] = record(2, 10).toEntity(1)
+        }
+        val result = IncrementalMediaSynchronizer(source, store, ::fullAccess)
+            .sync(volume(10), reconcileUnobservedChanges = true)
+        assertEquals(IncrementalSyncResult.Complete(1), result)
+        assertTrue(store.items.getValue("external_primary" to 1L).isAccessible)
+        assertFalse(store.items.getValue("external_primary" to 2L).isAccessible)
+        assertEquals(0, store.deleteCount)
+    }
+
+    @Test
+    fun coldStartUpsertsListedRowsTheIndexMisses() = runTest {
+        val source = FakeDeltaSource(listOf(record(1, 10), record(2, 10), record(3, 10)))
+        val store = FakeStore(checkpoint()).apply {
+            items["external_primary" to 1] = record(1, 10).toEntity(1)
+            // Hidden earlier (e.g. a selection that was re-granted).
+            items["external_primary" to 2] = record(2, 10).toEntity(1).copy(isAccessible = false)
+        }
+        val result = IncrementalMediaSynchronizer(source, store, ::fullAccess)
+            .sync(volume(10), reconcileUnobservedChanges = true)
+        assertEquals(IncrementalSyncResult.Complete(2), result)
+        assertTrue(store.items.getValue("external_primary" to 2L).isAccessible)
+        assertTrue(store.items.getValue("external_primary" to 3L).isAccessible)
+    }
+
+    @Test
+    fun coldStartWithTooManyUnindexedRowsNeedsFullReconciliation() = runTest {
+        val source = FakeDeltaSource((1L..501L).map { record(it, 10) })
+        val store = FakeStore(checkpoint())
+        val result = IncrementalMediaSynchronizer(source, store, ::fullAccess)
+            .sync(volume(10), reconcileUnobservedChanges = true)
+        assertEquals(IncrementalSyncResult.NeedsFullVolumeReconciliation, result)
+        assertEquals(0, store.items.size)
+    }
+
+    @Test
+    fun coldStartSweepReadsAcrossIdPages() = runTest {
+        val records = (1L..12_000L).map { record(it, 10) }
+        val store = FakeStore(checkpoint()).apply {
+            records.forEach { items["external_primary" to it.key.mediaStoreId] = it.toEntity(1) }
+        }
+        val result = IncrementalMediaSynchronizer(FakeDeltaSource(records), store, ::fullAccess)
+            .sync(volume(10), reconcileUnobservedChanges = true)
+        assertEquals(IncrementalSyncResult.NoChange, result)
+        assertTrue(store.items.values.all { it.isAccessible })
+    }
+
+    @Test
+    fun coldStartUnchangedVolumeWithNoAbsencesIsNoChange() = runTest {
+        val source = FakeDeltaSource(listOf(record(1, 10)))
+        val store = FakeStore(checkpoint()).apply { items["external_primary" to 1] = record(1, 10).toEntity(1) }
+        val result = IncrementalMediaSynchronizer(source, store, ::fullAccess)
+            .sync(volume(10), reconcileUnobservedChanges = true)
+        assertEquals(IncrementalSyncResult.NoChange, result)
+        assertEquals(0, source.pageQueries)
+    }
+
+    @Test
+    fun coldStartPermissionLostDuringSweepHidesNothing() = runTest {
+        var access = fullAccess()
+        val source = FakeDeltaSource(listOf(record(1, 10))).apply { onIdsRead = { access = noAccess() } }
+        val store = FakeStore(checkpoint()).apply {
+            items["external_primary" to 1] = record(1, 10).toEntity(1)
+            items["external_primary" to 2] = record(2, 10).toEntity(1)
+        }
+        val result = IncrementalMediaSynchronizer(source, store, { access })
+            .sync(volume(10), reconcileUnobservedChanges = true)
+        assertEquals(IncrementalSyncResult.PausedPermission(0), result)
+        assertTrue(store.items.values.all { it.isAccessible })
+    }
+
+    @Test
+    fun deltaPagesAreRawAndFlagEligibleRowsWhileSingleRowReadsLandComplete() = runTest {
+        val webp = record(1, 11).copy(mimeType = "image/webp")
+        val source = FakeDeltaSource(listOf(webp, record(2, 11).copy(mimeType = "image/webp")))
         val store = FakeStore(checkpoint())
         val sync = IncrementalMediaSynchronizer(source, store, ::fullAccess)
-        assertEquals(IncrementalSyncResult.NeedsFullVolumeReconciliation,
-            sync.sync(volume(11), reconcileUnobservedChanges = true))
-        assertEquals(10L, store.checkpoint!!.generation)
-        assertEquals(0, source.pageQueries)
-        assertEquals(IncrementalSyncResult.NoChange,
-            sync.sync(volume(10), reconcileUnobservedChanges = true))
-        assertEquals(0, source.pageQueries)
+        sync.sync(volume(11))
+        assertTrue(store.items.getValue("external_primary" to 1L).needsProbe)
+        assertTrue(store.items.getValue("external_primary" to 2L).needsProbe)
+        sync.applyRowHint(MediaKey("external_primary", 2))
+        assertFalse(store.items.getValue("external_primary" to 2L).needsProbe)
+    }
+
+    @Test
+    fun withoutReconcileFlagTheSweepIsSkipped() = runTest {
+        val source = FakeDeltaSource(emptyList())
+        val store = FakeStore(checkpoint()).apply { items["external_primary" to 2] = record(2, 10).toEntity(1) }
+        val result = IncrementalMediaSynchronizer(source, store, ::fullAccess).sync(volume(10))
+        assertEquals(IncrementalSyncResult.NoChange, result)
+        assertEquals(0, source.idQueries)
+        assertTrue(store.items.getValue("external_primary" to 2L).isAccessible)
+    }
+
+    @Test
+    fun coldStartProviderVersionChangeStillNeedsFullReconciliation() = runTest {
+        val result = IncrementalMediaSynchronizer(
+            FakeDeltaSource(emptyList()), FakeStore(checkpoint()), ::fullAccess,
+        ).sync(volume(10, version = "v2"), reconcileUnobservedChanges = true)
+        assertEquals(IncrementalSyncResult.NeedsFullVolumeReconciliation, result)
     }
 
     @Test
@@ -228,6 +346,15 @@ class IncrementalMediaSynchronizerTest {
     ) : MediaStoreDeltaSource {
         var pageQueries = 0
         var folderQueries = 0
+        var idQueries = 0
+        var onIdsRead: (() -> Unit)? = null
+        override fun readIdsOnly(volumeName: String, afterId: Long, limit: Int): LongArray {
+            idQueries++
+            onIdsRead?.invoke()
+            return records.filter { it.key.volumeName == volumeName && it.key.mediaStoreId > afterId }
+                .map { it.key.mediaStoreId }.sorted().take(limit).toLongArray()
+        }
+
         override fun readGenerationPage(
             volumeName: String,
             afterGeneration: Long,
@@ -248,7 +375,7 @@ class IncrementalMediaSynchronizerTest {
 
         override fun readRow(key: MediaKey): MediaStoreRow = when {
             key in hidden -> MediaStoreRow.Hidden
-            else -> records.firstOrNull { it.key == key }?.let(MediaStoreRow::Present) ?: MediaStoreRow.Absent
+            else -> records.firstOrNull { it.key == key }?.let { MediaStoreRow.Present(it.copy(probed = true)) } ?: MediaStoreRow.Absent
         }
 
         override fun readFolderPage(
@@ -315,6 +442,12 @@ class IncrementalMediaSynchronizerTest {
             }
             missing.forEach { items[it.volumeName to it.mediaStoreId] = it.copy(isAccessible = false) }
             return missing.size
+        }
+        override suspend fun accessibleMediaIds(volumeName: String): List<Long> =
+            items.values.filter { it.volumeName == volumeName && it.isAccessible }.map { it.mediaStoreId }
+        override suspend fun markMediaIdsInaccessible(volumeName: String, ids: List<Long>): Int {
+            ids.forEach { id -> items[volumeName to id]?.let { items[volumeName to id] = it.copy(isAccessible = false) } }
+            return ids.size
         }
         override suspend fun mediaLocation(volumeName: String, id: Long) =
             items[volumeName to id]?.let { MediaLocation(it.relativePath, it.displayName) }

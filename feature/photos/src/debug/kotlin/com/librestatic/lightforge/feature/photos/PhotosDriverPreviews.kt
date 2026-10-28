@@ -210,6 +210,8 @@ private fun sampleTimeline(days: List<Pair<LocalDate, Int>>): List<TimelineEntry
         listOf(TimelineEntry.DayHeader(day.toEpochDay())) + List(count) { position ->
             id += 1
             val video = id % 5 == 0L
+            // Every other video is still waiting for the background pass that reads its duration.
+            val pending = video && id % 10 == 0L
             TimelineEntry.Media(
                 TimelineMedia(
                     key = MediaKey("external_primary", id),
@@ -218,7 +220,8 @@ private fun sampleTimeline(days: List<Pair<LocalDate, Int>>): List<TimelineEntry
                     timelineSortMillis = noon - position * 60_000L,
                     width = 4000,
                     height = 3000,
-                    durationMillis = if (video) 42_000 else 0,
+                    durationMillis = if (video && !pending) 42_000 else 0,
+                    detailsPending = pending,
                     isFavorite = id % 7 == 0L,
                     displayName = "IMG_$id.jpg",
                     sizeBytes = 2_400_000,

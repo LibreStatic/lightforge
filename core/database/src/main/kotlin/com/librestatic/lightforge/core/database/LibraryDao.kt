@@ -203,6 +203,42 @@ interface LibraryDao {
     )
     suspend fun searchRebuildRow(volumeName: String, mediaStoreId: Long): SearchRebuildRow?
 
+    /** The documents of [ids] (one volume) that are eligible for search; absent ids have none. */
+    @Query(
+        "SELECT m.*, o.rawText AS ocrText, o.modelVersion AS ocrModelVersion, " +
+            "GROUP_CONCAT(l.canonicalLabel) AS canonicalLabelsCsv, MAX(l.modelVersion) AS labelModelVersion " +
+            "FROM media_items m LEFT JOIN media_ocr o ON o.volumeName=m.volumeName AND o.mediaStoreId=m.mediaStoreId " +
+            "LEFT JOIN media_labels l ON l.volumeName=m.volumeName AND l.mediaStoreId=m.mediaStoreId " +
+            "AND NOT EXISTS (SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel=l.canonicalLabel) " +
+            "WHERE m.volumeName=:volumeName AND m.mediaStoreId IN (:ids) AND m.isAccessible=1 AND m.isTrashed=0 " +
+            "GROUP BY m.volumeName,m.mediaStoreId",
+    )
+    suspend fun searchRebuildRows(volumeName: String, ids: List<Long>): List<SearchRebuildRow>
+
+    @Query("SELECT COUNT(*) FROM media_items WHERE isAccessible=1 AND isTrashed=0")
+    suspend fun searchEligibleCount(): Int
+
+    @Query("SELECT COALESCE(MAX(seq),0) FROM search_index_journal")
+    suspend fun searchJournalMaxSeq(): Long
+
+    @Query("SELECT COUNT(*) FROM search_index_journal")
+    fun observeSearchJournalCount(): kotlinx.coroutines.flow.Flow<Int>
+
+    @Query(
+        "SELECT DISTINCT volumeName, mediaStoreId FROM search_index_journal WHERE seq<=:throughSeq " +
+            "ORDER BY volumeName ASC, mediaStoreId ASC LIMIT :limit",
+    )
+    suspend fun searchJournalKeys(throughSeq: Long, limit: Int): List<SearchJournalKey>
+
+    @Query(
+        "DELETE FROM search_index_journal WHERE seq<=:throughSeq AND volumeName=:volumeName " +
+            "AND mediaStoreId IN (:ids)",
+    )
+    suspend fun deleteSearchJournal(throughSeq: Long, volumeName: String, ids: List<Long>)
+
+    @Query("DELETE FROM search_index_journal WHERE seq<=:throughSeq")
+    suspend fun clearSearchJournal(throughSeq: Long)
+
     @Query(
         "SELECT m.* FROM media_items m WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0 " +
             "AND NOT EXISTS (SELECT 1 FROM media_label_runs r WHERE r.volumeName=m.volumeName " +
@@ -543,7 +579,23 @@ interface LibraryDao {
         // This transaction serializes with scan completion; absent, unverified rows still hide.
         val activeScans = items.filter { it.isAccessible && it.lastSeenScanId == 0L }
             .map { it.volumeName }.distinct().associateWith { checkpoint(it)?.activeScanId }
-        upsertMediaRows(items.map { row ->
+        // Pages are indexed raw. A raw row of a file that did not change keeps what an earlier probe found,
+        // so rewriting it (folder refresh, a hint) neither loses that nor queues the file again.
+        val known = items.filter { it.needsProbe }.groupBy { it.volumeName }
+            .flatMap { (volume, rows) ->
+                rows.map { it.mediaStoreId }.chunked(500).flatMap { knownMediaGenerations(volume, it) }
+                    .map { volume to it }
+            }.associate { (volume, row) -> (volume to row.mediaStoreId) to row }
+        upsertMediaRows(items.map { raw ->
+            val before = known[raw.volumeName to raw.mediaStoreId]
+            val row = if (before == null || before.generationModified != raw.generationModified || before.needsProbe) raw
+            else raw.copy(
+                durationMillis = if (raw.durationMillis > 0) raw.durationMillis else before.durationMillis,
+                width = if (raw.width > 0) raw.width else before.width,
+                height = if (raw.height > 0) raw.height else before.height,
+                isAnimated = raw.isAnimated || before.isAnimated,
+                needsProbe = false,
+            )
             val choice = choices[row.volumeName to row.mediaStoreId]?.takeIf { it.generationAdded == row.generationAdded }
             val dated = if (choice == null) row else row.copy(timelineSortMillis = choice.timelineSortMillis, dateTakenMillis = choice.dateTakenMillis)
             val activeScan = activeScans[row.volumeName]
@@ -586,7 +638,7 @@ interface LibraryDao {
     }
 
     @Query(
-        "SELECT mediaStoreId, generationModified, durationMillis, width, isAnimated FROM media_items " +
+        "SELECT mediaStoreId, generationModified, durationMillis, width, isAnimated, height, needsProbe FROM media_items " +
             "WHERE volumeName=:volumeName AND mediaStoreId IN (:mediaStoreIds)",
     )
     suspend fun knownMediaGenerations(
@@ -594,13 +646,26 @@ interface LibraryDao {
         mediaStoreIds: List<Long>,
     ): List<KnownMediaGeneration>
 
-    @Query(
-        "UPDATE media_items SET lastSeenScanId=:scanId, isAccessible=1 " +
-            "WHERE volumeName=:volumeName AND mediaStoreId IN (:mediaStoreIds)",
-    )
-    suspend fun markMediaSeen(volumeName: String, mediaStoreIds: List<Long>, scanId: Long): Int
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertScanMarks(marks: List<MediaScanMarkEntity>)
 
-    /** Full reconciliation touches known rows but writes complete entities only for new/stale files. */
+    /** Only rows that were hidden and reappeared match, so a page of unchanged rows writes nothing to media_items. */
+    @Query(
+        "UPDATE media_items SET isAccessible=1 " +
+            "WHERE volumeName=:volumeName AND mediaStoreId IN (:mediaStoreIds) AND isAccessible=0",
+    )
+    suspend fun revealReappearedMedia(volumeName: String, mediaStoreIds: List<Long>): Int
+
+    @Query("DELETE FROM media_scan_marks WHERE volumeName=:volumeName")
+    suspend fun clearScanMarks(volumeName: String)
+
+    @Query("DELETE FROM media_scan_marks WHERE volumeName=:volumeName AND scanId!=:scanId")
+    suspend fun clearStaleScanMarks(volumeName: String, scanId: Long)
+
+    /**
+     * Full reconciliation writes complete entities only for new/stale files. Rows seen again are recorded in
+     * media_scan_marks, not media_items: every UPDATE of media_items invalidates each observed timeline/folder query.
+     */
     @Transaction
     suspend fun reconcileMediaPage(
         items: List<MediaItemEntity>,
@@ -611,7 +676,10 @@ interface LibraryDao {
             require(items.all { it.volumeName == volumeName && it.isAccessible })
             val known = knownMediaGenerations(volumeName, items.map(MediaItemEntity::mediaStoreId))
                 .associateBy(KnownMediaGeneration::mediaStoreId)
-            markMediaSeen(volumeName, items.map(MediaItemEntity::mediaStoreId), items.first().lastSeenScanId)
+            val scanId = items.first().lastSeenScanId
+            val ids = items.map(MediaItemEntity::mediaStoreId)
+            upsertScanMarks(ids.map { MediaScanMarkEntity(volumeName, it, scanId) })
+            revealReappearedMedia(volumeName, ids)
             val newOrChanged = items.filter { item ->
                 val row = known[item.mediaStoreId]
                 // Also rewrite rows whose duration or size were missing and are now known (FLV and
@@ -626,15 +694,73 @@ interface LibraryDao {
         upsertCheckpoint(checkpoint)
     }
 
+    /** The newest accessible rows still waiting for their file to be read. */
+    @Query(
+        "SELECT volumeName, mediaStoreId, mediaType, mimeType, generationModified, dateModifiedSeconds, " +
+            "durationMillis, width, height FROM media_items WHERE needsProbe = 1 AND isAccessible = 1 " +
+            "ORDER BY timelineSortMillis DESC, mediaStoreId DESC LIMIT :limit",
+    )
+    suspend fun pendingProbeRows(limit: Int): List<PendingProbeRow>
+
+    @Query("SELECT COUNT(*) FROM media_items WHERE needsProbe = 1 AND isAccessible = 1")
+    suspend fun pendingProbeCount(): Int
+
+    /**
+     * Fills only what the probe found (a positive stored value is never overwritten) and clears the flag.
+     * A row rewritten since it was read (another generation) is left alone.
+     */
+    @Query(
+        "UPDATE media_items SET " +
+            "durationMillis = CASE WHEN durationMillis <= 0 AND :durationMillis > 0 THEN :durationMillis ELSE durationMillis END, " +
+            "width = CASE WHEN width <= 0 AND :width > 0 THEN :width ELSE width END, " +
+            "height = CASE WHEN height <= 0 AND :height > 0 THEN :height ELSE height END, " +
+            "isAnimated = CASE WHEN :isAnimated THEN 1 ELSE isAnimated END, needsProbe = 0 " +
+            "WHERE volumeName = :volumeName AND mediaStoreId = :mediaStoreId AND generationModified = :generationModified",
+    )
+    suspend fun applyProbedDetails(
+        volumeName: String,
+        mediaStoreId: Long,
+        generationModified: Long,
+        durationMillis: Long,
+        width: Int,
+        height: Int,
+        isAnimated: Boolean,
+    ): Int
+
+    /** One transaction per batch, so the timeline is invalidated once. */
+    @Transaction
+    suspend fun applyProbeResults(results: List<ProbeResultRow>): Int =
+        results.sumOf {
+            applyProbedDetails(
+                it.volumeName, it.mediaStoreId, it.generationModified,
+                it.durationMillis, it.width, it.height, it.isAnimated,
+            )
+        }
+
+    /** After an index-format upgrade: queue every row whose file may now give more than it did. */
+    @Query(
+        "UPDATE media_items SET needsProbe = 1 WHERE volumeName = :volumeName AND (LOWER(COALESCE(mimeType, '')) IN (:sniffedMimeTypes) " +
+            "OR (mediaType = 3 AND (durationMillis <= 0 OR width <= 0 OR height <= 0)))",
+    )
+    suspend fun markProbeEligibleRowsPending(volumeName: String, sniffedMimeTypes: List<String>): Int
+
     @Transaction
     suspend fun resetVolumeForScan(checkpoint: MediaStoreCheckpointEntity) {
+        // Marks of an abandoned scan; a resumed scan keeps its own (same activeScanId).
+        checkpoint.activeScanId?.let { clearStaleScanMarks(checkpoint.volumeName, it) }
         upsertCheckpoint(checkpoint)
     }
 
-    @Query("DELETE FROM media_items WHERE volumeName=:volumeName AND lastSeenScanId!=:scanId")
+    @Query(
+        "DELETE FROM media_items WHERE volumeName=:volumeName AND NOT " +
+            "(lastSeenScanId=:scanId OR EXISTS (SELECT 1 FROM media_scan_marks k WHERE k.volumeName=media_items.volumeName AND k.mediaStoreId=media_items.mediaStoreId AND k.scanId=:scanId))",
+    )
     suspend fun deleteItemsNotSeenInScan(volumeName: String, scanId: Long): Int
 
-    @Query("UPDATE media_items SET isAccessible=0 WHERE volumeName=:volumeName AND lastSeenScanId!=:scanId")
+    @Query(
+        "UPDATE media_items SET isAccessible=0 WHERE volumeName=:volumeName AND isAccessible=1 AND NOT " +
+            "(lastSeenScanId=:scanId OR EXISTS (SELECT 1 FROM media_scan_marks k WHERE k.volumeName=media_items.volumeName AND k.mediaStoreId=media_items.mediaStoreId AND k.scanId=:scanId))",
+    )
     suspend fun hideItemsNotSeenInScan(volumeName: String, scanId: Long): Int
 
     @Transaction
@@ -643,6 +769,7 @@ interface LibraryDao {
         // Hide absent rows without cascading away saved decisions; an explicit fully-authorized
         // deletion hint remains the path for removal. Reappearing rows retain their identity.
         hideItemsNotSeenInScan(checkpoint.volumeName, scanId)
+        clearScanMarks(checkpoint.volumeName)
         upsertCheckpoint(checkpoint)
     }
 

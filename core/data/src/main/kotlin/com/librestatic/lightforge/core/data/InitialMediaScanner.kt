@@ -4,7 +4,9 @@ import com.librestatic.lightforge.core.database.LibraryDao
 import com.librestatic.lightforge.core.database.MediaItemEntity
 import com.librestatic.lightforge.core.database.MediaStoreCheckpointEntity
 import com.librestatic.lightforge.core.mediastore.MediaStorePageSource
+import com.librestatic.lightforge.core.mediastore.AnimatedImageSniffer
 import com.librestatic.lightforge.core.mediastore.MediaStoreRecord
+import com.librestatic.lightforge.core.mediastore.needsFileProbe
 import com.librestatic.lightforge.core.mediastore.VolumeGeneration
 import com.librestatic.lightforge.core.model.GrantLevel
 import com.librestatic.lightforge.core.model.LibraryAccess
@@ -41,6 +43,9 @@ interface MediaIndexStore {
     )
     suspend fun upsertCheckpoint(checkpoint: MediaStoreCheckpointEntity)
     suspend fun completeScan(checkpoint: MediaStoreCheckpointEntity, scanId: Long)
+
+    /** Queues the rows of [volumeName] whose files may give more than they did (an index-format upgrade). */
+    suspend fun markProbeEligibleRowsPending(volumeName: String, sniffedMimeTypes: List<String>): Int = 0
 }
 
 class RoomMediaIndexStore(private val dao: LibraryDao) : IncrementalMediaIndexStore {
@@ -59,6 +64,12 @@ class RoomMediaIndexStore(private val dao: LibraryDao) : IncrementalMediaIndexSt
         dao.upsertCheckpoint(checkpoint)
     override suspend fun completeScan(checkpoint: MediaStoreCheckpointEntity, scanId: Long) =
         dao.completeVolumeScan(checkpoint, scanId)
+    override suspend fun markProbeEligibleRowsPending(volumeName: String, sniffedMimeTypes: List<String>): Int =
+        dao.markProbeEligibleRowsPending(volumeName, sniffedMimeTypes)
+    override suspend fun accessibleMediaIds(volumeName: String): List<Long> =
+        dao.accessibleIdsUnderPrefix(volumeName, "")
+    override suspend fun markMediaIdsInaccessible(volumeName: String, ids: List<Long>): Int =
+        dao.markMediaIdsInaccessible(volumeName, ids)
     override suspend fun deleteMedia(volumeName: String, id: Long): Int =
         dao.deleteMedia(volumeName, id)
     override suspend fun upsertHintedMedia(items: List<MediaItemEntity>) = dao.upsertMedia(items)
@@ -155,6 +166,13 @@ class InitialMediaScanner(
             scanState = ScanState.Running.name,
             lastSuccessfulSyncMillis = null,
         )
+        // Pages are indexed without opening files. An index-format upgrade changes providerVersion (the
+        // "+lfN" suffix) precisely because the files now give more, so the rows already indexed are queued
+        // for the background pass; unchanged rows are not rewritten by this scan and would never get it. Done before
+        // the new checkpoint is stored, so a crash in between repeats it instead of skipping it.
+        if (existing != null && existing.providerVersion != volume.providerVersion) {
+            store.markProbeEligibleRowsPending(volume.volumeName, AnimatedImageSniffer.SniffedMimeTypes.toList())
+        }
         store.resetVolumeForScan(fresh)
         return fresh
     }
@@ -189,4 +207,6 @@ internal fun MediaStoreRecord.toEntity(scanId: Long): MediaItemEntity = MediaIte
     lastSeenScanId = scanId,
     dateExpiresSeconds = dateExpiresSeconds,
     isAnimated = isAnimated,
+    // Page reads are raw; a single-row read already opened the file.
+    needsProbe = !probed && needsFileProbe(),
 )

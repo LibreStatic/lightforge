@@ -46,6 +46,8 @@ data class TimelineMedia(
     val stack: TimelineStack? = null,
     /** Advanced storage mode: a hidden item merged into the timeline from the live file scan. It is not in the library, so it can be opened elsewhere but not selected or edited. */
     val isHiddenOverlay: Boolean = false,
+    /** Indexed without opening the file: duration, size or the animated flag may still be filled in by the background pass. */
+    val detailsPending: Boolean = false,
 ) : ViewerMedia {
     override val viewerId: String get() = "media:${key.volumeName}:${key.mediaStoreId}"
     override val mediaKey: MediaKey get() = key

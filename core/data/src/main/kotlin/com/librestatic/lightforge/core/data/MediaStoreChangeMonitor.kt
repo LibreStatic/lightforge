@@ -13,7 +13,10 @@ data class MediaStoreChangeBatch(
     val rowHints: Set<MediaKey>,
     /** Always true: row hints accelerate visibility, generations still advance the durable checkpoint. */
     val requiresVolumeGenerationSync: Boolean,
-    /** Collection-only notifications cannot identify deleted rows, so they require reconciliation. */
+    /**
+     * Collection-only notifications cannot identify deleted rows. The caller answers with a generation
+     * delta plus the id-only absence sweep, not a full rescan; the synchronizer escalates when needed.
+     */
     val requiresFullVolumeReconciliation: Boolean,
 )
 

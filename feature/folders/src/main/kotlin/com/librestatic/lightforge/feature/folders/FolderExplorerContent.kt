@@ -1425,7 +1425,7 @@ private fun MediaTile(
     val isVideo = media.kind == MediaKind.Video
     val selectLabel = stringResource(R.string.folders_select_action)
     val description = mediaTileDescription(
-        if (isVideo) videoDurationDescription(media.durationMillis) else stringResource(R.string.folders_photo),
+        if (isVideo) videoDurationDescription(media.durationMillis, media.detailsPending) else stringResource(R.string.folders_photo),
         media.isFavorite,
         media.displayName,
         isVideo,
@@ -1459,7 +1459,10 @@ private fun MediaTile(
             modifier = Modifier.align(Alignment.TopStart).padding(4.dp),
         )
         if (isVideo) {
-            VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.BottomEnd).padding(4.dp))
+            VideoDurationBadge(
+                media.durationMillis, Modifier.align(Alignment.BottomEnd).padding(4.dp),
+                pending = media.detailsPending,
+            )
         }
         if (selecting) SelectionCheck(selected, Modifier.align(Alignment.TopEnd).padding(6.dp))
     }
@@ -1486,7 +1489,7 @@ private fun MediaRow(
     val selectLabel = stringResource(R.string.folders_select_action)
     val selectedState = stringResource(R.string.folders_selected_state)
     val description = mediaTileDescription(
-        if (isVideo) videoDurationDescription(media.durationMillis) else stringResource(R.string.folders_photo),
+        if (isVideo) videoDurationDescription(media.durationMillis, media.detailsPending) else stringResource(R.string.folders_photo),
         media.isFavorite,
         media.displayName,
         isVideo,

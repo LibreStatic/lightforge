@@ -2,6 +2,7 @@ package com.librestatic.lightforge.core.search
 
 import android.content.Context
 import androidx.appsearch.app.AppSearchBatchResult
+import androidx.appsearch.app.AppSearchResult
 import androidx.appsearch.app.GenericDocument
 import androidx.appsearch.app.PutDocumentsRequest
 import androidx.appsearch.app.RemoveByDocumentIdRequest
@@ -40,6 +41,8 @@ interface MediaSearchIndex : Closeable {
     suspend fun remove(keys: List<MediaKey>)
     suspend fun purgeVolume(volumeName: String)
     suspend fun clear()
+    /** Number of documents currently stored. */
+    suspend fun documentCount(): Int
 
     companion object {
         const val DefaultDatabase = "media"
@@ -80,7 +83,8 @@ class AppSearchMediaIndex(
                 val request = RemoveByDocumentIdRequest.Builder(namespace(volume))
                     .addIds(volumeKeys.map(MediaKey::documentId))
                     .build()
-                active.removeAsync(request).get(30, TimeUnit.SECONDS).requireSuccess("remove")
+                // A key that was never indexed (trashed, or hidden before it was drained) is already gone.
+                active.removeAsync(request).get(30, TimeUnit.SECONDS).requireSuccess("remove", ignoreNotFound = true)
             }
         }
     }
@@ -100,6 +104,10 @@ class AppSearchMediaIndex(
         }
     }
 
+    override suspend fun documentCount(): Int = withSession { active ->
+        active.getStorageInfoAsync().get(30, TimeUnit.SECONDS).aliveDocumentsCount
+    }
+
     override fun close() {
         session?.close()
         session = null
@@ -115,8 +123,9 @@ class AppSearchMediaIndex(
             }
         }
 
-    private fun AppSearchBatchResult<String, Void>.requireSuccess(operation: String) {
-        check(isSuccess) { "$operation failed for ${failures.keys.take(5)}" }
+    private fun AppSearchBatchResult<String, Void>.requireSuccess(operation: String, ignoreNotFound: Boolean = false) {
+        val failed = if (ignoreNotFound) failures.filterValues { it.resultCode != AppSearchResult.RESULT_NOT_FOUND } else failures
+        check(failed.isEmpty()) { "$operation failed for ${failed.keys.take(5)}" }
     }
 }
 

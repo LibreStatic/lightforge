@@ -30,6 +30,12 @@ interface IncrementalMediaIndexStore : MediaIndexStore {
 
     /** Where the indexed row says its file lives, or null when the row is unknown. */
     suspend fun mediaLocation(volumeName: String, id: Long): MediaLocation? = null
+
+    /** Ids of every accessible (not hidden) row of the volume. */
+    suspend fun accessibleMediaIds(volumeName: String): List<Long>
+
+    /** Hides the rows with these ids (isAccessible=0), keeping everything saved about them. */
+    suspend fun markMediaIdsInaccessible(volumeName: String, ids: List<Long>): Int
 }
 
 /** The MediaStore folder and file name of an indexed row. */
@@ -38,6 +44,7 @@ data class MediaLocation(val relativePath: String?, val displayName: String?)
 sealed interface IncrementalSyncResult {
     data object NoChange : IncrementalSyncResult
     data object NeedsInitialScan : IncrementalSyncResult
+    /** The delta cannot be trusted (provider version changed, generation went back) or the sweep found too many unindexed rows. */
     data object NeedsFullVolumeReconciliation : IncrementalSyncResult
     data class Complete(val changedItems: Long) : IncrementalSyncResult
     data class PausedPermission(val changedItems: Long) : IncrementalSyncResult
@@ -57,7 +64,10 @@ sealed interface FolderReconcileResult {
     data object PermissionLost : FolderReconcileResult
 }
 
-/** Applies generation-bounded deltas without ever materializing the library or its IDs. */
+/**
+ * Applies generation-bounded deltas. Deltas never materialize records beyond a page; the optional
+ * cold-start absence sweep only holds the volume's ids (a few bytes each), never its records.
+ */
 class IncrementalMediaSynchronizer(
     private val source: MediaStoreDeltaSource,
     private val store: IncrementalMediaIndexStore,
@@ -90,15 +100,28 @@ class IncrementalMediaSynchronizer(
         }
         if (!currentAccess().canReadAny()) return@withContext IncrementalSyncResult.PausedPermission(0)
 
-        // Generation deltas contain changed rows, not tombstones. A newly started observer
-        // may have missed removals while this process was absent; unchanged volumes stay cheap.
-        if (reconcileUnobservedChanges &&
-            (volume.generation != checkpoint.generation || checkpoint.deltaTargetGeneration != null)
-        ) return@withContext IncrementalSyncResult.NeedsFullVolumeReconciliation
+        // Generation deltas carry changed rows, not tombstones, so removals made while this process was
+        // absent are invisible to them. With [reconcileUnobservedChanges] the delta is followed by an
+        // id-only absence sweep (cheap: no records, no file opens) instead of a full volume scan.
+        suspend fun finish(changed: Long, generationMoved: Boolean): IncrementalSyncResult {
+            if (!reconcileUnobservedChanges) return IncrementalSyncResult.Complete(changed)
+            return when (val swept = sweepAbsences(volume.volumeName)) {
+                is SweepOutcome.Done -> {
+                    val total = changed + swept.changed
+                    if (total == 0L && !generationMoved) IncrementalSyncResult.NoChange
+                    else IncrementalSyncResult.Complete(total)
+                }
+                SweepOutcome.NeedsFullScan -> IncrementalSyncResult.NeedsFullVolumeReconciliation
+                SweepOutcome.PermissionLost -> IncrementalSyncResult.PausedPermission(changed)
+            }
+        }
 
         val target = checkpoint.deltaTargetGeneration ?: volume.generation
         if (checkpoint.deltaTargetGeneration == null) {
-            if (target == checkpoint.generation) return@withContext IncrementalSyncResult.NoChange
+            if (target == checkpoint.generation) {
+                return@withContext if (reconcileUnobservedChanges) finish(0, generationMoved = false)
+                else IncrementalSyncResult.NoChange
+            }
             checkpoint = checkpoint.copy(
                 deltaTargetGeneration = target,
                 deltaGenerationCursor = checkpoint.generation,
@@ -142,7 +165,7 @@ class IncrementalMediaSynchronizer(
                         lastSuccessfulSyncMillis = nowMillis(),
                     ),
                 )
-                return@withContext IncrementalSyncResult.Complete(changed)
+                return@withContext finish(changed, generationMoved = true)
             }
 
             val nextGeneration = requireNotNull(page.nextGeneration)
@@ -162,6 +185,79 @@ class IncrementalMediaSynchronizer(
         }
         @Suppress("UNREACHABLE_CODE")
         error("Sync loop terminated unexpectedly")
+    }
+
+    private sealed interface SweepOutcome {
+        data class Done(val changed: Long) : SweepOutcome
+        data object NeedsFullScan : SweepOutcome
+        data object PermissionLost : SweepOutcome
+    }
+
+    /**
+     * Compares the ids MediaStore lists for the volume with the accessible indexed ids. Indexed ids it no
+     * longer lists are hidden (not deleted, like the end of a full scan: absence can also mean a revoked
+     * selection); listed ids the index lacks are read and upserted, unless there are so many that a full
+     * scan is the better tool. Runs inside the caller's refresh lock; it must not take [refreshMutex].
+     */
+    private suspend fun sweepAbsences(volumeName: String): SweepOutcome {
+        // Indexed ids first: a row a concurrent hint adds meanwhile is then never mistaken for a ghost.
+        val indexed = store.accessibleMediaIds(volumeName).toLongArray().also { it.sort() }
+        var current = LongArray(maxOf(indexed.size, 1_024))
+        var count = 0
+        var afterId = -1L
+        while (true) {
+            coroutineContext.ensureActive()
+            val ids = try {
+                source.readIdsOnly(volumeName, afterId, SweepPageSize)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: SecurityException) {
+                return SweepOutcome.PermissionLost
+            }
+            if (ids.isEmpty()) break
+            check(ids.last() > afterId) { "MediaStore id page did not advance" }
+            afterId = ids.last()
+            if (count + ids.size > current.size) current = current.copyOf(maxOf(current.size * 2, count + ids.size))
+            ids.copyInto(current, count)
+            count += ids.size
+        }
+        // Permission may have been revoked mid-read: absence would then mean "not shown to us".
+        if (!currentAccess().canReadAny()) return SweepOutcome.PermissionLost
+
+        // Both arrays are ascending: one merge pass yields the two differences.
+        val gone = ArrayList<Long>()
+        val unindexed = ArrayList<Long>()
+        var i = 0
+        var j = 0
+        while (i < indexed.size || j < count) {
+            when {
+                j >= count -> gone += indexed[i++]
+                i >= indexed.size -> unindexed += current[j++]
+                indexed[i] == current[j] -> { i++; j++ }
+                indexed[i] < current[j] -> gone += indexed[i++]
+                else -> unindexed += current[j++]
+            }
+        }
+        if (unindexed.size > SweepReadLimit) return SweepOutcome.NeedsFullScan
+
+        val records = ArrayList<MediaItemEntity>(unindexed.size)
+        for (id in unindexed) {
+            coroutineContext.ensureActive()
+            val row = try {
+                source.readRow(MediaKey(volumeName, id))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: SecurityException) {
+                return SweepOutcome.PermissionLost
+            }
+            if (row is MediaStoreRow.Present) records += row.record.toEntity(0)
+        }
+        if (!currentAccess().canReadAny()) return SweepOutcome.PermissionLost
+
+        gone.chunked(SweepReadLimit).forEach { store.markMediaIdsInaccessible(volumeName, it) }
+        // Token 0 keeps a paused full scan's visibility rules (see LibraryDao.upsertMedia).
+        if (records.isNotEmpty()) store.upsertHintedMedia(records)
+        return SweepOutcome.Done((gone.size + records.size).toLong())
     }
 
     /** Uses a row-specific observer URI to distinguish a deletion from a changed row. */
@@ -237,6 +333,9 @@ class IncrementalMediaSynchronizer(
             }
         }
 }
+
+private const val SweepPageSize = 5_000
+private const val SweepReadLimit = 500
 
 private fun LibraryAccess.canReadAny(): Boolean =
     images != GrantLevel.None || videos != GrantLevel.None

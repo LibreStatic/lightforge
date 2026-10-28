@@ -20,7 +20,7 @@ internal fun libraryBackgroundStatus(
     when (maintenance) {
         LibraryMaintenance.SearchIndex -> return LibraryBackgroundStatus(LibraryBackgroundWork.SearchIndex)
         LibraryMaintenance.Moments -> return LibraryBackgroundStatus(LibraryBackgroundWork.Moments)
-        null -> Unit
+        LibraryMaintenance.MediaDetails, null -> Unit
     }
     val analyses = listOf(
         people to if (people.activeTask == MlTaskType.FaceDetection) LibraryBackgroundWork.Faces else LibraryBackgroundWork.People,
@@ -28,7 +28,8 @@ internal fun libraryBackgroundStatus(
     ).filter { (state, _) -> state.consentGranted && !state.paused }
     analyses.firstOrNull { (state, _) -> state.status == MlCheckpoint.Status.Running }
         ?.let { (_, work) -> return LibraryBackgroundStatus(work) }
-    return analyses.firstNotNullOfOrNull { (state, work) ->
+    // Reading file details is the quietest of the hints: analysis running or held back is named first.
+    val waiting = analyses.firstNotNullOfOrNull { (state, work) ->
         val wait = state.waitReason?.takeIf { state.requested } ?: return@firstNotNullOfOrNull null
         LibraryBackgroundStatus(
             work,
@@ -38,4 +39,6 @@ internal fun libraryBackgroundStatus(
             },
         )
     }
+    return waiting ?: LibraryBackgroundStatus(LibraryBackgroundWork.MediaDetails)
+        .takeIf { maintenance == LibraryMaintenance.MediaDetails }
 }

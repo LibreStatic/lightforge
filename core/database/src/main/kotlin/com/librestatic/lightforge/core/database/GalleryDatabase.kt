@@ -29,6 +29,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
             ArchivedMediaEntity::class,
             ActivityEventEntity::class,
             MediaStoreCheckpointEntity::class,
+            MediaScanMarkEntity::class,
             AlbumAggregateEntity::class,
             VirtualAlbumEntity::class,
             VirtualAlbumMediaEntity::class,
@@ -37,6 +38,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
             MediaLabelEntity::class,
             LabelSuppressionEntity::class,
             MediaOcrEntity::class,
+            SearchIndexJournalEntity::class,
             DuplicateHashEntity::class,
             SimilarityFeatureEntity::class,
             SimilarityEdgeEntity::class,
@@ -77,7 +79,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
             PeerImportVersionEntity::class,
             PeerImportSourceEntity::class,
         ],
-    version = 33,
+    version = 36,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -681,6 +683,27 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration35To36 = object : Migration(35, 36) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `media_scan_marks` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `scanId` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`))")
+        }
+    }
+
+    val Migration34To35 = object : Migration(34, 35) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            SearchIndexJournalSchema.createTable(db)
+            SearchIndexJournalSchema.installTriggers(db)
+        }
+    }
+
+    val Migration33To34 = object : Migration(33, 34) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // Rows indexed so far were probed while indexing; only new or changed rows wait for the background pass.
+            db.execSQL("ALTER TABLE media_items ADD COLUMN needsProbe INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_needs_probe` ON `media_items` (`needsProbe`, `timelineSortMillis`, `mediaStoreId`)")
+        }
+    }
+
     val Migration32To33 = object : Migration(32, 33) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE media_items ADD COLUMN isAnimated INTEGER NOT NULL DEFAULT 0")
@@ -771,6 +794,7 @@ object GalleryDatabaseFactory {
             // Runtime, local workers and other app connections must observe the same writes.
             .enableMultiInstanceInvalidation()
             .addCallback(MomentDiscoverySchema.Callback)
+            .addCallback(SearchIndexJournalSchema.Callback)
             .addMigrations(
                 Migration1To2,
                 Migration2To3,
@@ -804,6 +828,9 @@ object GalleryDatabaseFactory {
                 Migration30To31,
                 Migration31To32,
                 Migration32To33,
+                Migration33To34,
+                Migration34To35,
+                Migration35To36,
             )
             .build()
 }

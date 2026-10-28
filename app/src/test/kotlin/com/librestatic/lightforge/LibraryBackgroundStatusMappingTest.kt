@@ -28,6 +28,19 @@ class LibraryBackgroundStatusMappingTest {
     }
 
     @Test
+    fun mediaDetailsIsTheQuietestHint() {
+        assertEquals(
+            LibraryBackgroundStatus(LibraryBackgroundWork.MediaDetails),
+            libraryBackgroundStatus(LibraryMaintenance.MediaDetails, idle, idle),
+        )
+        assertEquals(
+            LibraryBackgroundStatus(LibraryBackgroundWork.Faces),
+            libraryBackgroundStatus(LibraryMaintenance.MediaDetails, running(MlTaskType.FaceDetection), idle),
+        )
+        assertEquals(null, libraryBackgroundStatus(null, idle, idle))
+    }
+
+    @Test
     fun faceDetectionAndLaterPeopleStagesAreNamedApart() {
         assertEquals(
             LibraryBackgroundStatus(LibraryBackgroundWork.Faces),

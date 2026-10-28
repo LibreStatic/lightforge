@@ -13,7 +13,8 @@ object AnimatedImageSniffer {
     /** Header bytes read per candidate file. */
     const val HeaderBytes: Int = 16 * 1024
 
-    private val sniffedMimeTypes = setOf(
+    /** Lowercase MIME types whose header has to be read to tell whether they are animated. */
+    val SniffedMimeTypes: Set<String> = setOf(
         "image/webp", "image/png", "image/apng", "image/avif", "image/avif-sequence",
         "image/heif", "image/heic", "image/heif-sequence", "image/heic-sequence",
     )
@@ -21,7 +22,7 @@ object AnimatedImageSniffer {
     private val sequenceBrands = setOf("avis", "msf1", "hevc", "hevx", "avcs")
 
     /** Whether the file has to be opened to tell; GIF is decided by MIME type alone. */
-    fun needsHeader(mimeType: String?): Boolean = mimeType?.lowercase() in sniffedMimeTypes
+    fun needsHeader(mimeType: String?): Boolean = mimeType?.lowercase() in SniffedMimeTypes
 
     fun isAnimatedByMime(mimeType: String?): Boolean = mimeType.equals("image/gif", ignoreCase = true)
 
@@ -80,7 +81,7 @@ internal class AnimatedImageProbe(private val resolver: ContentResolver) {
     fun complete(record: MediaStoreRecord): MediaStoreRecord {
         if (record.kind != MediaKind.Image) return record
         if (AnimatedImageSniffer.isAnimatedByMime(record.mimeType)) return record.copy(isAnimated = true)
-        if (!AnimatedImageSniffer.needsHeader(record.mimeType)) return record
+        if (!record.needsFileProbe()) return record
         val header = readHeader(record) ?: return record
         return record.copy(isAnimated = AnimatedImageSniffer.isAnimated(record.mimeType, header))
     }
@@ -98,6 +99,8 @@ internal class AnimatedImageProbe(private val resolver: ContentResolver) {
         }
     } catch (_: IOException) {
         null
+    } catch (denied: SecurityException) {
+        throw denied
     } catch (_: RuntimeException) {
         null
     }
