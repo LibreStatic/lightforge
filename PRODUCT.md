@@ -20,7 +20,7 @@ Lightforge is a 100% native Android gallery app that makes managing massive loca
 
 ## Positioning
 
-A gallery that scales to quarter-million-item libraries on-device, with local ML organization, no service dependency, and no OEM privilege assumptions. Connectivity is used only to download user-controlled, signed semantic model packages; gallery data and queries never leave the device. Unlike stock gallery apps, it does not depend on MANAGE_EXTERNAL_STORAGE or OEM privileges: all-files access is an opt-in, removable advanced mode (ADR-046). The differentiator is full local-first architecture: MediaStore as authority, Room/AppSearch/ML as rebuildable indexes, and a system-permission-respecting access model.
+A gallery that scales to quarter-million-item libraries on-device, with local ML organization, no service dependency, and no OEM privilege assumptions. Connectivity is used only for user-initiated actions: downloading model packages (signed semantic packages, SHA-256-pinned pet and inpainting models), backup and folder sync to the user's own SFTP or SMB servers, and encrypted transfer to another device on the local network. Gallery data and queries never leave the device otherwise. Unlike stock gallery apps, it does not depend on MANAGE_EXTERNAL_STORAGE or OEM privileges: all-files access is an opt-in, removable advanced mode (ADR-046). The differentiator is full local-first architecture: MediaStore as authority, Room/AppSearch/ML as rebuildable indexes, and a system-permission-respecting access model.
 
 ## Operating Context
 
@@ -66,7 +66,7 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 
 ## Evidence on Hand
 
-- 41 ADRs in docs/adr/ covering all architectural decisions
+- 46 ADRs in docs/adr/ covering all architectural decisions
 - Physical device testing: reference phone (reference phone, API 36) and Galaxy Tab S9+ (reference tablet, API 36)
 - Macrobenchmark results and Baseline Profiles in baselineprofile/ and benchmark/ modules
 - Face identification test datasets provided by user (face_identification_test_v2.zip, face_identification_test_v3.zip)
