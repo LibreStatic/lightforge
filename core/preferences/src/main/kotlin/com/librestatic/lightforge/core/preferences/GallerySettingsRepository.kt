@@ -290,6 +290,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     videoMaxZoom = gestures.videoMaxZoom.coerceIn(2f, 8f),
                     videoSkipSeconds =
                         gestures.videoSkipSeconds.takeIf { it in setOf(5, 10, 15, 30) } ?: 10,
+                    videoFastSpeed =
+                        gestures.videoFastSpeed.takeIf { it in GestureSettings.VideoFastSpeeds }
+                            ?: 2f,
                 ),
             thumbnails = thumbnails.copy(
                 gridColumns = thumbnails.gridColumns.takeIf { it == AutoGridColumns }
@@ -373,6 +376,35 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         videoMaxZoom = p[Keys.VideoMaxZoom] ?: 4f,
                         videoSkipSeconds = p[Keys.VideoSkipSeconds] ?: 10,
                         swipeUpForDetails = p[Keys.SwipeUpDetails] ?: true,
+                        videoHoldLeft =
+                            p[Keys.VideoHoldLeft]?.enumOrDefault(VideoHoldAction.FastRewind)
+                                ?: VideoHoldAction.FastRewind,
+                        videoHoldCenter =
+                            p[Keys.VideoHoldCenter]?.enumOrDefault(VideoHoldAction.SlowMotion)
+                                ?: VideoHoldAction.SlowMotion,
+                        videoHoldRight =
+                            p[Keys.VideoHoldRight]?.enumOrDefault(VideoHoldAction.FastForward)
+                                ?: VideoHoldAction.FastForward,
+                        videoFastSpeed = p[Keys.VideoFastSpeed] ?: 2f,
+                        slowMotionDragMode =
+                            p[Keys.SlowMotionDragMode]?.enumOrDefault(SlowMotionDragMode.Shuttle)
+                                ?: SlowMotionDragMode.Shuttle,
+                        videoFastForwardAudio = p[Keys.VideoFastForwardAudio] ?: true,
+                        videoHoldLiveSpeed = p[Keys.VideoHoldLiveSpeed] ?: true,
+                        videoDoubleTapLeft =
+                            p[Keys.VideoDoubleTapLeft]?.enumOrDefault(VideoDoubleTapAction.SeekBack)
+                                ?: GestureSettings.legacyDoubleTap(
+                                    true, (p[Keys.VideoSeek] ?: true), (p[Keys.DoubleTapZoom] ?: true), VideoDoubleTapAction.SeekBack),
+                        videoDoubleTapCenter =
+                            p[Keys.VideoDoubleTapCenter]?.enumOrDefault(VideoDoubleTapAction.Zoom)
+                                ?: GestureSettings.legacyDoubleTap(
+                                    false, (p[Keys.VideoSeek] ?: true), (p[Keys.DoubleTapZoom] ?: true), VideoDoubleTapAction.Zoom),
+                        videoDoubleTapRight =
+                            p[Keys.VideoDoubleTapRight]
+                                ?.enumOrDefault(VideoDoubleTapAction.SeekForward)
+                                ?: GestureSettings.legacyDoubleTap(
+                                    true, (p[Keys.VideoSeek] ?: true), (p[Keys.DoubleTapZoom] ?: true), VideoDoubleTapAction.SeekForward),
+                        videoTwoFingerPlayPause = p[Keys.VideoTwoFingerPlayPause] ?: true,
                     ),
                 thumbnails =
                     ThumbnailSettings(
@@ -458,6 +490,17 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.VideoMaxZoom] = s.gestures.videoMaxZoom
         p[Keys.VideoSkipSeconds] = s.gestures.videoSkipSeconds
         p[Keys.SwipeUpDetails] = s.gestures.swipeUpForDetails
+        p[Keys.VideoHoldLeft] = s.gestures.videoHoldLeft.name
+        p[Keys.VideoHoldCenter] = s.gestures.videoHoldCenter.name
+        p[Keys.VideoHoldRight] = s.gestures.videoHoldRight.name
+        p[Keys.VideoFastSpeed] = s.gestures.videoFastSpeed
+        p[Keys.SlowMotionDragMode] = s.gestures.slowMotionDragMode.name
+        p[Keys.VideoFastForwardAudio] = s.gestures.videoFastForwardAudio
+        p[Keys.VideoHoldLiveSpeed] = s.gestures.videoHoldLiveSpeed
+        p[Keys.VideoDoubleTapLeft] = s.gestures.videoDoubleTapLeft.name
+        p[Keys.VideoDoubleTapCenter] = s.gestures.videoDoubleTapCenter.name
+        p[Keys.VideoDoubleTapRight] = s.gestures.videoDoubleTapRight.name
+        p[Keys.VideoTwoFingerPlayPause] = s.gestures.videoTwoFingerPlayPause
         p[Keys.CropThumbnails] = s.thumbnails.cropToFill
         p[Keys.AnimateMedia] = s.thumbnails.animateMedia
         p[Keys.ShowDuration] = s.thumbnails.showVideoDuration
@@ -543,6 +586,17 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("videoMaxZoom", gestures.videoMaxZoom)
                     put("videoSkipSeconds", gestures.videoSkipSeconds)
                     put("swipeUpForDetails", gestures.swipeUpForDetails)
+                    put("videoHoldLeft", gestures.videoHoldLeft.name)
+                    put("videoHoldCenter", gestures.videoHoldCenter.name)
+                    put("videoHoldRight", gestures.videoHoldRight.name)
+                    put("videoFastSpeed", gestures.videoFastSpeed)
+                    put("slowMotionDragMode", gestures.slowMotionDragMode.name)
+                    put("videoFastForwardAudio", gestures.videoFastForwardAudio)
+                    put("videoHoldLiveSpeed", gestures.videoHoldLiveSpeed)
+                    put("videoDoubleTapLeft", gestures.videoDoubleTapLeft.name)
+                    put("videoDoubleTapCenter", gestures.videoDoubleTapCenter.name)
+                    put("videoDoubleTapRight", gestures.videoDoubleTapRight.name)
+                    put("videoTwoFingerPlayPause", gestures.videoTwoFingerPlayPause)
                 },
             )
             put(
@@ -612,6 +666,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val p = optJSONObject("playback") ?: JSONObject()
         val l = optJSONObject("library") ?: JSONObject()
         val g = optJSONObject("gestures") ?: JSONObject()
+        val legacyZoom = g.bool("doubleTapZoom", true)
+        val legacySeek = g.bool("videoSeek", true)
         val t = optJSONObject("thumbnails") ?: JSONObject()
         val o = optJSONObject("operations") ?: JSONObject()
         val s = optJSONObject("security") ?: JSONObject()
@@ -663,18 +719,49 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                 ),
             gestures =
                 GestureSettings(
-                    g.bool("doubleTapZoom", true),
-                    g.bool("pinchZoom", true),
-                    g.bool("swipeDownToClose", true),
-                    g.bool("photoBrightness", true),
-                    g.bool("videoBrightness", true),
-                    g.bool("videoVolume", true),
-                    g.bool("videoSeek", true),
-                    g.bool("rotatePhotos", true),
-                    g.optDouble("photoMaxZoom", 8.0).toFloat(),
-                    g.optDouble("videoMaxZoom", 4.0).toFloat(),
-                    g.optInt("videoSkipSeconds", 10),
-                    g.bool("swipeUpForDetails", true),
+                    doubleTapZoom = legacyZoom,
+                    pinchZoom = g.bool("pinchZoom", true),
+                    swipeDownToClose = g.bool("swipeDownToClose", true),
+                    photoBrightness = g.bool("photoBrightness", true),
+                    videoBrightness = g.bool("videoBrightness", true),
+                    videoVolume = g.bool("videoVolume", true),
+                    videoSeek = legacySeek,
+                    rotatePhotos = g.bool("rotatePhotos", true),
+                    photoMaxZoom = g.optDouble("photoMaxZoom", 8.0).toFloat(),
+                    videoMaxZoom = g.optDouble("videoMaxZoom", 4.0).toFloat(),
+                    videoSkipSeconds = g.optInt("videoSkipSeconds", 10),
+                    swipeUpForDetails = g.bool("swipeUpForDetails", true),
+                    videoHoldLeft =
+                        g.optString("videoHoldLeft").enumOrDefault(VideoHoldAction.FastRewind),
+                    videoHoldCenter =
+                        g.optString("videoHoldCenter").enumOrDefault(VideoHoldAction.SlowMotion),
+                    videoHoldRight =
+                        g.optString("videoHoldRight").enumOrDefault(VideoHoldAction.FastForward),
+                    videoFastSpeed = g.optDouble("videoFastSpeed", 2.0).toFloat(),
+                    slowMotionDragMode =
+                        g.optString("slowMotionDragMode")
+                            .enumOrDefault(SlowMotionDragMode.Shuttle),
+                    videoFastForwardAudio = g.bool("videoFastForwardAudio", true),
+                    videoHoldLiveSpeed = g.bool("videoHoldLiveSpeed", true),
+                    videoDoubleTapLeft =
+                        if (g.has("videoDoubleTapLeft"))
+                            g.optString("videoDoubleTapLeft")
+                                .enumOrDefault(VideoDoubleTapAction.SeekBack)
+                        else GestureSettings.legacyDoubleTap(
+                            true, legacySeek, legacyZoom, VideoDoubleTapAction.SeekBack),
+                    videoDoubleTapCenter =
+                        if (g.has("videoDoubleTapCenter"))
+                            g.optString("videoDoubleTapCenter")
+                                .enumOrDefault(VideoDoubleTapAction.Zoom)
+                        else GestureSettings.legacyDoubleTap(
+                            false, legacySeek, legacyZoom, VideoDoubleTapAction.Zoom),
+                    videoDoubleTapRight =
+                        if (g.has("videoDoubleTapRight"))
+                            g.optString("videoDoubleTapRight")
+                                .enumOrDefault(VideoDoubleTapAction.SeekForward)
+                        else GestureSettings.legacyDoubleTap(
+                            true, legacySeek, legacyZoom, VideoDoubleTapAction.SeekForward),
+                    videoTwoFingerPlayPause = g.bool("videoTwoFingerPlayPause", true),
                 ),
             thumbnails =
                 ThumbnailSettings(
@@ -757,6 +844,17 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val PhotoMaxZoom = floatPreferencesKey("gestures.photo_max_zoom")
         val VideoMaxZoom = floatPreferencesKey("gestures.video_max_zoom")
         val VideoSkipSeconds = intPreferencesKey("gestures.video_skip_seconds")
+        val VideoHoldLeft = stringPreferencesKey("gestures.video_hold_left")
+        val VideoHoldCenter = stringPreferencesKey("gestures.video_hold_center")
+        val VideoHoldRight = stringPreferencesKey("gestures.video_hold_right")
+        val VideoFastSpeed = floatPreferencesKey("gestures.video_fast_speed")
+        val SlowMotionDragMode = stringPreferencesKey("gestures.slow_motion_drag_mode")
+        val VideoFastForwardAudio = booleanPreferencesKey("gestures.video_fast_forward_audio")
+        val VideoHoldLiveSpeed = booleanPreferencesKey("gestures.video_hold_live_speed")
+        val VideoDoubleTapLeft = stringPreferencesKey("gestures.video_double_tap_left")
+        val VideoDoubleTapCenter = stringPreferencesKey("gestures.video_double_tap_center")
+        val VideoDoubleTapRight = stringPreferencesKey("gestures.video_double_tap_right")
+        val VideoTwoFingerPlayPause = booleanPreferencesKey("gestures.video_two_finger_play_pause")
         val SwipeUpDetails = booleanPreferencesKey("gestures.swipe_up_details")
         val CropThumbnails = booleanPreferencesKey("thumbnails.crop")
         val AnimateMedia = booleanPreferencesKey("thumbnails.animate")

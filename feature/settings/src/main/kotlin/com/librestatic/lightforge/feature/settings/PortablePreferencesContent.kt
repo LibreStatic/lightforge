@@ -371,6 +371,17 @@ private fun fieldLabel(field: PortablePreferenceField): Int =
         PortablePreferenceField.VideoZoom -> R.string.portable_preferences_field_videozoom
         PortablePreferenceField.SkipSeconds -> R.string.portable_preferences_field_skipseconds
         PortablePreferenceField.SwipeUp -> R.string.portable_preferences_field_swipeup
+        PortablePreferenceField.HoldLeft -> R.string.settings_video_hold_left
+        PortablePreferenceField.HoldCenter -> R.string.settings_video_hold_center
+        PortablePreferenceField.HoldRight -> R.string.settings_video_hold_right
+        PortablePreferenceField.FastSpeed -> R.string.settings_video_fast_speed
+        PortablePreferenceField.SlowMotionDrag -> R.string.settings_slow_motion_drag
+        PortablePreferenceField.FastForwardAudio -> R.string.settings_video_fast_forward_audio
+        PortablePreferenceField.HoldLiveSpeed -> R.string.settings_video_hold_live_speed
+        PortablePreferenceField.DoubleTapLeft -> R.string.settings_video_double_tap_left
+        PortablePreferenceField.DoubleTapCenter -> R.string.settings_video_double_tap_center
+        PortablePreferenceField.DoubleTapRight -> R.string.settings_video_double_tap_right
+        PortablePreferenceField.TwoFingerPlayPause -> R.string.settings_video_two_finger_play_pause
     }
 
 private fun valueLabel(value: String): Int? =
@@ -388,6 +399,15 @@ private fun valueLabel(value: String): Int? =
         "Month" -> R.string.portable_preferences_value_month
         "Year" -> R.string.portable_preferences_value_year
         "None" -> R.string.portable_preferences_value_none
+        "SlowMotion" -> R.string.settings_video_action_slow_motion
+        "FastForward" -> R.string.settings_video_action_fast_forward
+        "FastRewind" -> R.string.settings_video_action_fast_rewind
+        "Zoom" -> R.string.settings_video_action_zoom
+        "SeekBack" -> R.string.settings_video_action_skip_back
+        "SeekForward" -> R.string.settings_video_action_skip_forward
+        "PlayPause" -> R.string.settings_video_action_play_pause
+        "Shuttle" -> R.string.settings_slow_motion_drag_shuttle
+        "Scrub" -> R.string.settings_slow_motion_drag_scrub
         "LegacySeekBar" -> R.string.portable_preferences_value_legacyseekbar
         "Filmstrip" -> R.string.portable_preferences_value_filmstrip
         "Automatic" -> R.string.settings_frame_interpolation_automatic

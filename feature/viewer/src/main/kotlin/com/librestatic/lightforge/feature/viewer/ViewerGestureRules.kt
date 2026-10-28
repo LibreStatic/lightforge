@@ -1,7 +1,11 @@
 package com.librestatic.lightforge.feature.viewer
 
 import android.view.KeyEvent
+import com.librestatic.lightforge.core.preferences.GestureSettings
+import com.librestatic.lightforge.core.preferences.VideoDoubleTapAction
+import com.librestatic.lightforge.core.preferences.VideoHoldAction
 import kotlin.math.abs
+import kotlin.math.sign
 
 /** What a vertical drag on the media does once its direction is known. */
 internal enum class ViewerDragMode {
@@ -150,3 +154,139 @@ internal fun stripWindow(size: Int, selectedIndex: Int, radius: Int): IntRange {
     val start = (selected - radius).coerceIn(0, size - span)
     return start until start + span
 }
+
+/** Thirds of the viewer width: the zone a tap or hold lands in picks its configured action. */
+internal enum class ViewerZone { Left, Center, Right }
+
+internal fun viewerZone(x: Float, width: Float): ViewerZone = when {
+    width <= 0f -> ViewerZone.Center
+    x < width / 3f -> ViewerZone.Left
+    x > width * 2f / 3f -> ViewerZone.Right
+    else -> ViewerZone.Center
+}
+
+internal fun GestureSettings.videoHoldActionFor(zone: ViewerZone): VideoHoldAction = when (zone) {
+    ViewerZone.Left -> videoHoldLeft
+    ViewerZone.Center -> videoHoldCenter
+    ViewerZone.Right -> videoHoldRight
+}
+
+internal fun GestureSettings.videoDoubleTapActionFor(zone: ViewerZone): VideoDoubleTapAction = when (zone) {
+    ViewerZone.Left -> videoDoubleTapLeft
+    ViewerZone.Center -> videoDoubleTapCenter
+    ViewerZone.Right -> videoDoubleTapRight
+}
+
+/** Horizontal travel (dp) around the anchor that still holds the slow-motion frame. */
+internal const val SHUTTLE_DEAD_ZONE_DP = 24f
+
+/** Every further [SHUTTLE_STEP_DP] of travel moves the shuttle to the next faster rate. */
+internal const val SHUTTLE_STEP_DP = 56f
+private val ShuttleRates = floatArrayOf(0.125f, 0.25f, 0.5f)
+
+/**
+ * Signed slow-motion source rate for a finger [dxPx] from the shuttle anchor: 0 inside the dead
+ * zone, then 0.125, 0.25 and 0.5 with distance; left (negative) plays in reverse.
+ */
+internal fun shuttleRate(dxPx: Float, density: Float): Float {
+    if (density <= 0f) return 0f
+    val distance = abs(dxPx) / density
+    if (distance <= SHUTTLE_DEAD_ZONE_DP) return 0f
+    val step = ((distance - SHUTTLE_DEAD_ZONE_DP) / SHUTTLE_STEP_DP).toInt().coerceIn(0, ShuttleRates.lastIndex)
+    return sign(dxPx) * ShuttleRates[step]
+}
+
+/** Source time a full-width drag scrubs in slow-motion scrub mode. */
+internal const val SCRUB_SPAN_MILLIS = 3_000L
+
+/** Source position the scrub shows after the finger moved [dxPx] from the anchor ([anchorMillis]). */
+internal fun scrubTargetMillis(anchorMillis: Long, dxPx: Float, widthPx: Float): Long {
+    if (widthPx <= 0f) return anchorMillis.coerceAtLeast(0L)
+    return (anchorMillis + (dxPx / widthPx * SCRUB_SPAN_MILLIS).toLong()).coerceAtLeast(0L)
+}
+
+/** Travel (dp) that moves a fast-forward or rewind hold one speed step. */
+internal const val LIVE_SPEED_STEP_DP = 48f
+
+/**
+ * Whole speed steps for a finger [dxPx], [dyPx] from where the hold started. The longer axis wins:
+ * up is faster, and so is sliding the way the video runs (right for [forward], left for rewind).
+ */
+internal fun liveSpeedSteps(dxPx: Float, dyPx: Float, forward: Boolean, density: Float): Int {
+    if (density <= 0f) return 0
+    val travel = if (abs(dyPx) >= abs(dxPx)) -dyPx else if (forward) dxPx else -dxPx
+    return (travel / (LIVE_SPEED_STEP_DP * density)).toInt()
+}
+
+/** The speed [steps] along [speeds] from the entry nearest [base], clamped to both ends. */
+internal fun liveSpeedAfter(
+    base: Float,
+    steps: Int,
+    speeds: List<Float> = GestureSettings.VideoFastSpeeds,
+): Float {
+    if (speeds.isEmpty()) return base
+    val baseIndex = speeds.indices.minBy { abs(speeds[it] - base) }
+    return speeds[(baseIndex + steps).coerceIn(0, speeds.lastIndex)]
+}
+
+/** Where a rewind at [speed] times real time stands [elapsedMillis] after [targetMillis]. */
+internal fun rewindTargetMillis(targetMillis: Long, speed: Float, elapsedMillis: Long): Long =
+    (targetMillis - (speed * elapsedMillis.coerceAtLeast(0L)).toLong()).coerceAtLeast(0L)
+
+/** A tap this soon after the previous seek tap in the same direction seeks again straight away. */
+internal const val SEEK_ACCUMULATION_WINDOW_MILLIS = 700L
+
+/** Seeks added up by consecutive taps: [direction] is -1 back or +1 forward. */
+internal data class SeekAccumulation(val direction: Int, val totalSeconds: Int, val lastTapMillis: Long)
+
+internal fun VideoDoubleTapAction.seekDirection(): Int = when (this) {
+    VideoDoubleTapAction.SeekBack -> -1
+    VideoDoubleTapAction.SeekForward -> 1
+    else -> 0
+}
+
+internal fun continuesSeekAccumulation(accumulation: SeekAccumulation?, direction: Int, nowMillis: Long): Boolean =
+    accumulation != null && direction != 0 && accumulation.direction == direction &&
+        nowMillis - accumulation.lastTapMillis in 0..SEEK_ACCUMULATION_WINDOW_MILLIS
+
+/** The accumulation after one more seek of [stepSeconds]; a fresh one when the window has passed. */
+internal fun accumulateSeek(
+    accumulation: SeekAccumulation?,
+    direction: Int,
+    nowMillis: Long,
+    stepSeconds: Int,
+): SeekAccumulation =
+    if (accumulation != null && continuesSeekAccumulation(accumulation, direction, nowMillis)) {
+        accumulation.copy(totalSeconds = accumulation.totalSeconds + stepSeconds, lastTapMillis = nowMillis)
+    } else {
+        SeekAccumulation(direction, stepSeconds, nowMillis)
+    }
+
+/** How a finished single tap is handled. */
+internal enum class ViewerTapResolution {
+    /** Part of a running seek accumulation: seek again, no chrome toggle, no double-tap wait. */
+    RepeatSeek,
+
+    /** Nothing is bound to a double tap here, so the tap needs no double-tap wait. */
+    Immediate,
+
+    /** Wait the double-tap timeout for a second tap before treating it as a single tap. */
+    AwaitDoubleTap,
+}
+
+internal fun tapResolution(
+    doubleTap: VideoDoubleTapAction,
+    accumulation: SeekAccumulation?,
+    nowMillis: Long,
+): ViewerTapResolution = when {
+    continuesSeekAccumulation(accumulation, doubleTap.seekDirection(), nowMillis) -> ViewerTapResolution.RepeatSeek
+    doubleTap == VideoDoubleTapAction.None -> ViewerTapResolution.Immediate
+    else -> ViewerTapResolution.AwaitDoubleTap
+}
+
+/** Both fingers must lift within this long of the first touching down. */
+internal const val TWO_FINGER_TAP_MAX_MILLIS = 300L
+
+/** A two-finger tap: exactly two fingers, quick, and none moved past [slopPx]. */
+internal fun isTwoFingerTap(maxPointers: Int, durationMillis: Long, maxMovementPx: Float, slopPx: Float): Boolean =
+    maxPointers == 2 && durationMillis in 0..TWO_FINGER_TAP_MAX_MILLIS && maxMovementPx <= slopPx

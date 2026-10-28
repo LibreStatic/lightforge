@@ -243,6 +243,10 @@ class PortablePreferencesRepositoryTest {
                 payload("{} {}"),
                 payload("[".repeat(17) + "]".repeat(17)),
                 payload("""{"gestures":{"videoSkipSeconds":7}}"""),
+                payload("""{"gestures":{"videoFastSpeed":2.5}}"""),
+                payload("""{"gestures":{"videoHoldLeft":"Teleport"}}"""),
+                payload("""{"gestures":{"videoDoubleTapCenter":"Teleport"}}"""),
+                payload("""{"gestures":{"slowMotionDragMode":"Teleport"}}"""),
                 payload("""{"library":{"sort":"unknown"}}"""),
             )
         invalid.forEach { bytes ->
@@ -360,6 +364,58 @@ class PortablePreferencesRepositoryTest {
         assertEquals(
             setOf(DismissibleWarning.VirtualCropShare, DismissibleWarning.VirtualCropPortableExport),
             repo.settings.first().operations.dismissedWarnings,
+        )
+    }
+
+    @Test
+    fun videoGestureFieldsRoundTripThroughPortablePayload() = test { repo, _ ->
+        val bytes =
+            payload(
+                """{"gestures":{"videoHoldLeft":"None","videoHoldCenter":"FastForward","videoHoldRight":"SlowMotion","videoFastSpeed":3,"slowMotionDragMode":"Scrub","videoFastForwardAudio":false,"videoHoldLiveSpeed":false,"videoDoubleTapLeft":"PlayPause","videoDoubleTapCenter":"None","videoDoubleTapRight":"Zoom","videoTwoFingerPlayPause":false}}"""
+            )
+        val review = repo.review(bytes, UUID.randomUUID().toString())
+        repo.apply(bytes, review, review.availableGroups)
+        val g = repo.settings.first().gestures
+        assertEquals(VideoHoldAction.None, g.videoHoldLeft)
+        assertEquals(VideoHoldAction.FastForward, g.videoHoldCenter)
+        assertEquals(VideoHoldAction.SlowMotion, g.videoHoldRight)
+        assertEquals(3f, g.videoFastSpeed)
+        assertEquals(SlowMotionDragMode.Scrub, g.slowMotionDragMode)
+        assertFalse(g.videoFastForwardAudio)
+        assertFalse(g.videoHoldLiveSpeed)
+        assertEquals(VideoDoubleTapAction.PlayPause, g.videoDoubleTapLeft)
+        assertEquals(VideoDoubleTapAction.None, g.videoDoubleTapCenter)
+        assertEquals(VideoDoubleTapAction.Zoom, g.videoDoubleTapRight)
+        assertFalse(g.videoTwoFingerPlayPause)
+        // Export and re-import keeps every field.
+        val exported = repo.exportJson()
+        repo.update { GallerySettings() }
+        repo.importJson(exported)
+        assertEquals(g, repo.settings.first().gestures)
+    }
+
+    @Test
+    fun absentDoubleTapZonesMigrateFromLegacyToggles() = test { repo, _ ->
+        suspend fun zones(json: String): Triple<VideoDoubleTapAction, VideoDoubleTapAction, VideoDoubleTapAction> {
+            repo.importJson(org.json.JSONObject(json))
+            val g = repo.settings.first().gestures
+            return Triple(g.videoDoubleTapLeft, g.videoDoubleTapCenter, g.videoDoubleTapRight)
+        }
+        val z = VideoDoubleTapAction.Zoom
+        val n = VideoDoubleTapAction.None
+        assertEquals(Triple(z, z, z), zones("""{"gestures":{"videoSeek":false,"doubleTapZoom":true}}"""))
+        assertEquals(Triple(n, n, n), zones("""{"gestures":{"videoSeek":false,"doubleTapZoom":false}}"""))
+        assertEquals(
+            Triple(VideoDoubleTapAction.SeekBack, z, VideoDoubleTapAction.SeekForward),
+            zones("""{"gestures":{"videoSeek":true,"doubleTapZoom":true}}"""),
+        )
+        assertEquals(
+            Triple(VideoDoubleTapAction.SeekBack, n, VideoDoubleTapAction.SeekForward),
+            zones("""{"gestures":{"videoSeek":true,"doubleTapZoom":false}}"""),
+        )
+        assertEquals(
+            Triple(n, z, n),
+            zones("""{"gestures":{"videoSeek":false,"videoDoubleTapCenter":"Zoom","videoDoubleTapLeft":"None","videoDoubleTapRight":"None"}}"""),
         )
     }
 }

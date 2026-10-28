@@ -35,12 +35,16 @@ fun SettingsDismissedWarningsPreview() = SettingsPreviewFrame(
     },
 )
 
+/** Settings opened on the Viewer gestures page: video hold and double-tap rows open their choice dialogs. */
+@Composable
+fun SettingsGesturesPreview() = SettingsPreviewFrame(GallerySettings(), startOnGestures = true)
+
 /** Local analysis page mid-run: faces with an ETA, pets waiting on battery, and the Individual pets row. */
 @Composable
 fun SettingsAiAnalysisPreview() = SettingsPreviewFrame(GallerySettings(), startOnAiAnalysis = true)
 
 @Composable
-private fun SettingsPreviewFrame(initial: GallerySettings, startOnAiAnalysis: Boolean = false) {
+private fun SettingsPreviewFrame(initial: GallerySettings, startOnGestures: Boolean = false, startOnAiAnalysis: Boolean = false) {
     var settings by remember { mutableStateOf(initial) }
     LightforgeTheme(settings.appearance) {
         Surface(Modifier.fillMaxSize()) {
@@ -82,6 +86,7 @@ private fun SettingsPreviewFrame(initial: GallerySettings, startOnAiAnalysis: Bo
                     onLocalSharing = {},
                     onOwnSync = {},
                     adaptiveInfo = adaptiveInfo,
+                    startOnGestures = startOnGestures,
                     startOnAiAnalysis = startOnAiAnalysis,
                 )
             }

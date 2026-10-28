@@ -13,6 +13,22 @@ class GallerySettingsTest {
         assertEquals(5, GallerySettings.CurrentSchemaVersion)
     }
 
+    @Test fun `video gesture defaults`() {
+        val g = GestureSettings()
+        assertEquals(VideoHoldAction.FastRewind, g.videoHoldLeft)
+        assertEquals(VideoHoldAction.SlowMotion, g.videoHoldCenter)
+        assertEquals(VideoHoldAction.FastForward, g.videoHoldRight)
+        assertEquals(2f, g.videoFastSpeed)
+        assertEquals(listOf(1.5f, 2f, 3f, 4f), GestureSettings.VideoFastSpeeds)
+        assertEquals(SlowMotionDragMode.Shuttle, g.slowMotionDragMode)
+        assertTrue(g.videoFastForwardAudio)
+        assertTrue(g.videoHoldLiveSpeed)
+        assertEquals(VideoDoubleTapAction.SeekBack, g.videoDoubleTapLeft)
+        assertEquals(VideoDoubleTapAction.Zoom, g.videoDoubleTapCenter)
+        assertEquals(VideoDoubleTapAction.SeekForward, g.videoDoubleTapRight)
+        assertTrue(g.videoTwoFingerPlayPause)
+    }
+
     @Test fun `exact bucket overrides the deepest inherited path`() {
         val rules = mapOf(
             FolderSelectionTarget.Path("external_primary", "Pictures/") to false,

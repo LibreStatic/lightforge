@@ -76,6 +76,10 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.librestatic.lightforge.core.preferences.VideoDoubleTapAction
+import com.librestatic.lightforge.core.preferences.VideoHoldAction
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -227,7 +231,18 @@ fun ViewerContent(
     var chromeVisible by rememberSaveable(media.viewerId) { mutableStateOf(true) }
     var menuExpanded by remember { mutableStateOf(false) }
     var contentZoomed by remember(media.viewerId) { mutableStateOf(false) }
-    var slowHoldConsumed by remember(media.viewerId) { mutableStateOf(false) }
+    var seekAccumulation by remember(media.viewerId) { mutableStateOf<SeekAccumulation?>(null) }
+    var playPausePulse by remember(media.viewerId) { mutableStateOf<PlayPausePulse?>(null) }
+    LaunchedEffect(seekAccumulation) {
+        if (seekAccumulation == null) return@LaunchedEffect
+        delay(SEEK_ACCUMULATION_WINDOW_MILLIS)
+        seekAccumulation = null
+    }
+    LaunchedEffect(playPausePulse) {
+        if (playPausePulse == null) return@LaunchedEffect
+        delay(PLAY_PAUSE_PULSE_MILLIS)
+        playPausePulse = null
+    }
     val slowMotionState by slowMotionSession?.state?.collectAsStateWithLifecycle()
         ?: remember { mutableStateOf<HoldSlowMotionState>(HoldSlowMotionState.Idle) }
     var zoomTapGeneration by remember(media.viewerId) { mutableIntStateOf(0) }
@@ -554,6 +569,26 @@ fun ViewerContent(
             },
         )
     }
+    val haptic = LocalHapticFeedback.current
+    // Ends any running hold (speed, mute, scrubbing, slow motion) when the media, controller or viewer goes away.
+    val holdController = remember(videoController, slowMotionSession, media.viewerId) {
+        videoController?.let { controller ->
+            VideoHoldController(
+                controller = controller,
+                slowMotion = slowMotionSession,
+                scope = coroutineScope,
+                onSpeedStep = { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick) },
+            )
+        }
+    }
+    DisposableEffect(holdController) { onDispose { holdController?.end() } }
+    fun toggleVideoPlayPause() {
+        val controller = videoController?.takeIf { media.kind == MediaKind.Video } ?: return
+        val playing = (controller.state.value as? VideoViewerState.Ready)?.isPlaying == true
+        if (playing) controller.pause() else controller.play()
+        playPausePulse = PlayPausePulse(playing = !playing, generation = (playPausePulse?.generation ?: 0) + 1)
+        chromeInteractionGeneration++
+    }
     Box(
         modifier.fillMaxSize().background(Color.Black)
             .onSizeChanged { viewerSize = it }
@@ -666,58 +701,79 @@ fun ViewerContent(
                         },
                     )
                 }
-                .pointerInput(onContentTap, slowMotionSession, videoController, media.viewerId, gestureSettings) {
-                    detectTapGestures(
-                        onPress = {
-                            if (media.kind != MediaKind.Video || slowMotionSession == null || videoController == null) {
-                                tryAwaitRelease()
-                                return@detectTapGestures
+                .pointerInput(onContentTap, slowMotionSession, videoController, holdController, media.viewerId, gestureSettings) {
+                    val isVideo = media.kind == MediaKind.Video && videoController != null
+                    fun doubleTapAction(zone: ViewerZone): VideoDoubleTapAction = when {
+                        isVideo -> gestureSettings.videoDoubleTapActionFor(zone)
+                        media.kind == MediaKind.Video -> VideoDoubleTapAction.None
+                        gestureSettings.doubleTapZoom -> VideoDoubleTapAction.Zoom
+                        else -> VideoDoubleTapAction.None
+                    }
+                    fun seek(direction: Int, uptimeMillis: Long) {
+                        val step = gestureSettings.videoSkipSeconds
+                        videoController?.seekBy(direction * step * 1_000L)
+                        seekAccumulation = accumulateSeek(seekAccumulation, direction, uptimeMillis, step)
+                    }
+                    detectViewerGestures(object : ViewerGestureListener {
+                        override val twoFingerTapEnabled: Boolean
+                            get() = isVideo && gestureSettings.videoTwoFingerPlayPause
+
+                        override fun onPress(zone: ViewerZone) {
+                            // Only a slow-motion zone arms the frame buffer; other holds never need it.
+                            if (isVideo && slowMotionSession != null &&
+                                gestureSettings.videoHoldActionFor(zone) == VideoHoldAction.SlowMotion
+                            ) {
+                                slowMotionSession.warmUp(videoController!!.currentPositionMillis())
                             }
-                            slowMotionSession.warmUp(videoController.currentPositionMillis())
-                            // finally: a cancelled gesture or a restarted pointerInput must still end the hold.
-                            try {
-                                tryAwaitRelease()
-                            } finally {
-                                if (slowHoldConsumed) {
-                                    val clip = slowMotionSession.stop()
-                                    val resumeAt = clip?.endMillis ?: videoController.currentPositionMillis()
-                                    videoController.seekTo(resumeAt)
-                                    videoController.play()
-                                    slowHoldConsumed = false
-                                }
-                            }
-                        },
-                        onLongPress = {
-                            if (media.kind == MediaKind.Video && slowMotionSession != null && videoController != null) {
-                                slowHoldConsumed = true
-                                videoController.pause()
-                                slowMotionSession.start(videoController.currentPositionMillis())
-                            }
-                        },
-                        onTap = {
+                        }
+
+                        override fun onHoldStart(zone: ViewerZone, position: Offset): Boolean {
+                            if (!isVideo || holdController == null) return false
+                            val started = holdController.start(
+                                action = gestureSettings.videoHoldActionFor(zone),
+                                settings = gestureSettings,
+                                slopPx = viewConfiguration.touchSlop,
+                                density = density,
+                                widthPx = size.width.toFloat(),
+                            )
+                            if (started) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            return started
+                        }
+
+                        override fun onHoldMove(delta: Offset) { holdController?.move(delta) }
+
+                        override fun onHoldEnd() { holdController?.end() }
+
+                        override fun resolveTap(zone: ViewerZone, uptimeMillis: Long) =
+                            tapResolution(doubleTapAction(zone), seekAccumulation, uptimeMillis)
+
+                        override fun onTap(position: Offset, zone: ViewerZone) {
                             // A tap during the auto-hide fade keeps the chrome instead of hiding it.
                             if (chromeAutoHiding && chromeVisible) chromeInteractionGeneration++ else chromeVisible = !chromeVisible
                             onContentTap()
-                        },
-                        onDoubleTap = { position ->
-                            val edge = size.width / 3f
-                            val skipSide = media.kind == MediaKind.Video && videoController != null &&
-                                gestureSettings.videoSeek && (position.x < edge || position.x > size.width - edge)
-                            when {
-                                // The skip gesture has its own switch; it must not depend on double-tap zoom.
-                                skipSide && position.x < edge ->
-                                    videoController?.seekBy(-gestureSettings.videoSkipSeconds * 1_000L)
-                                skipSide -> videoController?.seekBy(gestureSettings.videoSkipSeconds * 1_000L)
-                                gestureSettings.doubleTapZoom -> { zoomTapPosition = position; zoomTapGeneration++ }
+                        }
+
+                        override fun onRepeatTap(zone: ViewerZone, uptimeMillis: Long) =
+                            seek(doubleTapAction(zone).seekDirection(), uptimeMillis)
+
+                        override fun onDoubleTap(position: Offset, zone: ViewerZone, uptimeMillis: Long) {
+                            when (doubleTapAction(zone)) {
+                                VideoDoubleTapAction.None -> Unit
+                                VideoDoubleTapAction.Zoom -> { zoomTapPosition = position; zoomTapGeneration++ }
+                                VideoDoubleTapAction.SeekBack -> seek(-1, uptimeMillis)
+                                VideoDoubleTapAction.SeekForward -> seek(1, uptimeMillis)
+                                VideoDoubleTapAction.PlayPause -> toggleVideoPlayPause()
                             }
-                        },
-                    )
+                        }
+
+                        override fun onTwoFingerTap() = toggleVideoPlayPause()
+                    })
                 },
         ) {
             HorizontalPager(
                 state = pagerState,
                 beyondViewportPageCount = 1,
-                userScrollEnabled = !contentZoomed && !textSelectionActive,
+                userScrollEnabled = !contentZoomed && !textSelectionActive && holdController?.isActive != true,
                 key = { displayedItems[it].viewerId },
                 modifier = Modifier.fillMaxSize().graphicsLayer { translationY = -mediaLiftPx },
             ) { page ->
@@ -807,6 +863,11 @@ fun ViewerContent(
             onDismiss = { slowMotionSession?.discardSavedClip() },
             onCancelSave = onCancelSlowMotionSave,
         )
+        if (media.kind == MediaKind.Video) {
+            FastHoldPill(holdController?.fastIndicator)
+            SeekAccumulationIndicator(seekAccumulation)
+            PlayPausePulseIndicator(playPausePulse)
+        }
         GalleryAnimatedVisibility(
             visible = chromeVisible,
             edge = GalleryMotionEdge.Top,
@@ -1949,7 +2010,7 @@ internal fun BoxScope.SlowMotionOverlay(
                     tint = GalleryOverlayTokens.Content,
                     modifier = Modifier.size(20.dp),
                 )
-                Text("0.25×", color = GalleryOverlayTokens.Content, style = MaterialTheme.typography.titleMedium)
+                Text(slowMotionRateLabel(slow.rate), color = GalleryOverlayTokens.Content, style = MaterialTheme.typography.titleMedium)
             }
         }
         is HoldSlowMotionState.ReadyToSave -> Row(
@@ -2009,7 +2070,7 @@ internal fun BoxScope.SlowMotionOverlay(
 
 /** Places slow-motion overlays just under the top bar so they never cover Back, Details or More. */
 @Composable
-private fun Modifier.slowMotionOverlayTopPadding() =
+internal fun Modifier.slowMotionOverlayTopPadding() =
     windowInsetsPadding(viewerTopInsets()).padding(top = 76.dp, start = 16.dp, end = 16.dp)
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -2044,6 +2105,7 @@ private fun formatVideoTime(positionMillis: Long): String {
 
 private const val VIDEO_CHROME_TIMEOUT_MILLIS = 3_000L
 private const val VIDEO_POSITION_UPDATE_MILLIS = 200L
+private const val PLAY_PAUSE_PULSE_MILLIS = 700L
 private const val CHROME_FADE_MILLIS = 150
 /** Auto-hide fade; the chrome keeps its position and stays tappable until it ends. */
 private const val VIDEO_CHROME_AUTO_HIDE_FADE_MILLIS = 700

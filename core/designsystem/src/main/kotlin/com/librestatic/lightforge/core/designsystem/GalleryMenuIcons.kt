@@ -50,6 +50,7 @@ import androidx.compose.material.icons.outlined.EditCalendar
 import androidx.compose.material.icons.outlined.Error
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FastForward
+import androidx.compose.material.icons.outlined.FastRewind
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FitScreen
 import androidx.compose.material.icons.outlined.FlipToBack
@@ -193,6 +194,7 @@ object GalleryMenuIcons {
             GalleryIconDownload to Icons.Outlined.Download,
             GalleryIconSlowMotion to Icons.Outlined.SlowMotionVideo,
             GalleryIconFastForward to Icons.Outlined.FastForward,
+            GalleryIconFastRewind to Icons.Outlined.FastRewind,
             GalleryIconMarkIn to Icons.AutoMirrored.Outlined.Login,
             GalleryIconMarkOut to Icons.AutoMirrored.Outlined.Logout,
             GalleryIconSpeed to Icons.Outlined.Speed,

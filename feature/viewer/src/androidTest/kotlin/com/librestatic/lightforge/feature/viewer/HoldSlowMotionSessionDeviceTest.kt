@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeNotNull
 import org.junit.Test
@@ -77,6 +78,38 @@ class HoldSlowMotionSessionDeviceTest {
         println("LIGHTFORGE_SLOWMO 8s played=$played stalls=$stalls")
         withContext(Dispatchers.Main) { session.close() }
         assertTrue("slow motion never started: $reached", reached is HoldSlowMotionState.Playing)
+    }
+
+    /** Starts at the head of window 4000 and reverses into window 0, which must load on demand. */
+    @Test
+    fun reverseCrossesIntoPreviousWindow() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val name = InstrumentationRegistry.getArguments().getString("slowMotionVideo") ?: "cctv_like.mp4"
+        val uri = findVideo(name)
+        assumeNotNull(uri)
+        val session = withContext(Dispatchers.Main) { HoldSlowMotionSession(context, uri!!) }
+        try {
+            withContext(Dispatchers.Main) { session.start(4_100L) }
+            val first = withTimeoutOrNull(90_000L) {
+                session.state.first { it is HoldSlowMotionState.Playing || it is HoldSlowMotionState.Failure }
+            }
+            assertTrue("slow motion never started: $first", first is HoldSlowMotionState.Playing)
+            withContext(Dispatchers.Main) { session.setRate(-0.5f) }
+            val crossed = withTimeoutOrNull(120_000L) {
+                session.state.first {
+                    it is HoldSlowMotionState.Failure ||
+                        (it is HoldSlowMotionState.Playing && it.sourcePositionMillis < 4_000L)
+                }
+            }
+            assertTrue("reverse never reached the previous window: $crossed", crossed is HoldSlowMotionState.Playing)
+            assertEquals(-0.5f, (crossed as HoldSlowMotionState.Playing).rate, 0f)
+            val stop = withContext(Dispatchers.Main) { session.stop() }
+            assertNotNull(stop.resumeAtMillis)
+            assertNotNull(stop.clip)
+            assertTrue(stop.clip!!.startMillis < 4_000L)
+        } finally {
+            withContext(Dispatchers.Main) { session.close() }
+        }
     }
 
     private fun meanAbsoluteDifference(first: Bitmap, second: Bitmap): Float {

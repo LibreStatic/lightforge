@@ -29,4 +29,18 @@
     <string name="viewer_text_read_failed">No se pudo leer el texto de esta foto</string>
     <string name="viewer_unavailable_title">No se puede abrir este elemento</string>
     <string name="viewer_unavailable_body">Puede que se haya movido o eliminado, o que la app que lo compartió ya no permita el acceso.</string>
+    <string name="viewer_fast_forward_speed">Avance rápido %1$s</string>
+    <string name="viewer_fast_rewind_speed">Retroceso %1$s</string>
+    <string name="viewer_seek_back_total">« %1$d s</string>
+    <string name="viewer_seek_forward_total">%1$d s »</string>
+    <plurals name="viewer_seek_back_description">
+        <item quantity="one">Atrás %1$d segundo</item>
+        <item quantity="many">Atrás %1$d segundos</item>
+        <item quantity="other">Atrás %1$d segundos</item>
+    </plurals>
+    <plurals name="viewer_seek_forward_description">
+        <item quantity="one">Adelante %1$d segundo</item>
+        <item quantity="many">Adelante %1$d segundos</item>
+        <item quantity="other">Adelante %1$d segundos</item>
+    </plurals>
 </resources>

@@ -110,6 +110,41 @@ fun ViewerSlowMotionPlayingPreview() = ViewerPreviewFrame(selected = 12, details
     )
 }
 
+/** The 2x badge of a fast-forward hold. */
+@Preview
+@Composable
+fun ViewerFastForwardPreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false) {
+    FastHoldPill(FastHoldIndicator(forward = true, speed = 2f))
+}
+
+/** The -3x badge of a rewind hold after one live speed step. */
+@Preview
+@Composable
+fun ViewerFastRewindPreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false) {
+    FastHoldPill(FastHoldIndicator(forward = false, speed = 3f))
+}
+
+/** Slow-motion shuttle dragged left of its anchor: the preview plays in reverse at -0.25x. */
+@Preview
+@Composable
+fun ViewerSlowMotionShuttleReversePreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false) {
+    val frame = remember { fakePhoto(320, 180, 12) }
+    SlowMotionOverlay(
+        state = HoldSlowMotionState.Playing(frame, 5_000, FrameInterpolationBackend.Vulkan, rate = -0.25f),
+        saveProgress = null,
+        onSave = {},
+        onDismiss = {},
+        onCancelSave = {},
+    )
+}
+
+/** Three consecutive double-tap seeks to the right: the running total at the right edge. */
+@Preview
+@Composable
+fun ViewerSeekAccumulationPreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false) {
+    SeekAccumulationIndicator(SeekAccumulation(direction = 1, totalSeconds = 30, lastTapMillis = 0L))
+}
+
 private data class PreviewMedia(
     val id: Long,
     override val kind: MediaKind,

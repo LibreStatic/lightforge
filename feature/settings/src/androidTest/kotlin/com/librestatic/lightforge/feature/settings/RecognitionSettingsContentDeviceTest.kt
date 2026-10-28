@@ -1,7 +1,10 @@
 package com.librestatic.lightforge.feature.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -27,6 +30,8 @@ import com.librestatic.lightforge.core.preferences.GallerySettings
 import com.librestatic.lightforge.core.preferences.FolderSelectionTarget
 import com.librestatic.lightforge.core.preferences.FrameInterpolationEngine
 import com.librestatic.lightforge.core.preferences.PlaybackSettings
+import com.librestatic.lightforge.core.preferences.SlowMotionDragMode
+import com.librestatic.lightforge.core.preferences.VideoHoldAction
 import com.librestatic.lightforge.core.preferences.VideoScrubbingMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -147,6 +152,39 @@ class RecognitionSettingsContentDeviceTest {
 
         assertEquals(VideoScrubbingMode.Filmstrip, settings.playback.videoScrubbingMode)
         compose.onNode(hasText(context.getString(R.string.settings_video_scrubbing_filmstrip))).assertIsDisplayed()
+    }
+
+    @Test
+    fun videoGesturesLetUsersChooseTheFastSpeedHoldActionsAndSlideMode() {
+        var settings by mutableStateOf(GallerySettings())
+
+        compose.setContent {
+            LightforgeTheme(darkTheme = false) {
+                Box(Modifier.verticalScroll(rememberScrollState())) {
+                    GesturesSettingsTestContent(
+                        settings = settings,
+                        onSettingsChange = { transform -> settings = transform(settings) },
+                    )
+                }
+            }
+        }
+
+        compose.onNode(hasTestTag("video_fast_speed_row")).performScrollTo().performClick()
+        compose.onNode(hasTestTag("video_fast_speed_dialog")).assertExists()
+        compose.onNode(hasTestTag("video_fast_speed_3_0")).performClick()
+        compose.waitForIdle()
+        assertEquals(3f, settings.gestures.videoFastSpeed)
+
+        compose.onNode(hasTestTag("video_hold_right_row")).performScrollTo().performClick()
+        compose.onNode(hasTestTag("video_hold_right_dialog")).assertExists()
+        compose.onNode(hasTestTag("video_hold_right_SlowMotion")).performClick()
+        compose.waitForIdle()
+        assertEquals(VideoHoldAction.SlowMotion, settings.gestures.videoHoldRight)
+
+        compose.onNode(hasTestTag("slow_motion_drag_row")).performScrollTo().performClick()
+        compose.onNode(hasTestTag("slow_motion_drag_Scrub")).performClick()
+        compose.waitForIdle()
+        assertEquals(SlowMotionDragMode.Scrub, settings.gestures.slowMotionDragMode)
     }
 
     @Test

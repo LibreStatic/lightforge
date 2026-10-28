@@ -187,6 +187,12 @@ data class AppearanceSettings(
         palette == ThemePalette.MinimalistBlack || (pureBlack && isDark(systemDark))
 }
 
+enum class VideoHoldAction { None, SlowMotion, FastForward, FastRewind }
+
+enum class VideoDoubleTapAction { None, Zoom, SeekBack, SeekForward, PlayPause }
+
+enum class SlowMotionDragMode { Shuttle, Scrub }
+
 data class GestureSettings(
     val doubleTapZoom: Boolean = true,
     val pinchZoom: Boolean = true,
@@ -194,6 +200,10 @@ data class GestureSettings(
     val photoBrightness: Boolean = true,
     val videoBrightness: Boolean = true,
     val videoVolume: Boolean = true,
+    /**
+     * Legacy input of the double-tap zone migration only. The viewer no longer reads it; the
+     * double-tap zone actions replace it.
+     */
     val videoSeek: Boolean = true,
     val rotatePhotos: Boolean = true,
     val photoMaxZoom: Float = 8f,
@@ -201,7 +211,35 @@ data class GestureSettings(
     val videoSkipSeconds: Int = 10,
     /** Swipe up from the middle of the viewer to open Details. */
     val swipeUpForDetails: Boolean = true,
-)
+    val videoHoldLeft: VideoHoldAction = VideoHoldAction.FastRewind,
+    val videoHoldCenter: VideoHoldAction = VideoHoldAction.SlowMotion,
+    val videoHoldRight: VideoHoldAction = VideoHoldAction.FastForward,
+    val videoFastSpeed: Float = 2f,
+    val slowMotionDragMode: SlowMotionDragMode = SlowMotionDragMode.Shuttle,
+    val videoFastForwardAudio: Boolean = true,
+    val videoHoldLiveSpeed: Boolean = true,
+    val videoDoubleTapLeft: VideoDoubleTapAction = VideoDoubleTapAction.SeekBack,
+    val videoDoubleTapCenter: VideoDoubleTapAction = VideoDoubleTapAction.Zoom,
+    val videoDoubleTapRight: VideoDoubleTapAction = VideoDoubleTapAction.SeekForward,
+    val videoTwoFingerPlayPause: Boolean = true,
+) {
+    companion object {
+        val VideoFastSpeeds: List<Float> = listOf(1.5f, 2f, 3f, 4f)
+
+        /** Double-tap zone action an absent setting inherits from the legacy toggles. */
+        fun legacyDoubleTap(
+            side: Boolean,
+            videoSeek: Boolean,
+            doubleTapZoom: Boolean,
+            seek: VideoDoubleTapAction,
+        ): VideoDoubleTapAction =
+            when {
+                side && videoSeek -> seek
+                doubleTapZoom -> VideoDoubleTapAction.Zoom
+                else -> VideoDoubleTapAction.None
+            }
+    }
+}
 
 data class ThumbnailSettings(
     val cropToFill: Boolean = true,

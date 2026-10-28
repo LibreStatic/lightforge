@@ -84,7 +84,7 @@ Current previews: `PhotoEditorPreview`, `PhotoEditorLoadingPreview`, `EraserMode
 (`core/designsystem`), `VideoEditorPreview`, `VideoFilmstripLoadingPreview`, `VideoOutputSettingsPreview`,
 `VideoEditorForcedAspectPreview` (`feature/videoeditor`),
 `CollageEditorPreview`, `GifEditorPreview` (`feature/collage`), `SettingsPreview`,
-`SettingsDismissedWarningsPreview`, `SettingsAiAnalysisPreview` (`feature/settings`), `PetIdentityPreview`,
+`SettingsDismissedWarningsPreview`, `SettingsAiAnalysisPreview`, `SettingsGesturesPreview` (`feature/settings`), `PetIdentityPreview`,
 `PetIdentityEmptyPreview` (`feature/petrecognition`),
 `RemoteBackupPreview` (`feature/remotebackup`).
 

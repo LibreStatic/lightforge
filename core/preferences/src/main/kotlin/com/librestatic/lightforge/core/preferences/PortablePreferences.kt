@@ -57,7 +57,18 @@ enum class PortablePreferenceField(
     PhotoZoom(PortablePreferenceGroup.Gestures, "gestures", "photoMaxZoom"),
     VideoZoom(PortablePreferenceGroup.Gestures, "gestures", "videoMaxZoom"),
     SkipSeconds(PortablePreferenceGroup.Gestures, "gestures", "videoSkipSeconds"),
-    SwipeUp(PortablePreferenceGroup.Gestures, "gestures", "swipeUpForDetails");
+    SwipeUp(PortablePreferenceGroup.Gestures, "gestures", "swipeUpForDetails"),
+    HoldLeft(PortablePreferenceGroup.Gestures, "gestures", "videoHoldLeft"),
+    HoldCenter(PortablePreferenceGroup.Gestures, "gestures", "videoHoldCenter"),
+    HoldRight(PortablePreferenceGroup.Gestures, "gestures", "videoHoldRight"),
+    FastSpeed(PortablePreferenceGroup.Gestures, "gestures", "videoFastSpeed"),
+    SlowMotionDrag(PortablePreferenceGroup.Gestures, "gestures", "slowMotionDragMode"),
+    FastForwardAudio(PortablePreferenceGroup.Gestures, "gestures", "videoFastForwardAudio"),
+    HoldLiveSpeed(PortablePreferenceGroup.Gestures, "gestures", "videoHoldLiveSpeed"),
+    DoubleTapLeft(PortablePreferenceGroup.Gestures, "gestures", "videoDoubleTapLeft"),
+    DoubleTapCenter(PortablePreferenceGroup.Gestures, "gestures", "videoDoubleTapCenter"),
+    DoubleTapRight(PortablePreferenceGroup.Gestures, "gestures", "videoDoubleTapRight"),
+    TwoFingerPlayPause(PortablePreferenceGroup.Gestures, "gestures", "videoTwoFingerPlayPause");
 
     internal fun validate(value: Any): String {
         if (this == CollectionOrder || this == HiddenCollections) {
@@ -74,13 +85,17 @@ enum class PortablePreferenceField(
                 InterpolationEngine -> FrameInterpolationEngine.entries.map { it.name }
                 Palette -> ThemePalette.entries.map { it.name }
                 Mode -> ThemeMode.entries.map { it.name }
+                HoldLeft, HoldCenter, HoldRight -> VideoHoldAction.entries.map { it.name }
+                SlowMotionDrag -> SlowMotionDragMode.entries.map { it.name }
+                DoubleTapLeft, DoubleTapCenter, DoubleTapRight ->
+                    VideoDoubleTapAction.entries.map { it.name }
                 else -> null
             }
         if (allowed != null) {
             require(value is String && value in allowed) { "Invalid enum: $name" }
             return value
         }
-        if (this in setOf(Columns, SkipSeconds, PhotoZoom, VideoZoom)) {
+        if (this in setOf(Columns, SkipSeconds, PhotoZoom, VideoZoom, FastSpeed)) {
             require(value is Number) { "Invalid number: $name" }
             val number = value.toDouble()
             require(number.isFinite())
@@ -88,6 +103,7 @@ enum class PortablePreferenceField(
                 Columns -> require(number % 1.0 == 0.0 && (number == AutoGridColumns.toDouble() ||
                         number in MinGridColumns.toDouble()..MaxGridColumns.toDouble()))
                 SkipSeconds -> require(number in setOf(5.0, 10.0, 15.0, 30.0))
+                FastSpeed -> require(GestureSettings.VideoFastSpeeds.any { it.toDouble() == number })
                 else -> require(number in 2.0..8.0)
             }
             return if (this == Columns || this == SkipSeconds) number.toInt().toString()
@@ -102,11 +118,14 @@ enum class PortablePreferenceField(
             Sort,
             Filter,
             Grouping,
-            Scrubbing, InterpolationEngine, Palette, Mode, CollectionOrder, HiddenCollections -> value
+            Scrubbing, InterpolationEngine, Palette, Mode, CollectionOrder, HiddenCollections,
+            HoldLeft, HoldCenter, HoldRight, SlowMotionDrag,
+            DoubleTapLeft, DoubleTapCenter, DoubleTapRight -> value
             Columns,
             SkipSeconds -> value.toInt()
             PhotoZoom,
-            VideoZoom -> value.toFloat()
+            VideoZoom,
+            FastSpeed -> value.toFloat()
             else -> value.toBooleanStrict()
         }
 }

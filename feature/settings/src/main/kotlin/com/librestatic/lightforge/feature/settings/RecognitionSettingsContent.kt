@@ -72,6 +72,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
+import androidx.annotation.StringRes
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
@@ -94,7 +95,12 @@ import com.librestatic.lightforge.core.preferences.LibrarySort
 import com.librestatic.lightforge.core.preferences.ThemeMode
 import com.librestatic.lightforge.core.preferences.ThemePalette
 import com.librestatic.lightforge.core.preferences.FrameInterpolationEngine
+import com.librestatic.lightforge.core.preferences.GestureSettings
+import com.librestatic.lightforge.core.preferences.SlowMotionDragMode
+import com.librestatic.lightforge.core.preferences.VideoDoubleTapAction
+import com.librestatic.lightforge.core.preferences.VideoHoldAction
 import com.librestatic.lightforge.core.preferences.VideoScrubbingMode
+import java.text.NumberFormat
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryShapeIllustration
 import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
@@ -232,7 +238,8 @@ fun RecognitionSettingsContent(
     onStorageAccessOpened: () -> Unit = {},
     showHeader: Boolean = true,
     adaptiveInfo: GalleryAdaptiveLayoutInfo? = null,
-    /** Opens on the local analysis page instead of the list; for previews and tests. */
+    /** Opens on the viewer gestures page instead of the list; for previews and tests. */
+    startOnGestures: Boolean = false,
     startOnAiAnalysis: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
@@ -241,7 +248,7 @@ fun RecognitionSettingsContent(
     val masterWidth = adaptiveInfo?.let { galleryMasterPaneWidth(it.contentWidth) }
     val twoPane = adaptiveInfo != null && adaptiveInfo.windowClass != GalleryWindowClass.Compact && masterWidth != null
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
-    var page by rememberSaveable { mutableStateOf(if (startOnAiAnalysis) SettingsPage.AiAnalysis else SettingsPage.Root) }
+    var page by rememberSaveable { mutableStateOf(if (startOnGestures) SettingsPage.Gestures else if (startOnAiAnalysis) SettingsPage.AiAnalysis else SettingsPage.Root) }
     LaunchedEffect(openStorageAccess, storageAccess != null) {
         if (openStorageAccess && storageAccess != null) {
             page = SettingsPage.StorageAccess
@@ -460,7 +467,7 @@ private fun SettingsCategoryList(
         settings.playback.rememberVideoPosition,
         settings.playback.maximumBrightness,
     )
-    val gestureCount = enabledCount(
+    val gestureFlags = listOf(
         settings.gestures.doubleTapZoom,
         settings.gestures.pinchZoom,
         settings.gestures.swipeDownToClose,
@@ -468,9 +475,11 @@ private fun SettingsCategoryList(
         settings.gestures.photoBrightness,
         settings.gestures.videoBrightness,
         settings.gestures.videoVolume,
-        settings.gestures.videoSeek,
         settings.gestures.rotatePhotos,
+        settings.gestures.videoHoldLiveSpeed,
+        settings.gestures.videoTwoFingerPlayPause,
     )
+    val gestureCount = gestureFlags.count { it }
     val thumbnailCount = enabledCount(
         settings.thumbnails.cropToFill,
         settings.thumbnails.animateMedia,
@@ -514,7 +523,7 @@ private fun SettingsCategoryList(
                 selected = selected(SettingsPage.Playback),
                 chevron = !twoPane,
             ) { onOpen(SettingsPage.Playback) }
-            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 9), 2, 4, selected = selected(SettingsPage.Gestures), chevron = !twoPane) { onOpen(SettingsPage.Gestures) }
+            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, gestureFlags.size), 2, 4, selected = selected(SettingsPage.Gestures), chevron = !twoPane) { onOpen(SettingsPage.Gestures) }
             SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5), 3, 4, selected = selected(SettingsPage.Thumbnails), chevron = !twoPane) { onOpen(SettingsPage.Thumbnails) }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_group_management)) {
@@ -1510,6 +1519,7 @@ private fun GesturesSection(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
 ) {
+    var choice by rememberSaveable { mutableStateOf<GestureChoice?>(null) }
     SettingsCard(stringResource(R.string.settings_card_photo_gestures)) {
         SettingsSwitchRow(stringResource(R.string.settings_double_tap_zoom), settings.gestures.doubleTapZoom) {
             onSettingsChange { current -> current.copy(gestures = current.gestures.copy(doubleTapZoom = it)) }
@@ -1541,18 +1551,239 @@ private fun GesturesSection(
         SettingsSwitchRow(stringResource(R.string.settings_video_volume), settings.gestures.videoVolume) {
             onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoVolume = it)) }
         }
-        SettingsSwitchRow(stringResource(R.string.settings_video_seek), settings.gestures.videoSeek) {
-            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoSeek = it)) }
-        }
         SettingsValueRow(stringResource(R.string.settings_video_zoom_limit), stringResource(R.string.settings_zoom_value, settings.gestures.videoMaxZoom.toInt())) {
             val next = when (settings.gestures.videoMaxZoom.toInt()) { 2 -> 4f; 4 -> 8f; else -> 2f }
             onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoMaxZoom = next)) }
         }
-        SettingsValueRow(stringResource(R.string.settings_skip_seconds), pluralStringResource(R.plurals.settings_seconds, settings.gestures.videoSkipSeconds.toInt(), settings.gestures.videoSkipSeconds)) {
-            val next = when (settings.gestures.videoSkipSeconds) { 5 -> 10; 10 -> 15; 15 -> 30; else -> 5 }
-            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoSkipSeconds = next)) }
+    }
+    SettingsCard(stringResource(R.string.settings_card_video_hold)) {
+        val gestures = settings.gestures
+        SettingsValueRow(
+            stringResource(R.string.settings_video_hold_left),
+            stringResource(gestures.videoHoldLeft.labelRes()),
+            Modifier.testTag("video_hold_left_row"),
+        ) { choice = GestureChoice.HoldLeft }
+        SettingsValueRow(
+            stringResource(R.string.settings_video_hold_center),
+            stringResource(gestures.videoHoldCenter.labelRes()),
+            Modifier.testTag("video_hold_center_row"),
+        ) { choice = GestureChoice.HoldCenter }
+        SettingsValueRow(
+            stringResource(R.string.settings_video_hold_right),
+            stringResource(gestures.videoHoldRight.labelRes()),
+            Modifier.testTag("video_hold_right_row"),
+        ) { choice = GestureChoice.HoldRight }
+        SettingsValueRow(
+            stringResource(R.string.settings_video_fast_speed),
+            stringResource(R.string.settings_video_fast_speed_value, formatSpeed(gestures.videoFastSpeed)),
+            Modifier.testTag("video_fast_speed_row"),
+        ) { choice = GestureChoice.FastSpeed }
+        SettingsValueRow(
+            stringResource(R.string.settings_slow_motion_drag),
+            stringResource(gestures.slowMotionDragMode.labelRes()),
+            Modifier.testTag("slow_motion_drag_row"),
+        ) { choice = GestureChoice.DragMode }
+        SettingsSwitchRow(
+            stringResource(R.string.settings_video_fast_forward_audio),
+            gestures.videoFastForwardAudio,
+            Modifier.testTag("video_fast_forward_audio_switch"),
+        ) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoFastForwardAudio = it)) }
+        }
+        SettingsSwitchRow(
+            stringResource(R.string.settings_video_hold_live_speed),
+            gestures.videoHoldLiveSpeed,
+            Modifier.testTag("video_hold_live_speed_switch"),
+            supporting = stringResource(R.string.settings_video_hold_live_speed_hint),
+        ) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoHoldLiveSpeed = it)) }
         }
     }
+    SettingsCard(stringResource(R.string.settings_card_video_double_tap)) {
+        val gestures = settings.gestures
+        SettingsValueRow(
+            stringResource(R.string.settings_video_double_tap_left),
+            stringResource(gestures.videoDoubleTapLeft.labelRes()),
+            Modifier.testTag("video_double_tap_left_row"),
+        ) { choice = GestureChoice.DoubleTapLeft }
+        SettingsValueRow(
+            stringResource(R.string.settings_video_double_tap_center),
+            stringResource(gestures.videoDoubleTapCenter.labelRes()),
+            Modifier.testTag("video_double_tap_center_row"),
+        ) { choice = GestureChoice.DoubleTapCenter }
+        SettingsValueRow(
+            stringResource(R.string.settings_video_double_tap_right),
+            stringResource(gestures.videoDoubleTapRight.labelRes()),
+            Modifier.testTag("video_double_tap_right_row"),
+        ) { choice = GestureChoice.DoubleTapRight }
+        SettingsValueRow(stringResource(R.string.settings_skip_seconds), pluralStringResource(R.plurals.settings_seconds, gestures.videoSkipSeconds.toInt(), gestures.videoSkipSeconds)) {
+            val next = when (gestures.videoSkipSeconds) { 5 -> 10; 10 -> 15; 15 -> 30; else -> 5 }
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoSkipSeconds = next)) }
+        }
+        SettingsSwitchRow(
+            stringResource(R.string.settings_video_two_finger_play_pause),
+            gestures.videoTwoFingerPlayPause,
+            Modifier.testTag("video_two_finger_play_pause_switch"),
+        ) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoTwoFingerPlayPause = it)) }
+        }
+    }
+    GestureChoiceDialog(choice, settings.gestures, onSettingsChange) { choice = null }
+}
+
+private enum class GestureChoice { HoldLeft, HoldCenter, HoldRight, FastSpeed, DragMode, DoubleTapLeft, DoubleTapCenter, DoubleTapRight }
+
+private class GestureOption(
+    val tag: String,
+    @StringRes val label: Int?,
+    @StringRes val supporting: Int?,
+    val selected: Boolean,
+    /** Set for the fast-speed options, which show the speed instead of a string of their own. */
+    val speed: Float? = null,
+    val apply: (GestureSettings) -> GestureSettings,
+)
+
+/** The radio dialog behind each hold, double-tap, speed and slide row of the video gestures cards. */
+@Composable
+private fun GestureChoiceDialog(
+    choice: GestureChoice?,
+    gestures: GestureSettings,
+    onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    if (choice == null) return
+    val (tag, titleRes, options) = when (choice) {
+        GestureChoice.HoldLeft -> Triple("video_hold_left", R.string.settings_video_hold_left, holdOptions("video_hold_left", gestures.videoHoldLeft) { g, a -> g.copy(videoHoldLeft = a) })
+        GestureChoice.HoldCenter -> Triple("video_hold_center", R.string.settings_video_hold_center, holdOptions("video_hold_center", gestures.videoHoldCenter) { g, a -> g.copy(videoHoldCenter = a) })
+        GestureChoice.HoldRight -> Triple("video_hold_right", R.string.settings_video_hold_right, holdOptions("video_hold_right", gestures.videoHoldRight) { g, a -> g.copy(videoHoldRight = a) })
+        GestureChoice.DoubleTapLeft -> Triple("video_double_tap_left", R.string.settings_video_double_tap_left, doubleTapOptions("video_double_tap_left", gestures.videoDoubleTapLeft) { g, a -> g.copy(videoDoubleTapLeft = a) })
+        GestureChoice.DoubleTapCenter -> Triple("video_double_tap_center", R.string.settings_video_double_tap_center, doubleTapOptions("video_double_tap_center", gestures.videoDoubleTapCenter) { g, a -> g.copy(videoDoubleTapCenter = a) })
+        GestureChoice.DoubleTapRight -> Triple("video_double_tap_right", R.string.settings_video_double_tap_right, doubleTapOptions("video_double_tap_right", gestures.videoDoubleTapRight) { g, a -> g.copy(videoDoubleTapRight = a) })
+        GestureChoice.FastSpeed -> Triple(
+            "video_fast_speed",
+            R.string.settings_video_fast_speed,
+            GestureSettings.VideoFastSpeeds.map { speed ->
+                GestureOption(
+                    tag = "video_fast_speed_" + speed.toString().replace('.', '_'),
+                    label = null,
+                    supporting = null,
+                    selected = gestures.videoFastSpeed == speed,
+                    speed = speed,
+                    apply = { it.copy(videoFastSpeed = speed) },
+                )
+            },
+        )
+        GestureChoice.DragMode -> Triple(
+            "slow_motion_drag",
+            R.string.settings_slow_motion_drag,
+            SlowMotionDragMode.entries.map { mode ->
+                GestureOption(
+                    tag = "slow_motion_drag_" + mode.name,
+                    label = mode.labelRes(),
+                    supporting = mode.supportingRes(),
+                    selected = gestures.slowMotionDragMode == mode,
+                    apply = { it.copy(slowMotionDragMode = mode) },
+                )
+            },
+        )
+    }
+    AlertDialog(
+        modifier = Modifier.testTag(tag + "_dialog"),
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(titleRes)) },
+        text = {
+            Column {
+                options.forEach { option ->
+                    val label = if (option.label != null) {
+                        stringResource(option.label)
+                    } else {
+                        stringResource(R.string.settings_video_fast_speed_value, formatSpeed(option.speed ?: 0f))
+                    }
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .clickable {
+                                onSettingsChange { current -> current.copy(gestures = option.apply(current.gestures)) }
+                                onDismiss()
+                            }
+                            .testTag(option.tag),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = option.selected, onClick = null)
+                        Column(Modifier.padding(start = 12.dp)) {
+                            Text(label)
+                            if (option.supporting != null) {
+                                Text(
+                                    stringResource(option.supporting),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } },
+    )
+}
+
+private fun holdOptions(
+    tag: String,
+    current: VideoHoldAction,
+    set: (GestureSettings, VideoHoldAction) -> GestureSettings,
+) = VideoHoldAction.entries.map { action ->
+    GestureOption(tag + "_" + action.name, action.labelRes(), null, current == action) { set(it, action) }
+}
+
+private fun doubleTapOptions(
+    tag: String,
+    current: VideoDoubleTapAction,
+    set: (GestureSettings, VideoDoubleTapAction) -> GestureSettings,
+) = VideoDoubleTapAction.entries.map { action ->
+    GestureOption(tag + "_" + action.name, action.labelRes(), null, current == action) { set(it, action) }
+}
+
+@StringRes
+private fun VideoHoldAction.labelRes(): Int = when (this) {
+    VideoHoldAction.None -> R.string.settings_video_action_none
+    VideoHoldAction.SlowMotion -> R.string.settings_video_action_slow_motion
+    VideoHoldAction.FastForward -> R.string.settings_video_action_fast_forward
+    VideoHoldAction.FastRewind -> R.string.settings_video_action_fast_rewind
+}
+
+@StringRes
+private fun VideoDoubleTapAction.labelRes(): Int = when (this) {
+    VideoDoubleTapAction.None -> R.string.settings_video_action_none
+    VideoDoubleTapAction.Zoom -> R.string.settings_video_action_zoom
+    VideoDoubleTapAction.SeekBack -> R.string.settings_video_action_skip_back
+    VideoDoubleTapAction.SeekForward -> R.string.settings_video_action_skip_forward
+    VideoDoubleTapAction.PlayPause -> R.string.settings_video_action_play_pause
+}
+
+@StringRes
+private fun SlowMotionDragMode.labelRes(): Int = when (this) {
+    SlowMotionDragMode.Shuttle -> R.string.settings_slow_motion_drag_shuttle
+    SlowMotionDragMode.Scrub -> R.string.settings_slow_motion_drag_scrub
+}
+
+@StringRes
+private fun SlowMotionDragMode.supportingRes(): Int = when (this) {
+    SlowMotionDragMode.Shuttle -> R.string.settings_slow_motion_drag_shuttle_hint
+    SlowMotionDragMode.Scrub -> R.string.settings_slow_motion_drag_scrub_hint
+}
+
+/** "1.5" or "2" in the user's decimal format. */
+private fun formatSpeed(speed: Float): String =
+    NumberFormat.getInstance().apply { maximumFractionDigits = 1; minimumFractionDigits = 0 }.format(speed)
+
+@Composable
+internal fun GesturesSettingsTestContent(
+    settings: GallerySettings,
+    onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
+) {
+    Column { GesturesSection(settings, onSettingsChange) }
 }
 
 @Composable

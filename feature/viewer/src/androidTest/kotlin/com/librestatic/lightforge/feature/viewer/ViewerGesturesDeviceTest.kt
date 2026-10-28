@@ -5,7 +5,13 @@ import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.view.SurfaceView
 import androidx.media3.common.Effect
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.click
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.test.down
+import androidx.compose.ui.test.moveTo
+import com.librestatic.lightforge.core.preferences.GestureSettings
+import com.librestatic.lightforge.core.preferences.VideoHoldAction
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
@@ -33,6 +39,7 @@ import com.librestatic.lightforge.core.preferences.VideoScrubbingMode
 import java.io.File
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -257,7 +264,7 @@ class ViewerGesturesDeviceTest {
         compose.onNode(hasTestTag(VIEWER_CHROME_SCRIM_TEST_TAG)).assertExists()
         compose.onNode(hasContentDescription(pause)).assertExists()
 
-        compose.mainClock.advanceTimeBy(3_200)
+        compose.mainClock.advanceTimeBy(4_000)
         compose.waitForIdle()
         compose.onNode(hasTestTag(VIEWER_CHROME_SCRIM_TEST_TAG)).assertDoesNotExist()
         compose.onNode(hasContentDescription(pause)).assertDoesNotExist()
@@ -433,6 +440,186 @@ class ViewerGesturesDeviceTest {
         controller.close()
     }
 
+    @Test fun holdingTheRightZoneFastForwardsAtTheConfiguredSpeedUntilRelease() {
+        val engine = FakeVideoEngine()
+        val controller = readyController(engine, playing = true)
+        showVideo(controller, GestureSettings())
+
+        // The clock only advances when the next event is injected, so the still move lets the hold timeout fire.
+        compose.onRoot().performTouchInput { down(zonePoint(0.9f)); advanceEventTime(700); moveBy(Offset.Zero) }
+        compose.waitForIdle()
+        assertEquals(2f, engine.speeds.last(), 0f)
+        compose.onRoot().performTouchInput { up() }
+        compose.waitForIdle()
+        assertEquals(1f, engine.speeds.last(), 0f)
+        assertTrue(engine.playing)
+        controller.close()
+    }
+
+    @Test fun fastForwardWithoutAudioMutesAndRestoresThePausedState() {
+        val engine = FakeVideoEngine()
+        val controller = readyController(engine, playing = false)
+        showVideo(controller, GestureSettings(videoFastForwardAudio = false))
+
+        compose.onRoot().performTouchInput { down(zonePoint(0.9f)); advanceEventTime(700); moveBy(Offset.Zero) }
+        compose.waitForIdle()
+        assertEquals(0f, engine.volumes.last(), 0f)
+        assertTrue(engine.playing)
+        compose.onRoot().performTouchInput { up() }
+        compose.waitForIdle()
+        assertEquals(1f, engine.volumes.last(), 0f)
+        assertFalse(engine.playing)
+        controller.close()
+    }
+
+    @Test fun holdingTheLeftZoneRewindsWithScrubbingUntilRelease() {
+        val engine = FakeVideoEngine()
+        val controller = readyController(engine, playing = true)
+        controller.seekTo(8_000L)
+        engine.seekPositions.clear()
+        showVideo(controller, GestureSettings())
+
+        compose.onRoot().performTouchInput { down(zonePoint(0.1f)); advanceEventTime(1_200); moveBy(Offset.Zero) }
+        compose.waitForIdle()
+        assertEquals(listOf(true), engine.scrubbingModeChanges)
+        assertFalse(engine.playing)
+        assertTrue(engine.seekPositions.size >= 2)
+        assertEquals(engine.seekPositions.sortedDescending(), engine.seekPositions)
+        assertTrue(engine.lastSeek < 8_000L)
+        compose.onRoot().performTouchInput { up() }
+        compose.waitForIdle()
+        assertEquals(listOf(true, false), engine.scrubbingModeChanges)
+        assertTrue(engine.playing)
+        controller.close()
+    }
+
+    @Test fun draggingUpDuringAFastHoldStepsTheSpeed() {
+        val engine = FakeVideoEngine()
+        val controller = readyController(engine, playing = true)
+        showVideo(controller, GestureSettings())
+
+        compose.onRoot().performTouchInput {
+            val start = zonePoint(0.9f)
+            down(start)
+            advanceEventTime(700)
+            moveTo(Offset(start.x, start.y - 60.dp.toPx()))
+        }
+        compose.waitForIdle()
+        assertEquals(3f, engine.speeds.last(), 0f)
+        compose.onRoot().performTouchInput { up() }
+        compose.waitForIdle()
+        assertEquals(1f, engine.speeds.last(), 0f)
+        controller.close()
+    }
+
+    @Test fun horizontalDragDuringAHoldDoesNotPageTheViewer() {
+        val engine = FakeVideoEngine()
+        val controller = readyController(engine, playing = true)
+        val items = listOf(video(30), media(31))
+        var selected: ViewerMedia? = null
+        showVideo(
+            controller,
+            GestureSettings(videoHoldCenter = VideoHoldAction.FastForward),
+            items = items,
+            onSelectMedia = { selected = it },
+        )
+
+        compose.onRoot().performTouchInput {
+            val start = zonePoint(0.5f)
+            down(start)
+            advanceEventTime(700)
+            moveTo(Offset(start.x - width * 0.6f, start.y))
+            advanceEventTime(200)
+            up()
+        }
+        compose.waitForIdle()
+        assertNull(selected)
+        assertEquals(1f, engine.speeds.last(), 0f)
+        controller.close()
+    }
+
+    @Test fun twoFingerTapTogglesPlayPause() {
+        val engine = FakeVideoEngine()
+        val controller = readyController(engine, playing = true)
+        showVideo(controller, GestureSettings())
+
+        compose.onRoot().performTouchInput {
+            down(0, zonePoint(0.3f))
+            down(1, zonePoint(0.7f))
+            advanceEventTime(100)
+            up(0)
+            up(1)
+        }
+        compose.waitForIdle()
+        assertEquals(1, engine.pauseCalls)
+        assertFalse(engine.playing)
+        controller.close()
+    }
+
+    @Test fun doubleTapThenTapInTheSameSeekZoneSeeksTwice() {
+        val engine = FakeVideoEngine()
+        val controller = readyController(engine, playing = true)
+        showVideo(controller, GestureSettings(videoSkipSeconds = 1))
+
+        compose.onRoot().performTouchInput {
+            val point = zonePoint(0.9f)
+            doubleClick(point)
+            advanceEventTime(200)
+            click(point)
+        }
+        compose.mainClock.advanceTimeBy(600)
+        compose.waitForIdle()
+        assertEquals(listOf(1_000L, 2_000L), engine.seekPositions)
+        controller.close()
+    }
+
+    private fun androidx.compose.ui.test.TouchInjectionScope.zonePoint(fraction: Float) =
+        Offset(width * fraction, height * 0.4f)
+
+    private fun readyController(engine: FakeVideoEngine, playing: Boolean): VideoViewerController {
+        val controller = VideoViewerController(engine)
+        controller.select(Uri.parse("content://media/external/video/media/40"))
+        engine.listener?.onReady(10_000L, playing)
+        engine.playing = playing
+        return controller
+    }
+
+    private fun showVideo(
+        controller: VideoViewerController,
+        settings: GestureSettings,
+        items: List<ViewerMedia> = listOf(video(40)),
+        onSelectMedia: (ViewerMedia) -> Unit = {},
+    ) {
+        compose.setContent {
+            LightforgeTheme {
+                ViewerContent(
+                    media = items.first(),
+                    mediaItems = items,
+                    photoState = null,
+                    videoController = controller,
+                    thumbnailLoader = thumbnails,
+                    isFavorite = false,
+                    onBack = {},
+                    onToggleFavorite = {},
+                    onShare = {},
+                    onShareSanitized = {},
+                    onDetails = {},
+                    onEdit = {},
+                    onRename = {},
+                    onCopy = {},
+                    onMove = {},
+                    onOpenWith = {},
+                    onSetAs = {},
+                    onPrint = {},
+                    onRepairDate = {},
+                    onTrash = {},
+                    onSelectMedia = onSelectMedia,
+                    gestureSettings = settings,
+                )
+            }
+        }
+    }
+
     private fun media(id: Long) = TimelineMedia(
         key = MediaKey("external_primary", id),
         kind = MediaKind.Image,
@@ -457,6 +644,9 @@ class ViewerGesturesDeviceTest {
         override var listener: VideoEngine.Listener? = null
         var pauseCalls = 0
         var playCalls = 0
+        var playing = false
+        val speeds = mutableListOf<Float>()
+        val volumes = mutableListOf<Float>()
         var lastSeek = 0L
         val repeatEnabled = mutableListOf<Boolean>()
         val scrubbingModeChanges = mutableListOf<Boolean>()
@@ -464,9 +654,10 @@ class ViewerGesturesDeviceTest {
         val events = mutableListOf<String>()
         override fun setMedia(uri: Uri) = Unit
         override fun prepare() = Unit
-        override fun play() { playCalls++; listener?.onPlayingChanged(true, 10_000) }
+        override fun play() { playCalls++; playing = true; listener?.onPlayingChanged(true, 10_000) }
         override fun pause() {
             pauseCalls++
+            playing = false
             listener?.onPlayingChanged(false, 10_000)
         }
         override fun setScrubbingModeEnabled(enabled: Boolean) {
@@ -481,7 +672,8 @@ class ViewerGesturesDeviceTest {
         override fun stopAndClear() = Unit
         override fun release() = Unit
         override fun attachSurface(surfaceView: SurfaceView?) = Unit
-        override fun setVolume(volume: Float) = Unit
+        override fun setVolume(volume: Float) { volumes += volume }
+        override fun setPlaybackSpeed(speed: Float) { speeds += speed }
         override fun setRepeatEnabled(enabled: Boolean) { repeatEnabled += enabled }
         override fun setVideoEffects(effects: List<Effect>) = Unit
         override fun currentPositionMillis(): Long = lastSeek
