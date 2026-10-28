@@ -2,7 +2,7 @@
 
 - All commits must be written in English, regardless of the language used in the prompt.
 - The application's core strings must be written in English and implemented with full localization support for English, Spanish, French, Portuguese, Italian, and other common languages.
-- Bump `versionName` in `app/build.gradle.kts` in its own commit before every store release; never upload a new build under the previous version. Patch (`x.y.Z`) for fixes and small, self-contained changes (including a single small feature), minor (`x.Y.0`) for medium changes (several features, a reworked screen or flow), major (`X.0.0`) for a large overhaul; keep the pre-release suffix (e.g. `-beta`). The `versionCode` must also be higher than the last uploaded one.
+- Bump `versionName` in `app/build.gradle.kts` in its own commit before every store release; never upload a new build under the previous version. Patch (`x.y.Z`) for fixes and small, self-contained changes (including a single small feature), minor (`x.Y.0`) for medium changes (several features, a reworked screen or flow), major (`X.0.0`) for a large overhaul; keep the pre-release suffix (e.g. `-beta`) on alpha releases, and drop it for production (the first was `1.0.0`). The `versionCode` must also be higher than the last uploaded one.
 - UI foreground/background combinations must use matching Material semantic color-role pairs (for example, `secondaryContainer` with `onSecondaryContainer`). Custom content must inherit the container content color unless an explicitly validated pair is required. Validate contrast in light, dark, and dynamic color themes; do not use unrelated semantic roles or hard-coded colors.
 
 # Compose UI visual feedback (Compose Driver)
@@ -49,12 +49,13 @@ The Baseline Profile (`app/src/main/baseline-prof.txt`) and Startup Profile (`st
 - The key is the organisation-wide LibreStatic service account `play-publisher@librestatic-publisher.iam.gserviceaccount.com`. Its JSON key lives in `~/.android/librestatic/` (override the path with `LIBRESTATIC_PLAY_KEY`). Never copy it into a repository, print it or paste it anywhere.
 - The script only needs the standard library and the system `openssl`.
 - `tools/play-publish.py status` lists every track with its releases.
-- `tools/play-publish.py publish --aab <offline release aab> --mapping app/build/outputs/mapping/offlineRelease/mapping.txt [--track alpha] [--dry-run] [--no-review]` does the following:
+- `tools/play-publish.py publish --aab <offline release aab> --mapping app/build/outputs/mapping/offlineRelease/mapping.txt [--track alpha|production] [--rollout 0.2] [--dry-run] [--no-review]` does the following:
   1. uploads the bundle and its R8 mapping;
   2. puts one release named `<versionCode> (<versionName>)` on the track, with the notes from `store/play/release-notes/<versionName>.txt`;
   3. commits the edit, which sends it for review.
 - Run `--dry-run` first: it validates the edit and discards it.
 - If the commit says the changes cannot be sent automatically, rerun with `--no-review`, then send them from Publishing overview.
+- `tools/play-publish.py listings [--dry-run] [--no-review]` sets the title, short and full description of every locale folder under `store/play/listings/` (images and other locales are untouched) and prints which locales changed. Run `python3 store/play/check_listings.py` first.
 - The package is read from `applicationId` (`com.librestatic.lightforge`).
-- The closed track is `alpha`.
+- The closed track is `alpha`; production is `--track production` (add `--rollout 0.2` for a staged rollout). Production must target countries first, which only the Console can set; `publish` checks it before uploading.
 - If the API answers 403, the service account lacks access in Play Console > Users and permissions. Ask the user; do not grant it yourself.

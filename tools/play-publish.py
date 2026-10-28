@@ -7,8 +7,9 @@ system `openssl`. The service-account key is the organisation-wide one in
 
   tools/play-publish.py status
   tools/play-publish.py publish --aab app.aab [--mapping mapping.txt] [--track alpha]
-                                [--notes store/play/release-notes/X.txt] [--dry-run]
-                                [--no-review] [--draft]
+                                [--notes store/play/release-notes/X.txt] [--rollout 0.2]
+                                [--dry-run] [--no-review] [--draft]
+  tools/play-publish.py listings [--dir store/play/listings] [--dry-run] [--no-review]
 
 `publish` uploads the bundle (and the R8 mapping, if given), puts one release on the
 track with the per-locale notes and the name "<versionCode> (<versionName>)", and
@@ -17,6 +18,15 @@ edit instead. `--no-review` commits with changesNotSentForReview, leaving the ch
 in Publishing overview for someone to send from the Console. `--draft` adds the
 release as a draft next to the live one and skips validation, for when the Console
 needs a release using a new permission before it accepts that permission's declaration.
+
+`--track production` publishes to production. The track must already target at least one
+country: the API cannot set that, so the check runs before the upload and points to
+the Console. `--rollout F` (0 < F < 1) makes a staged rollout to that fraction of users
+instead of a full one.
+
+`listings` sets the store listing text (title, short and full description) of every
+locale folder under store/play/listings/<language>/, leaving images and the other
+locales alone, and prints which ones changed. It commits only when something did.
 """
 import argparse
 import base64
@@ -140,7 +150,8 @@ def cmd_status(play, args):
         for track in play.call("GET", play.edit_url(edit, "/tracks")).get("tracks", []):
             releases = track.get("releases", [])
             summary = "; ".join(
-                f"{r.get('name', '?')} {r.get('versionCodes', [])} {r.get('status')}" for r in releases
+                f"{r.get('name', '?')} {r.get('versionCodes', [])} {r.get('status')}"
+                + (f" {r['userFraction']:.0%}" if "userFraction" in r else "") for r in releases
             ) or "empty"
             print(f"{track['track']}: {summary}")
         codes = [b["versionCode"] for b in play.call("GET", play.edit_url(edit, "/bundles")).get("bundles", [])]
@@ -153,9 +164,18 @@ def cmd_publish(play, args):
     version_name = args.version_name or gradle_value(r'versionName\s*=\s*"([^"]+)"')
     notes_path = args.notes or os.path.join(ROOT, f"store/play/release-notes/{version_name}.txt")
     notes = parse_notes(notes_path)
+    if args.rollout is not None and not 0 < args.rollout < 1:
+        die("--rollout must be a fraction between 0 and 1 (exclusive); omit it for a full rollout")
+    if args.rollout is not None and args.draft:
+        die("--rollout and --draft cannot be combined")
     edit = play.call("POST", f"{API}/{play.package}/edits")["id"]
     committed = False
     try:
+        countries = play.call("GET", play.edit_url(edit, f"/countryAvailability/{args.track}")).get("countries", [])
+        if not countries:
+            die(f"track {args.track} targets no countries: add them in the Play Console "
+                f"(the track's Countries / regions tab) first; the API cannot set them")
+        print(f"track {args.track} targets {len(countries)} countries")
         print(f"uploading {os.path.basename(args.aab)} ...", flush=True)
         with open(args.aab, "rb") as f:
             bundle = play.call("POST", play.upload_url(edit, "/bundles"),
@@ -173,6 +193,8 @@ def cmd_publish(play, args):
             "status": "draft" if args.draft else "completed",
             "releaseNotes": notes,
         }
+        if args.rollout is not None:
+            release.update(status="inProgress", userFraction=args.rollout)
         releases = [release]
         if args.draft:
             # A draft sits next to the live release instead of replacing it.
@@ -180,7 +202,8 @@ def cmd_publish(play, args):
             releases = [r for r in current.get("releases", []) if r.get("status") != "draft"] + releases
         play.call("PUT", play.edit_url(edit, f"/tracks/{args.track}"),
                   body={"track": args.track, "releases": releases})
-        print(f"track {args.track}: {release['name']} ({release['status']}), notes for {len(notes)} languages")
+        rollout = f"staged rollout {args.rollout:.0%}" if args.rollout is not None else "full rollout"
+        print(f"track {args.track}: {release['name']} ({release['status']}, {rollout}), notes for {len(notes)} languages")
         if args.draft:
             # Validation fails while a permission declaration is still missing, and the
             # Console only offers that declaration once a release using the permission exists.
@@ -188,6 +211,64 @@ def cmd_publish(play, args):
         else:
             play.call("POST", play.edit_url(edit, ":validate"))
             print("edit validated")
+        if args.dry_run:
+            print("dry run: edit discarded")
+            return
+        query = "?changesNotSentForReview=true" if args.no_review else ""
+        play.call("POST", play.edit_url(edit, ":commit") + query)
+        committed = True
+        print("committed: left in Publishing overview" if args.no_review else "committed and sent for review")
+    finally:
+        if not committed:
+            play.call("DELETE", play.edit_url(edit))
+
+
+LISTING_FILES = {"title": ("title.txt", 30), "shortDescription": ("short_description.txt", 80),
+                 "fullDescription": ("full_description.txt", 4000)}
+
+
+def read_listings(folder):
+    listings = {}
+    for language in sorted(os.listdir(folder)):
+        path = os.path.join(folder, language)
+        if not os.path.isdir(path):
+            continue
+        listing = {}
+        for field, (name, limit) in LISTING_FILES.items():
+            file = os.path.join(path, name)
+            if not os.path.exists(file):
+                die(f"{language}/{name} is missing")
+            text = open(file, encoding="utf-8").read().strip()
+            if not text or len(text) > limit:
+                die(f"{language}/{name} is {len(text)} characters; Play allows 1 to {limit}")
+            listing[field] = text
+        listings[language] = listing
+    if not listings:
+        die(f"no locale folders in {folder}")
+    return listings
+
+
+def cmd_listings(play, args):
+    listings = read_listings(args.dir)
+    edit = play.call("POST", f"{API}/{play.package}/edits")["id"]
+    committed = False
+    try:
+        current = {item["language"]: item for item in play.call("GET", play.edit_url(edit, "/listings")).get("listings", [])}
+        changed = []
+        for language, listing in listings.items():
+            old = current.get(language, {})
+            fields = [field for field in LISTING_FILES if old.get(field, "").strip() != listing[field]]
+            if not fields:
+                print(f"{language}: unchanged")
+                continue
+            play.call("PUT", play.edit_url(edit, f"/listings/{language}"), body={"language": language, **listing})
+            changed.append(language)
+            print(f"{language}: {'new' if not old else 'updated ' + ', '.join(fields)}")
+        if not changed:
+            print("nothing to change: edit discarded")
+            return
+        play.call("POST", play.edit_url(edit, ":validate"))
+        print("edit validated")
         if args.dry_run:
             print("dry run: edit discarded")
             return
@@ -208,19 +289,24 @@ def main():
     pub = sub.add_parser("publish", help="upload an AAB and release it on a track")
     pub.add_argument("--aab", required=True)
     pub.add_argument("--mapping", help="R8 mapping.txt to attach to the bundle")
-    pub.add_argument("--track", default="alpha", help="API track id (default: alpha, the closed track)")
+    pub.add_argument("--track", default="alpha", help="API track id: alpha (default, the closed track) or production")
+    pub.add_argument("--rollout", type=float, help="staged rollout: the fraction of users, 0 < F < 1 (default: full)")
     pub.add_argument("--notes", help="default: store/play/release-notes/<versionName>.txt")
     pub.add_argument("--version-name", help="default: versionName in app/build.gradle.kts")
     pub.add_argument("--dry-run", action="store_true", help="validate, then discard the edit")
     pub.add_argument("--no-review", action="store_true", help="commit without sending for review")
     pub.add_argument("--draft", action="store_true",
                      help="add the release as a draft and skip validation (pair with --no-review)")
+    lst = sub.add_parser("listings", help="set the store listing text of every locale in store/play/listings")
+    lst.add_argument("--dir", default=os.path.join(ROOT, "store/play/listings"))
+    lst.add_argument("--dry-run", action="store_true", help="validate, then discard the edit")
+    lst.add_argument("--no-review", action="store_true", help="commit without sending for review")
     args = parser.parse_args()
     package = args.package or gradle_value(r'applicationId\s*=\s*"([^"]+)"')
     if not package:
         die("could not read applicationId; pass --package")
     play = Play(package)
-    {"status": cmd_status, "publish": cmd_publish}[args.cmd](play, args)
+    {"status": cmd_status, "publish": cmd_publish, "listings": cmd_listings}[args.cmd](play, args)
 
 
 if __name__ == "__main__":
