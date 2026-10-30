@@ -12,7 +12,11 @@ android {
         consumerProguardFiles("consumer-rules.pro")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
-            cmake { cppFlags += listOf("-std=c++17", "-fexceptions", "-frtti") }
+            cmake {
+                cppFlags += listOf("-std=c++17", "-fexceptions", "-frtti")
+                // NDK r27 still links with 4 KB pages by default; Play requires 16 KB ELF alignment for Android 15+ targets.
+                arguments += "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
+            }
         }
         // -Plightforge.abis=x86_64 limits local builds to one ABI; releases keep all three.
         ndk {
