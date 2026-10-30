@@ -30,11 +30,14 @@ for abi in arm64-v8a armeabi-v7a x86_64; do
     cp "$build/install/lib/libncnn.so" "$out/$abi/libncnn.so"
 done
 
-# Every LOAD segment must be aligned to at least 16 KB (0x4000).
-for so in "$out"/*/libncnn.so; do
-    if readelf -lW "$so" | awk '/LOAD/ && strtonum($NF) < 16384 { bad = 1 } END { exit !bad }'; then
-        echo "not 16 KB aligned: $so" >&2
-        exit 1
-    fi
+# Every LOAD segment of the 64-bit libraries must be aligned to at least 16 KB (0x4000). 32-bit ABIs only ever run
+# with 4 KB pages, so the NDK keeps them at 4 KB and Play does not check them.
+for abi in arm64-v8a x86_64; do
+    for align in $(readelf -lW "$out/$abi/libncnn.so" | awk '/LOAD/ { print $NF }'); do
+        if (( align < 16384 )); then
+            echo "not 16 KB aligned: $out/$abi/libncnn.so" >&2
+            exit 1
+        fi
+    done
 done
 echo "ncnn $tag rebuilt with 16 KB alignment"
