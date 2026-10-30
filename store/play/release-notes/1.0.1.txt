@@ -1,0 +1,40 @@
+<en-US>
+Lightforge Studio 1.0.1:
+• Support for devices with 16 KB memory pages, required by newer Android devices.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+Lightforge Studio 1.0.1:
+• Compatibilidad con dispositivos con páginas de memoria de 16 KB, requerido por los dispositivos Android más nuevos.
+Informá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+Lightforge Studio 1.0.1:
+• Compatibilidad con dispositivos con páginas de memoria de 16 KB, requerido por los dispositivos Android más recientes.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+Lightforge Studio 1.0.1:
+• Compatibilidade com dispositivos com páginas de memória de 16 KB, exigido pelos dispositivos Android mais recentes.
+Informe problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+Lightforge Studio 1.0.1:
+• Compatibilidade com dispositivos com páginas de memória de 16 KB, exigido pelos dispositivos Android mais recentes.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+Lightforge Studio 1.0.1 :
+• Compatibilité avec les appareils à pages mémoire de 16 Ko, requis par les appareils Android les plus récents.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+Lightforge Studio 1.0.1:
+• Unterstützung für Geräte mit 16-KB-Speicherseiten, wie neuere Android-Geräte sie erfordern.
+Probleme melden: github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+Lightforge Studio 1.0.1:
+• Supporto per i dispositivi con pagine di memoria da 16 KB, richiesto dai dispositivi Android più recenti.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
