@@ -83,7 +83,7 @@ You can choose which screen the app opens on in **Settings > File operations > S
   - **Group by**: **Day**, **Month**, **Year** or **No grouping**.
   - **Show hidden items for now**, available when advanced storage mode is on.
 - **Photo stacks**: groups of near-identical shots appear as a single tile. Tap it to open the stack.
-- **Background work**: a status line shows work in progress, such as **Updating search in the background…**. Analysis pauses to save battery or while the phone cools down, and the status says so.
+- **Background work**: a status card at the top shows work in progress, such as **Updating search in the background…** or **Recognizing individual pets in the background…**, with the photos done, the total and an estimated time left. After you tap **Got it**, a smaller card stays in the same place so the grid never jumps; when nothing is running it shows **Library up to date** and the number of items. Analysis slows down when the phone gets warm and pauses only when it gets hot or to save battery, and the card says why (**Paused · device is warm**, **Paused to save battery**). You can hide the card with **Settings > Local analysis > Show status on Photos**.
 
 ## 4. Selecting items
 
@@ -129,9 +129,10 @@ Tap any item to open it in full screen.
 - Pinch to zoom, and double-tap to zoom in on a spot.
 - Swipe down to close, and swipe up to open **Details**.
 - Optionally, rotate a photo with two fingers, change brightness by swiping on photos or videos, and change the volume by swiping on videos.
-- On a video, double-tap the left or right third of the screen to skip back or forward.
+- On a video, double-tap the left or right third of the screen to skip back or forward; each extra tap adds to the jump, and the total is shown. Double-tap the center to zoom. A two-finger tap plays or pauses.
+- On a video, press and hold the left side to rewind fast, the center for AI slow motion (see [Slow motion](#slow-motion)) and the right side to fast forward. While holding, slide up or in the direction the video runs to go faster, and down or the other way to slow down; the current speed is shown on screen.
 
-You can turn each gesture on or off and set its limits in **Settings > Viewer gestures**.
+You can turn each gesture on or off and set its limits in **Settings > Viewer gestures**. The **Hold on video** and **Double tap on video** cards choose what each side of the screen does, or **Nothing**.
 
 ### Actions
 
@@ -167,13 +168,22 @@ Long-press text in a photo to select it. You can then **Copy**, **Translate**, *
 
 ### Slow motion
 
-Press and hold a video to play that moment in AI slow motion. The app generates extra frames in between the real ones; while it prepares them, you see **Preparing AI slow motion…**. When you let go, you can **Save slow-mo clip** as a new video or **Dismiss slow-mo clip**.
+Press and hold the center of a video to play that moment in AI slow motion. The app generates extra frames in between the real ones; while it prepares them, you see **Preparing AI slow motion…**. While holding, slide sideways to move through the clip. With **Shuttle** (the default), the distance from where you started sets the direction and speed, and going back to the start pauses; with **Scrub**, the frame follows your finger. Choose the style in **Settings > Viewer gestures > Slow motion slide**. When you let go, you can **Save slow-mo clip** as a new video or **Dismiss slow-mo clip**.
 
 **Settings > Video playback > Frame interpolation** chooses the hardware that generates the frames:
 
 - **Automatic**: the DSP when it is available, otherwise the GPU.
 - **GPU**: the fastest previews, but uses more battery.
 - **DSP (HVX)**: uses less battery. Only phones with a supported DSP offer it.
+
+### Outer screen and face to face
+
+On foldables with an outer screen that can stay on while the phone is open, such as the razr fold, the viewer offers two extra ways to show a photo or video:
+
+- **Show on outer screen** mirrors the current item to the outer screen, so the person in front of you sees it while you keep browsing. The inner screen shows **Showing on outer screen**; tap **Stop** to end it.
+- **Face to face** splits the inner screen into two copies facing opposite directions, for two people on either side of a table. Zooming one copy zooms both. **Switch split direction** changes the split, and **Exit face to face** ends it.
+
+Leaving the viewer always stops sharing. If the outer screen cannot be used, the app says **Couldn’t show on the outer screen**.
 
 ### Motion photos
 
@@ -296,8 +306,8 @@ Open a person to:
 - **Dogs** and **Cats** collections come from photo content labels. They never claim to recognize an individual pet. You can hide them in **Settings > Local analysis > Pets**.
 - **Individual pets** (**Settings > Local analysis**) recognizes individual cats and dogs:
   1. **Download models (58 MB)**, or use **Import verified model ZIP**.
-  2. Tap **Enable pet recognition**, then **Analyze local photos**.
-  3. Review the groups yourself: **Merge selected groups**, **Split selected photos**, **Find similar groups** and **Undo last edit**.
+  2. Tap **Enable pet recognition**, then **Analyze local photos**. The analysis keeps running in the background, also after you leave the screen.
+  3. The app suggests groups of photos that seem to show the same pet. It never creates a pet on its own: review the groups yourself: **Merge selected groups**, **Split selected photos**, **Find similar groups** and **Undo last edit**.
 
 ### Places
 
@@ -313,8 +323,10 @@ Open a person to:
 Open **Settings > Local analysis**:
 
 - **Use local analysis** is the master switch for people and faces, photo content and text, and pet collections.
-- **Minimum battery for full analysis**: when unplugged, full analysis runs only while the app is open and the battery is at or above this level. Charging always allows it. Analysis also pauses when the phone is warm.
+- **Minimum battery for full analysis**: when unplugged, full analysis runs only while the app is open and the battery is at or above this level. Charging always allows it. When the phone is warm, analysis runs at about half speed; it pauses only when the phone is hot and resumes once it has cooled down.
 - **Download models on mobile data** is off by default, so model downloads wait for Wi-Fi.
+- **Show status on Photos** shows indexing and analysis progress cards at the top of Photos.
+- Each analysis shows its progress as photos done out of the photos it applies to, what is left and an estimated time, or **All photos analyzed** when it is finished.
 - **Analysis features**:
   - **People and faces**.
   - **Photo content and text**.
@@ -325,7 +337,7 @@ Open **Settings > Local analysis**:
   - Turn on **Use semantic search**, then **Download** and **Use** a model. The app marks models as **Recommended**, **Supported** or **Incompatible** for your phone.
   - Before a new model becomes active, the app builds its index (**Building index**).
   - **Delete** removes a model, and **Delete all downloaded models** removes them all. Deleting the active model turns off semantic search.
-- **Individual pets** opens pet recognition.
+- **Individual pets** (in the **Pets** section) shows its status and opens pet recognition. If pet collections are off, the section explains why and offers to turn them on.
 
 ## 14. Free up space
 
@@ -517,6 +529,8 @@ Open Settings from the Photos **More options** menu or the navigation rail.
 - **Viewer gestures**:
   - **Photo gestures** and **Video gestures**.
   - Zoom limits and **Double-tap skip** seconds.
+  - **Hold on video**: the action for each side, **Fast forward and rewind speed** (1.5× to 4×), **Slow motion slide**, **Audio while fast forwarding** and **Slide to change speed**.
+  - **Double tap on video**: the action for each side and **Two-finger tap to play or pause**.
 - **Thumbnails**:
   - Crop to fill, animate GIF and WebP, show video duration, show file type and mark favorites.
   - **Grid columns**: automatic or a fixed number.

@@ -2,7 +2,7 @@
 
 Lightforge Studio is a native, open-source gallery for Android, built for local libraries of 100,000 to 250,000 photos and videos. MediaStore is the single source of truth; Room, AppSearch, thumbnails and every ML index are caches that can be rebuilt. Organization, search and recognition run on the device, and nothing is presented as working until it does: unfinished paths degrade with an explicit label instead of a silent stub.
 
-- **Version:** `0.8.0-beta` (public beta)
+- **Version:** `1.0.1`
 - **Package:** `com.librestatic.lightforge`
 - **Requires:** Android 11 (API 30) or later
 - **License:** [Apache-2.0](LICENSE)
@@ -26,8 +26,10 @@ Sample media is CC0 / public domain; see [`store/play/raw/MEDIA_LICENSES.md`](st
 
 - Timeline grid with pinch-to-zoom that keeps its anchor across rotation, resize and fold changes; built for 250k items without ANR or OOM.
 - Incremental sync through ContentObserver, MediaStore generations and per-volume reconciliation, including removable SD cards; no full scan at startup.
-- Full, selected-media and revoked photo permission states, revalidated on every return to the foreground. All files access is never required; it only backs the opt-in advanced storage mode.
+- Full, selected-media and revoked photo permission states, revalidated on every return to the foreground. All files access is never required; it only backs the opt-in advanced storage mode, which the Google Play build leaves out.
 - Full-screen viewer with large-image tiling, animated GIF/WebP, Media3 video playback, motion photos (Samsung and Google formats) and lazy EXIF details. Press and hold a video for AI slow motion with frame interpolation (GPU, or the DSP (HVX) where available) and save the clip.
+- Configurable video gestures: hold left, center or right to rewind fast, play in slow motion or fast forward, slide to change speed, and double-tap zones to seek, zoom or play/pause.
+- On foldables with a concurrent outer display (such as the razr fold), mirror the current photo or video to the outer screen, or split the inner screen face to face.
 - Bottom tabs for Photos, Collections and Search, plus a Create menu (album, memory, memory video, GIF, collage, PDF, recoveries) and an Updates screen for local activity and video exports.
 - On device folder explorer: pin, exclude, cover, home screen shortcuts and single-folder chain merging; with the opt-in advanced storage mode, also hidden `.nomedia` folders, hide by name and folder create, rename, move, copy and delete.
 - Albums (physical and virtual), favorites, smart albums, photo stacks, Documents, Archive and Trash, with bounded bulk actions in chunks of up to 500 items.
@@ -36,7 +38,8 @@ Sample media is CC0 / public domain; see [`store/play/raw/MEDIA_LICENSES.md`](st
 
 - Keyword search (AppSearch), plus search by date, place, people, pets and text in photos (OCR).
 - Optional semantic search with signed, user-managed TinyCLIP model packages; keyword search stays available without one.
-- Opt-in face grouping with conservative clustering and manual correction, dog and cat collections plus optional individual pet recognition, bundled offline reverse geocoding for place names, and an offline Places map from user-imported PMTiles/MBTiles packages.
+- Opt-in face grouping with conservative clustering and manual correction, dog and cat collections plus optional individual pet recognition (background analysis that suggests groups for the user to confirm), bundled offline reverse geocoding for place names, and an offline Places map from user-imported PMTiles/MBTiles packages.
+- Live analysis progress on Photos and in Settings, with photos done, an estimated time left and the reason for any pause; analysis slows down on moderate heat instead of stopping.
 - Exact duplicates, large videos, screenshots and blurry photos to review in Free up space, similar-photo stack suggestions, and memories grouped by time and place.
 
 ### Editing and creation
@@ -79,7 +82,7 @@ See the [privacy policy](store/play/privacy-policy.md) and the [commercial use a
 | `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_LOCAL_NETWORK` | User-initiated model downloads, backup to the user's own servers and local-network sharing only. Guarded by `tools/verify_offline_release.py`; cleartext traffic is disabled. |
 | `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`, `FOREGROUND_SERVICE_MEDIA_PROCESSING` | Visible progress for long exports, indexing, backup and transfers. |
 
-`MANAGE_MEDIA` (optional, Android 12+) lets batch edits, trash and deletes skip the per-batch confirmation. `MANAGE_EXTERNAL_STORAGE` backs an opt-in advanced storage mode (hidden `.nomedia` folders, in-place moves, folder operations); it lives only in `:core:storage-advanced` and `-Plightforge.allFilesAccess=false` strips it from the build (ADR-046). No location permission and no OEM privilege assumptions; Wi-Fi and location permissions pulled in by libraries are removed from the merged manifest.
+`MANAGE_MEDIA` (optional, Android 12+) lets batch edits, trash and deletes skip the per-batch confirmation. `MANAGE_EXTERNAL_STORAGE` backs an opt-in advanced storage mode (hidden `.nomedia` folders, in-place moves, folder operations); it lives only in `:core:storage-advanced` and `-Plightforge.allFilesAccess=false` strips it from the build (ADR-046). Google Play rejected the declaration on 2026-10-28, so Play builds always use that flag; GitHub builds keep the mode. No location permission and no OEM privilege assumptions; Wi-Fi and location permissions pulled in by libraries are removed from the merged manifest.
 
 ## Project status
 
@@ -129,6 +132,8 @@ Instrumented tests need a device or emulator:
 ./gradlew :app:connectedOfflineDebugAndroidTest
 ```
 
+Native libraries are linked with 16 KB page alignment, which Google Play requires for Android 15+. The bundled ncnn runtime is a prebuilt; `tools/build-ncnn-android.sh` rebuilds it reproducibly from the pinned upstream tag with the same alignment.
+
 For Compose UI work, `scripts/compose-driver.sh` renders debug previews headlessly with a semantics tree and screenshots; see [`tools/compose-driver/README.md`](tools/compose-driver/README.md).
 
 The `offline` flavor is the shipped product; `demo` installs side by side with a `.demo` suffix. Debug builds use a `.debug` suffix so they never replace a normal install.
@@ -136,7 +141,7 @@ The `offline` flavor is the shipped product; `demo` installs side by side with a
 ## Releases
 
 - **GitHub:** every push to `main` (`.github/workflows/release.yml`) runs `test lint :app:bundleOfflineRelease :app:assembleOfflineRelease`, the release guard and a signature check, then publishes a prerelease tagged `v<versionName>+<versionCode>` with the App Bundle, APK, R8 mapping file and `SHA256SUMS.txt`.
-- **Google Play:** the same offline release bundle is published through the Play Developer API with `tools/play-publish.py`. `status` lists every track; `publish --aab <aab> --mapping <mapping.txt>` uploads the bundle and mapping and releases it on a track (default `--track alpha`, the closed track) with notes from `store/play/release-notes/<versionName>.txt`. Run `--dry-run` first; `--no-review` commits without sending for review, and `--draft` (paired with `--no-review`) adds the release as a draft without validation, for releases that use a new permission Play Console must see before it accepts the declaration. GitHub and Play ship the same feature set ([ADR-044](docs/adr/ADR-044-commercial-distribution-scope.md)).
+- **Google Play:** the same offline release bundle is published through the Play Developer API with `tools/play-publish.py`. `status` lists every track; `publish --aab <aab> --mapping <mapping.txt>` uploads the bundle and mapping and releases it on a track (default `--track alpha`, the closed track; `--track production` for production, with `--rollout 0.2` for a staged rollout) with notes from `store/play/release-notes/<versionName>.txt`. Play bundles are built with `-Plightforge.allFilesAccess=false`. Run `--dry-run` first; `--no-review` commits without sending for review (needed when Play blocks automatic review), and `--draft` (paired with `--no-review`) adds the release as a draft without validation, for releases that use a new permission Play Console must see before it accepts the declaration. GitHub and Play ship the same feature set except advanced storage mode, which only GitHub builds include ([ADR-044](docs/adr/ADR-044-commercial-distribution-scope.md), [ADR-046](docs/adr/ADR-046-optional-all-files-access.md)).
 
 `versionCode` comes from the CI run number plus an offset, so it always increases. Signing uses the `LIGHTFORGE_KEYSTORE_*` and `LIGHTFORGE_KEY_*` environment variables; keys never enter the repository. The Apache-2.0 license grants no rights to the Lightforge name or icon.
 

@@ -20,7 +20,7 @@ Lightforge is a 100% native Android gallery app that makes managing massive loca
 
 ## Positioning
 
-A gallery that scales to quarter-million-item libraries on-device, with local ML organization, no service dependency, and no OEM privilege assumptions. Connectivity is used only for user-initiated actions: downloading model packages (signed semantic packages, SHA-256-pinned pet and inpainting models), backup and folder sync to the user's own SFTP or SMB servers, and encrypted transfer to another device on the local network. Gallery data and queries never leave the device otherwise. Unlike stock gallery apps, it does not depend on MANAGE_EXTERNAL_STORAGE or OEM privileges: all-files access is an opt-in, removable advanced mode (ADR-046). The differentiator is full local-first architecture: MediaStore as authority, Room/AppSearch/ML as rebuildable indexes, and a system-permission-respecting access model.
+A gallery that scales to quarter-million-item libraries on-device, with local ML organization, no service dependency, and no OEM privilege assumptions. Connectivity is used only for user-initiated actions: downloading model packages (signed semantic packages, SHA-256-pinned pet and inpainting models), backup and folder sync to the user's own SFTP or SMB servers, and encrypted transfer to another device on the local network. Gallery data and queries never leave the device otherwise. Unlike stock gallery apps, it does not depend on MANAGE_EXTERNAL_STORAGE or OEM privileges: all-files access is an opt-in, removable advanced mode (ADR-046) that the Google Play build leaves out. The differentiator is full local-first architecture: MediaStore as authority, Room/AppSearch/ML as rebuildable indexes, and a system-permission-respecting access model.
 
 ## Operating Context
 
@@ -40,7 +40,7 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 
 - Timeline grid with pinch-to-zoom, anchor preservation on rotation/resize/fold.
 - Album management (create, add, remove) with atomic writes.
-- Full-screen viewer with large image tiling, video playback (Media3 ExoPlayer).
+- Full-screen viewer with large image tiling, video playback (Media3 ExoPlayer), configurable hold and double-tap video gestures, and outer-screen or face-to-face viewing on foldables with a concurrent outer display.
 - Search: keyword (AppSearch), semantic (local embeddings), by person, by place.
 - Face detection (ML Kit) + face recognition (LiteRT embeddings + clustering + manual correction); opt-in.
 - OCR, pet recognition; local, opt-in where applicable. Object eraser and subject clip are experimental photo editor tools with basic, explicitly labelled fallback quality (no ML model yet).
@@ -53,7 +53,7 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 - Accessibility: TalkBack, font scale, touch targets >= 48dp.
 - Localization: English, Spanish, French, Portuguese, Italian, and German.
 - INTERNET access is restricted to verified semantic model package delivery; no user content, metadata, query, embedding, or inference traffic.
-- MediaStore is the default and sufficient access model. `MANAGE_MEDIA` is optional (skips per-batch confirmations); `MANAGE_EXTERNAL_STORAGE` is an opt-in advanced mode isolated in `:core:storage-advanced` and removable with `-Plightforge.allFilesAccess=false` (ADR-046). No OEM privilege assumptions.
+- MediaStore is the default and sufficient access model. `MANAGE_MEDIA` is optional (skips per-batch confirmations); `MANAGE_EXTERNAL_STORAGE` is an opt-in advanced mode isolated in `:core:storage-advanced` and removable with `-Plightforge.allFilesAccess=false` (ADR-046); Play builds always use that flag since Play rejected the declaration on 2026-10-28. No OEM privilege assumptions.
 - No misleading P2 stubs; features either work or degrade explicitly.
 
 ## Brand Commitments
