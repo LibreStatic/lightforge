@@ -9,7 +9,8 @@ Lightforge runs every library-wide analysis task (image labels, OCR, exact dupli
 - [MlChunkWorker.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/MlChunkWorker.kt): `MlChunkWorker.doWork`, `chainNextStage`, `nextStage`, `uniqueName` (`lightforge-ml-<task>`), `request`, `shouldGiveUp`, `MaxChunkRunAttempts`, `MlBackoffWait`, `requiringCharging`.
 - [MlChunkRunner.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/MlChunkRunner.kt): `MlChunkRunner.run`, `MlRunnerResult` (`Continue`, `Finished`, `Retry`, `Backoff`, `Stopped`).
 - [MlStateStore.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/MlStateStore.kt): `ml-task-state` shared preferences; `checkpoint`, `write`, `clear`, consent, pause, `requestedMode`, `waitReason`.
-- [MlWorkPolicy.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/MlWorkPolicy.kt): `MlWorkPolicy.forMode` (chunk size and constraints), `MlExecutionController.decide` (`MlExecutionDecision`), `AndroidFullAnalysisEligibility`, `AndroidThermalStatusProvider`, `LocalAnalysisForegroundState`.
+- [MlWorkPolicy.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/MlWorkPolicy.kt): `MlWorkPolicy.forMode` (chunk size and constraints), `MlExecutionController.decide` (`MlExecutionDecision`), `MlExecutionController.pace`, `AndroidFullAnalysisEligibility`, `AndroidThermalStatusProvider` (`status`, `headroom`), `LocalAnalysisForegroundState`.
+- [MlThermalPace.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/MlThermalPace.kt): `thermalPace` (`ThermalPace`: `Full`, `Slow`, `Hold`), `thermalRest`, `ThermalHoldWait`.
 - [UserHardwareWorkloadGate.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/UserHardwareWorkloadGate.kt): `UserHardwareWorkloadGate.acquire`, `release`, `isActive` (`UserHardwareWorkload`: `VideoViewer`, `VideoEditor`, `PhotoEditor`, `VideoExport`).
 - [DetectedContentRuntime.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/DetectedContentRuntime.kt): `DetectedContentRuntime.install` registers a `LazyEngine` per task (called from `LightforgeApplication.onCreate`); purges run without loading a model.
 - [ExactDuplicateEngine.kt](../../core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/ExactDuplicateEngine.kt): `ExactDuplicateMlEngine.process`, `ResolverDuplicateContentHasher.sample` and `full`, `HashVersion`, `ExactDuplicateRepository`.
@@ -55,7 +56,8 @@ sequenceDiagram
 1. `enqueue` is idempotent: a task that already has a `requestedMode` is not enqueued again, and the unique work uses `ExistingWorkPolicy.KEEP`.
 2. Each worker run handles exactly one chunk: 50 items for `Recent`, 100 for `FullLibrary` (`MlWorkPolicy` requires 50..200).
 3. After a `Continue`, the worker appends the next one-chunk request to the same unique name and returns success, so progress survives process death through the stored checkpoint, not through a long-running worker.
-4. A `Backoff` enqueues a fresh request (resetting `runAttemptCount`): `Charging` adds `requiresCharging`, `Thermal` adds a 2-minute initial delay.
+4. A `Backoff` enqueues a fresh request (resetting `runAttemptCount`): `Charging` adds `requiresCharging`, `Thermal` adds a 2-minute initial delay (`ThermalHoldWait`).
+5. A `Continue` at `ThermalPace.Slow` carries a cooling `rest` equal to how long the chunk took (1 s to 1 min, `thermalRest`), and the next chunk request gets it as its initial delay, so analysis keeps going at about half speed.
 
 ## Chunk decision and outcome
 
@@ -84,7 +86,10 @@ flowchart TD
     Give -->|no| WRetry["Result.retry"]
 ```
 
-1. `decide` checks, in order: consent, manual pause, `UserHardwareWorkloadGate.isActive`, media permission, then for `FullLibrary` only the power gate (`AndroidFullAnalysisEligibility`: charging, or app in foreground with battery at or above `fullAnalysisMinimumBatteryPercent`), then thermal status at or above `THERMAL_STATUS_MODERATE`.
+1. `decide` checks, in order: consent, manual pause, `UserHardwareWorkloadGate.isActive`, media permission, then for `FullLibrary` only the power gate (`AndroidFullAnalysisEligibility`: charging, or app in foreground with battery at or above `fullAnalysisMinimumBatteryPercent`), then the thermal pace. `thermalPace` reads `getCurrentThermalStatus` and the 10 s `getThermalHeadroom` forecast (cached for a second, since faster calls return NaN):
+   - `Hold` (→ `ThermalBackoff`) at `THERMAL_STATUS_SEVERE` or a forecast of 0.95 or more; after a heat hold (`waitReason` is `Thermal`), work resumes only once the forecast falls to 0.85.
+   - `Slow` at `THERMAL_STATUS_MODERATE` or a forecast of 0.8 or more: the chunk runs and the next one waits (step 5 above).
+   - `Full` otherwise.
 2. `setWaitReason` records `Charging` or `Thermal` for the UI (`MlControlState.waitReason`) and clears it for every other decision.
 3. `UserPriority` stops without clearing `requestedMode`, so `resumeAfterUserWork` can restart the task later.
 4. An engine exception rewrites the checkpoint as `Ready` at the old cursor; the worker returns `Result.retry()` until `MaxChunkRunAttempts` (5) is reached, then gives up with success so the chain is not cancelled.

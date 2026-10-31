@@ -1,6 +1,6 @@
 # ADR-046 — Optional all-files access and media management
 
-Status: accepted  
+Status: accepted, amended 2026-10-19 and 2026-10-31  
 Date: 2026-10-18  
 Supersedes: the `MANAGE_EXTERNAL_STORAGE` / `MANAGE_MEDIA` / `.nomedia` exclusions in
 `PRODUCT.md`, `README.md`, `store/play/declarations.md` and `docs/SIMPLE_GALLERY_PARITY.md`.
@@ -307,3 +307,16 @@ launchers) is no longer started by the folder picker and remains only because de
 The scrubber histogram does not count hidden items merged into Photos. The viewer, system
 integration, photo editor, formats and slideshow sprints of the Simple Gallery gap plan are outside
 this change.
+
+## Play rejection (amended 2026-10-31)
+
+Google Play rejected the "All files access" declaration on 2026-10-28 ("Not a core feature" and
+"Need to use MediaStore API"). The fallback in section 4 applies:
+
+- Every Play bundle is built with `-Plightforge.allFilesAccess=false`; GitHub builds keep the
+  permission and the mode.
+- A flag-off build keeps the recovery-only binding, so users who hid folders or files with an
+  earlier build can still list and unhide them.
+- Before upload, `tools/verify_offline_release.py --no-all-files` checks the merged manifest,
+  and `unzip -p <aab> base/manifest/AndroidManifest.xml | grep -a -c MANAGE_EXTERNAL_STORAGE`
+  must print 0 for the bundle itself.

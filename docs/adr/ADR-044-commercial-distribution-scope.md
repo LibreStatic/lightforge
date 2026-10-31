@@ -1,6 +1,6 @@
 # ADR-044 — Commercial distribution scope
 
-Status: accepted  
+Status: accepted, amended 2026-10-31  
 Date: 2026-09-27
 
 ## Context
@@ -46,3 +46,11 @@ all other code, models, data and fonts permit commercial use with attribution.
 - Replacing SFace with another open embedding model does not remove the gray area: most available
   face-embedding models share the same research-licensed training datasets.
 - Any new model or dataset requires a license entry in the audit before it ships or is downloaded.
+
+## Amendment (2026-10-31)
+
+There is still one code base and no product flavor split, but the Google Play bundle is no longer
+identical to the GitHub one. Play rejected the "All files access" declaration on 2026-10-28, so
+Play bundles are built with `-Plightforge.allFilesAccess=false`, which removes
+`MANAGE_EXTERNAL_STORAGE` and the opt-in advanced storage mode (ADR-046). Every other feature is
+the same in both distributions.
