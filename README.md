@@ -12,7 +12,7 @@ Lightforge Studio is a native, open-source gallery for Android, built for local 
 
 People affiliated with **public institutions, student unions or student organizations, schools, universities, and scientific or research groups** may **request a free Lightforge Studio license** for educational, scientific or public-interest work.
 
-To request one, [open an institutional license issue](https://github.com/LibreStatic/lightforge/issues/new?template=institutional-license-request.yml) or email [support@librestatic.com](mailto:support@librestatic.com). You can also use [GitHub Discussions](https://github.com/LibreStatic/lightforge/discussions) if enabled. Please don't post personal contact information or verification documents in a public issue. Requests are reviewed individually; approval isn't automatic.
+To request one, [open an institutional license issue](https://github.com/LibreStatic/lightforge/issues/new?template=institutional-license-request.yml) or email [support@librestatic.com](mailto:support@librestatic.com). You can also [start a GitHub Discussion](https://github.com/LibreStatic/lightforge/discussions) to request a license. Please don't post personal contact information or verification documents in a public issue. Requests are reviewed individually; approval isn't automatic.
 
 
 ## Screenshots
