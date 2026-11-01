@@ -1,5 +1,8 @@
 Lightforge es una galería privada para Android que funciona primero sin conexión y está pensada para bibliotecas grandes de fotos y videos. Explora, busca, organiza, edita y protege tus archivos en tu propio dispositivo. Sin cuenta, sin anuncios, sin rastreo.
 
+LICENCIAS INSTITUCIONALES
+Organismos públicos, centros de estudiantes, instituciones educativas y grupos científicos pueden consultar por licencias en GitHub Issues o support@librestatic.com.
+
 BETA DE ACCESO ANTICIPADO
 Lightforge está en versión beta. La mayoría de las funciones están listas para usarse, pero algunas aún se están puliendo, y las herramientas de borrado de objetos y de recorte de sujeto están marcadas como experimentales. Tus comentarios definen lo que viene.
 
