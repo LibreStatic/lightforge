@@ -135,6 +135,11 @@ import com.librestatic.lightforge.core.editing.image.PhotoAutoEnhancementAnalyze
 import com.librestatic.lightforge.core.editing.image.PhotoExportFailureKind
 import com.librestatic.lightforge.core.editing.image.PhotoExportWarning
 import com.librestatic.lightforge.core.editing.image.PhotoImageRenderer
+import com.librestatic.lightforge.core.editing.image.PhotoEncoders
+import com.librestatic.lightforge.core.editing.image.PhotoEncoding
+import com.librestatic.lightforge.core.editing.image.PhotoOutputAdjustment
+import com.librestatic.lightforge.core.editing.image.PhotoOutputSettings
+import com.librestatic.lightforge.feature.photoeditor.PhotoOutputSummary
 import com.librestatic.lightforge.core.editing.image.AutoStraighten
 import com.librestatic.lightforge.core.editing.image.grade.ColorTransferLutBuilder
 import com.librestatic.lightforge.core.editing.image.grade.PhotoGraders
@@ -359,6 +364,8 @@ data class EditorMediaSource(
 
 /** The experimental eraser and subject clip decode one full-size bitmap; larger photos are refused. */
 private const val EXPERIMENTAL_PHOTO_MAX_PIXELS = 24_000_000L
+/** Settles chip taps and quality drags before re-encoding the size estimate. */
+private const val PHOTO_OUTPUT_ESTIMATE_DEBOUNCE_MS = 250L
 
 /** Long side of the Filters tab thumbnails, and of the reference photo decoded for My filters. */
 private const val LOOK_THUMBNAIL_PX = 160
@@ -956,6 +963,7 @@ class GalleryViewModel @Inject constructor(
     private var photoInpainting: InpaintingSession? = null
     private var photoEditorOpenGeneration = 0L
     private var photoAutoEnhancementJob: Job? = null
+    private var photoOutputJob: Job? = null
     private var photoAutoEnhancementGeneration = 0L
     private var photoRecipeJob: Job? = null
     private var photoRecipeDiscardJob: Job? = null
@@ -4177,6 +4185,7 @@ class GalleryViewModel @Inject constructor(
 
     private fun openPhotoEditor(source: EditorMediaSource) {
         photoEditorJob?.cancel()
+        photoOutputJob?.cancel()
         photoAutoEnhancementJob?.cancel()
         photoAutoEnhancementGeneration++
         closeRawPreviewSession()
@@ -4212,6 +4221,7 @@ class GalleryViewModel @Inject constructor(
                 ).openPreviewSession(source.uri)
             }.getOrNull() else null
             rawPreviewSession = stagedRaw
+            val outputFormats = withContext(Dispatchers.Default) { PhotoEncoders.capabilities.formats }
             val customLooks = withContext(Dispatchers.IO) { loadCustomLooks() }
             val rawMetadata = stagedRaw?.let { runCatching { it.inspect() }.getOrNull() }
             mutablePhotoEditor.value = PhotoEditorSession(
@@ -4230,6 +4240,7 @@ class GalleryViewModel @Inject constructor(
                     rawMetadata = rawMetadata,
                     rawSettings = rawSettings,
                     customLooks = customLooks,
+                    outputFormats = outputFormats,
                 ).withColorGrade(initial),
             )
             startPhotoGradeWorker()
@@ -4676,6 +4687,73 @@ class GalleryViewModel @Inject constructor(
         mutablePhotoEditor.value = session.copy(content = session.content.copy(rawOutputFormat = format))
     }
 
+    /**
+     * Applies the Export tool's [settings] to this editing session and refreshes the summary:
+     * the resolved format and size right away, then an approximate file size encoded from the
+     * preview. Settings are not persisted; the next editor starts from the defaults.
+     */
+    fun updatePhotoOutputSettings(settings: PhotoOutputSettings) {
+        val session = mutablePhotoEditor.value ?: return
+        mutablePhotoEditor.value = session.copy(content = session.content.copy(output = settings))
+        photoOutputJob?.cancel()
+        photoOutputJob = viewModelScope.launch {
+            delay(PHOTO_OUTPUT_ESTIMATE_DEBOUNCE_MS)
+            val current = mutablePhotoEditor.value ?: return@launch
+            val content = current.content
+            val recipe = current.history.present
+            val plan = try {
+                if (content.isRaw) {
+                    val raw = content.rawMetadata ?: return@launch
+                    // LibRaw flips 5 and 6 turn the developed frame by a quarter.
+                    val quarterTurn = raw.flip == 5 || raw.flip == 6
+                    photoRenderer.outputPlan(
+                        if (quarterTurn) raw.height else raw.width,
+                        if (quarterTurn) raw.width else raw.height,
+                        "image/jpeg",
+                        recipe.copy(operations = recipe.operations.filterNot { it is EditOperation.RawDevelop }),
+                        settings,
+                    )
+                } else {
+                    photoRenderer.outputPlan(current.source.uri, recipe, settings)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                return@launch
+            }
+            fun publish(estimate: Long?) {
+                val latest = mutablePhotoEditor.value ?: return
+                if (latest.content.output != settings) return
+                mutablePhotoEditor.value = latest.copy(
+                    content = latest.content.copy(
+                        outputSummary = PhotoOutputSummary(plan.editedWidth, plan.editedHeight, plan, estimate),
+                    ),
+                )
+            }
+            // Keep the previous estimate on screen while the new one encodes.
+            publish(content.outputSummary?.estimateBytes)
+            // The preview may be recycled when the next render lands, so the estimate encodes a copy.
+            val preview = (content.gradedPreview ?: content.preview)
+                ?.takeUnless { it.isRecycled }
+                ?.let { runCatching { it.copy(Bitmap.Config.ARGB_8888, false) }.getOrNull() }
+                ?: return@launch
+            val estimate = withContext(Dispatchers.Default) {
+                try {
+                    runCatching {
+                        PhotoEncoders.estimateBytes(
+                            preview,
+                            plan,
+                            java.io.File(getApplication<Application>().cacheDir, "photo-output-estimate.${plan.extension}"),
+                        )
+                    }.getOrNull()
+                } finally {
+                    preview.recycle()
+                }
+            }
+            publish(estimate)
+        }
+    }
+
     fun applyPhotoEdit(operation: EditOperation) {
         commitPhotoEdit(
             operation,
@@ -4837,11 +4915,15 @@ class GalleryViewModel @Inject constructor(
                     active.database.libraryDao().media(media.key.volumeName, media.key.mediaStoreId)?.mimeType
                 } ?: session.source.mimeType
             }
+            val output = session.content.output
+            // What the Export tool resolved for a regular photo; RAW develops first and resolves later.
+            val outputPlan = if (session.content.isRaw) null else runCatching {
+                photoRenderer.outputPlan(session.source.uri, session.history.present, output)
+            }.getOrNull()
             val outputMime = if (session.content.isRaw) {
                 if (session.content.rawOutputFormat == RawOutputFormat.JpegSrgb) "image/jpeg" else "image/tiff"
-            } else imageExportMime(storedMime)
-            val extension = if (outputMime == "image/tiff") "tif" else
-                MimeTypeMap.getSingleton().getExtensionFromMimeType(outputMime) ?: "jpg"
+            } else outputPlan?.mimeType ?: imageExportMime(storedMime)
+            val extension = if (outputMime == "image/tiff") "tif" else imageExtension(outputMime)
             val temp = java.io.File(getApplication<Application>().cacheDir, "photo-edit-${System.nanoTime()}.$extension")
             val transformedRaw = java.io.File(getApplication<Application>().cacheDir, "photo-edit-geometry-${System.nanoTime()}.jpg")
             try {
@@ -4849,7 +4931,8 @@ class GalleryViewModel @Inject constructor(
                     val geometryRecipe = session.history.present.copy(
                         operations = session.history.present.operations.filterNot { it is EditOperation.RawDevelop },
                     )
-                    if (session.content.rawOutputFormat == RawOutputFormat.Tiff16Srgb && !geometryRecipe.isIdentity) {
+                    val reencode = !geometryRecipe.isIdentity || !output.isDefault
+                    if (session.content.rawOutputFormat == RawOutputFormat.Tiff16Srgb && reencode) {
                         updatePhotoExportFailure(getApplication<Application>().getString(
                             com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_tiff_geometry_unsupported,
                         ))
@@ -4859,44 +4942,48 @@ class GalleryViewModel @Inject constructor(
                         getApplication<Application>().contentResolver,
                         java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
                     ).export(session.source.uri, session.content.rawSettings, session.content.rawOutputFormat, temp)) {
-                        is RawExportOutcome.Completed -> if (geometryRecipe.isIdentity) {
+                        is RawExportOutcome.Completed -> if (!reencode) {
                             publishPhotoResult(result.file, result.mimeType, extension, emptyList())
                         } else when (val transformed = photoRenderer.export(
                             Uri.fromFile(result.file), geometryRecipe, transformedRaw, preserveMetadata = true,
+                            output = output,
                         )) {
-                            is PhotoExportOutcome.Completed -> publishPhotoResult(
-                                transformed.file, transformed.mimeType ?: "image/jpeg", "jpg",
-                                transformed.warnings, transformed.missingLookId,
-                            )
+                            is PhotoExportOutcome.Completed -> {
+                                val mime = transformed.mimeType ?: "image/jpeg"
+                                publishPhotoResult(
+                                    transformed.file, mime, imageExtension(mime),
+                                    transformed.warnings, transformed.missingLookId, transformed.adjustments,
+                                )
+                            }
                             is PhotoExportOutcome.Failure -> updatePhotoExportFailure(photoExportFailureMessage(transformed))
                         }
                         is RawExportOutcome.Failure -> updatePhotoExportFailure(rawExportFailureMessage(result))
                     }
                 } else if (session.eraseMarks.isNotEmpty()) {
                     val erased = renderExperimentalPhotoSource(session, transformedRaw) ?: return@launch
-                    val format = when (outputMime) {
-                        "image/png" -> Bitmap.CompressFormat.PNG
-                        "image/webp" -> Bitmap.CompressFormat.WEBP_LOSSY
-                        else -> Bitmap.CompressFormat.JPEG
-                    }
-                    val erasedWidth = erased.width
-                    val erasedHeight = erased.height
-                    try {
-                        withContext(Dispatchers.IO) { temp.outputStream().use { erased.compress(format, 95, it) } }
+                    // Same format, size and capture EXIF as a normal save copy; the pixels are already upright.
+                    val result = try {
+                        photoRenderer.exportRendered(session.source.uri, storedMime, erased, temp, output)
                     } finally {
                         erased.recycle()
                     }
-                    // Same capture EXIF as a normal save copy; the pixels are already upright.
-                    photoRenderer
-                        .copyCaptureMetadata(session.source.uri, temp, erasedWidth, erasedHeight)
-                    publishPhotoResult(temp, outputMime, extension, emptyList())
+                    when (result) {
+                        is PhotoExportOutcome.Completed -> {
+                            val mime = result.mimeType ?: outputMime
+                            publishPhotoResult(temp, mime, imageExtension(mime), emptyList(), adjustments = result.adjustments)
+                        }
+                        is PhotoExportOutcome.Failure -> updatePhotoExportFailure(photoExportFailureMessage(result))
+                    }
                 } else when (val result = photoRenderer.export(
-                    session.source.uri, session.history.present, temp, preserveMetadata = true,
+                    session.source.uri, session.history.present, temp, preserveMetadata = true, output = output,
                 )) {
-                    is PhotoExportOutcome.Completed -> publishPhotoResult(
-                        result.file, result.mimeType ?: outputMime, extension, result.warnings,
-                        result.missingLookId,
-                    )
+                    is PhotoExportOutcome.Completed -> {
+                        val mime = result.mimeType ?: outputMime
+                        publishPhotoResult(
+                            result.file, mime, imageExtension(mime), result.warnings,
+                            result.missingLookId, result.adjustments,
+                        )
+                    }
                     is PhotoExportOutcome.Failure -> updatePhotoExportFailure(photoExportFailureMessage(result))
                 }
             } catch (cancelled: CancellationException) {
@@ -5259,6 +5346,7 @@ class GalleryViewModel @Inject constructor(
         fallbackExtension: String,
         warnings: List<PhotoExportWarning>,
         missingLookId: String? = null,
+        adjustments: List<PhotoOutputAdjustment> = emptyList(),
     ) {
         val publishedExtension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: fallbackExtension
         val published = PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
@@ -5281,7 +5369,11 @@ class GalleryViewModel @Inject constructor(
             )
         } + listOfNotNull(missingLookId?.let {
             photoEditorString(com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_look_missing)
-        })
+        }) + listOfNotNull(
+            // Only a run-time encoder failure is news here; the other notes were shown in the Export tool.
+            photoEditorString(com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_output_saved_as_jpeg)
+                .takeIf { PhotoOutputAdjustment.FormatUnavailable in adjustments },
+        )
         if (notices.isNotEmpty()) mutableEditorCopyNotice.emit(notices.joinToString("\n"))
     }
 
@@ -5319,6 +5411,7 @@ class GalleryViewModel @Inject constructor(
         photoEditorOpenGeneration++
         mutablePhotoEditorOpening.value = false
         photoEditorJob?.cancel()
+        photoOutputJob?.cancel()
         photoAutoEnhancementJob?.cancel()
         photoAutoEnhancementGeneration++
         stopPhotoGradeWork()
@@ -7017,6 +7110,12 @@ class GalleryViewModel @Inject constructor(
         "image/png", "image/webp" -> sourceMime.lowercase()
         else -> "image/jpeg"
     }
+
+    /** File extension for an exported image type; HEIC and AVIF may be missing from MimeTypeMap. */
+    private fun imageExtension(mimeType: String): String =
+        PhotoEncoding.entries.firstOrNull { it.mimeType == mimeType }?.extension
+            ?: MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)
+            ?: "jpg"
 
     fun loadDetails() {
         val media = mutableCurrentMedia.value ?: return

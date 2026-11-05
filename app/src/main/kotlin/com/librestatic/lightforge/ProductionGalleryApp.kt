@@ -1997,6 +1997,7 @@ internal fun ProductionGalleryApp(
                         onToneChangeFinished = viewModel::commitPhotoTone,
                         onApplyAutoSuggestion = viewModel::applyPhotoAutoSuggestion,
                         onRawOutputFormatChange = viewModel::setRawOutputFormat,
+                        onOutputSettingsChange = viewModel::updatePhotoOutputSettings,
                         onApplyObjectErase = viewModel::applyObjectErase,
                         onPrepareObjectEraser = viewModel::prepareObjectEraser,
                         onClearObjectErase = viewModel::clearObjectErase,
