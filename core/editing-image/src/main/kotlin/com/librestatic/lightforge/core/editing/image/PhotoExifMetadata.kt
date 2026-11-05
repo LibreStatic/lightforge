@@ -120,7 +120,18 @@ internal object PhotoExifMetadata {
             target.saveAttributes()
             true
         }.getOrDefault(false)
+
+    /** Clears the GPS tags of [file] in place. Returns false when its container cannot be rewritten. */
+    fun removeLocation(file: File): Boolean = runCatching {
+        val exif = ExifInterface(file)
+        locationTags.forEach { tag -> exif.setAttribute(tag, null) }
+        exif.saveAttributes()
+        true
+    }.getOrDefault(false)
 }
+
+/** Every GPS tag [PhotoExifMetadata.copiedTags] can carry. */
+internal val locationTags: List<String> = PhotoExifMetadata.copiedTags.filter { it.startsWith("GPS") }
 
 /**
  * Operations that make a decoded bitmap upright, in the same order as

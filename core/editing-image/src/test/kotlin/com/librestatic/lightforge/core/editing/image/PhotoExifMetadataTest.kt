@@ -68,4 +68,14 @@ class PhotoExifMetadataTest {
         )
         assertEquals(listOf(EditOperation.Rotate(270)), orientationOperations(ExifInterface.ORIENTATION_ROTATE_270))
     }
+
+    @Test
+    fun locationTagsAreExactlyTheCopiedGpsTags() {
+        assertTrue(ExifInterface.TAG_GPS_LATITUDE in locationTags)
+        assertTrue(ExifInterface.TAG_GPS_LONGITUDE in locationTags)
+        assertTrue(ExifInterface.TAG_GPS_ALTITUDE in locationTags)
+        assertFalse(ExifInterface.TAG_DATETIME_ORIGINAL in locationTags)
+        assertFalse(ExifInterface.TAG_MAKE in locationTags)
+        assertEquals(PhotoExifMetadata.copiedTags.count { it.startsWith("GPS") }, locationTags.size)
+    }
 }

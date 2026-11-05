@@ -144,7 +144,7 @@ internal data class TiledPngExportResult(
     val file: File,
 )
 
-private class TiledTransformPlan(
+internal class TiledTransformPlan(
     val sourceWidth: Int,
     val sourceHeight: Int,
     operations: List<EditOperation>,

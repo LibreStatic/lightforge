@@ -19,6 +19,7 @@ import com.librestatic.lightforge.core.model.EditRecipe
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -48,6 +49,8 @@ sealed interface PhotoExportOutcome {
         val mimeType: String? = null,
         /** Id of a look whose LUT could not be resolved; the export rendered without it. */
         val missingLookId: String? = null,
+        /** Where the written output differs from the requested [PhotoOutputSettings]. */
+        val adjustments: List<PhotoOutputAdjustment> = emptyList(),
     ) : PhotoExportOutcome
 
     /** [reason] is diagnostic English; the UI shows a localized message chosen by [kind]. */
@@ -128,8 +131,33 @@ class PhotoImageRenderer(
     suspend fun buildLocalBase(frame: Bitmap): PhotoLocalBase = withContext(ioDispatcher) { PhotoLocalBase.from(frame) }
 
     /**
-     * Exports [recipe] applied to the upright source. [preserveMetadata] copies capture EXIF
-     * (date, GPS, camera) into re-encoded output; share sanitizing leaves it off to strip EXIF.
+     * The output [settings] resolve to for [recipe] on [uri], for showing the result before
+     * saving. Reads only the image bounds and EXIF orientation.
+     */
+    suspend fun outputPlan(
+        uri: Uri,
+        recipe: EditRecipe,
+        settings: PhotoOutputSettings,
+        capabilities: PhotoOutputCapabilities = PhotoEncoders.capabilities,
+    ): PhotoOutputPlan = withContext(ioDispatcher) {
+        val sourceBounds = decodeBounds(uri)
+        planFor(sourceBounds, upright(uri, recipe), settings, capabilities)
+    }
+
+    /** [outputPlan] for an upright source of known size that is not readable yet (a RAW before development). */
+    fun outputPlan(
+        sourceWidth: Int,
+        sourceHeight: Int,
+        sourceMimeType: String?,
+        recipe: EditRecipe,
+        settings: PhotoOutputSettings,
+        capabilities: PhotoOutputCapabilities = PhotoEncoders.capabilities,
+    ): PhotoOutputPlan = planFor(ImageBounds(sourceWidth, sourceHeight, sourceMimeType), recipe, settings, capabilities)
+
+    /**
+     * Exports [recipe] applied to the upright source in the format, size and metadata of
+     * [output]. [preserveMetadata] copies capture EXIF (date, GPS, camera) into re-encoded output
+     * as far as [output] allows; share sanitizing leaves it off to strip EXIF.
      */
     suspend fun export(
         uri: Uri,
@@ -137,6 +165,8 @@ class PhotoImageRenderer(
         destination: File,
         onProgress: suspend (Long) -> Unit = {},
         preserveMetadata: Boolean = false,
+        output: PhotoOutputSettings = PhotoOutputSettings(),
+        capabilities: PhotoOutputCapabilities = PhotoEncoders.capabilities,
     ): PhotoExportOutcome = withContext(ioDispatcher) {
         // Async slice: the export suspends and may resume on another IO thread.
         val traceCookie = System.identityHashCode(destination)
@@ -144,7 +174,7 @@ class PhotoImageRenderer(
         try {
             coroutineContext.ensureActive()
             val sourceBounds = decodeBounds(uri)
-            if (recipe.isIdentity) {
+            if (recipe.isIdentity && output.isDefault) {
                 copyIdentity(uri, destination, onProgress)
                 return@withContext PhotoExportOutcome.Completed(
                     destination,
@@ -156,8 +186,11 @@ class PhotoImageRenderer(
             }
             val uprightRecipe = upright(uri, recipe)
             val gradeParams = PhotoGradeParams.from(uprightRecipe.operations, lookResolver)
-            val sourcePixels = sourceBounds.width.toLong() * sourceBounds.height.toLong()
-            if (sourcePixels > maxExportPixels) {
+            val plan = planFor(sourceBounds, uprightRecipe, output, capabilities)
+            val hdrWarning = if (sourceBounds.mimeType?.contains("heic", true) == true ||
+                sourceBounds.mimeType?.contains("avif", true) == true
+            ) listOf(PhotoExportWarning.HdrMetadataNotCopied) else emptyList()
+            if (plan.tiled) {
                 // The tiled plan maps output tiles back through the leading orientation ops, so
                 // region-decoded tiles are rotated/flipped like the single-bitmap path.
                 val tiled = TiledPngPhotoExporter(resolver).export(
@@ -170,36 +203,27 @@ class PhotoImageRenderer(
                     grader = grader,
                     gradeParams = gradeParams,
                 )
-                if (preserveMetadata) {
-                    PhotoExifMetadata.copy(resolver, uri, tiled.file, tiled.width, tiled.height)
+                if (preserveMetadata && plan.copyMetadata) {
+                    copyMetadata(uri, tiled.file, tiled.width, tiled.height, plan.removeLocation)
                 }
                 return@withContext PhotoExportOutcome.Completed(
                     file = tiled.file,
                     width = tiled.width,
                     height = tiled.height,
                     wasDownscaled = false,
-                    warnings = listOf(PhotoExportWarning.FullResolutionPng) +
-                        if (sourceBounds.mimeType?.contains("heic", true) == true ||
-                            sourceBounds.mimeType?.contains("avif", true) == true
-                        ) {
-                            listOf(PhotoExportWarning.HdrMetadataNotCopied)
-                        } else {
-                            emptyList()
-                        },
-                    mimeType = "image/png",
+                    warnings = listOf(PhotoExportWarning.FullResolutionPng) + hdrWarning,
+                    mimeType = PhotoEncoding.Png.mimeType,
                     missingLookId = gradeParams.missingLookId,
+                    adjustments = plan.adjustments,
                 )
             }
-            // The > maxExportPixels branch above is the tiled path; regular exports stay at
-            // source resolution and therefore never silently downsample transformed content.
-            val sample = 1
-            val decoded = decode(uri, sample)
+            val decoded = decode(uri, plan.sample)
                 ?: return@withContext PhotoExportOutcome.Failure(
                     "Unable to decode source image",
                     kind = PhotoExportFailureKind.DecodeFailed,
                 )
             val rendered = try {
-                applyRecipe(decoded, uprightRecipe.operations, gradeParams)
+                scaleTo(applyRecipe(decoded, uprightRecipe.operations, gradeParams), plan.width, plan.height)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Throwable) {
@@ -209,33 +233,23 @@ class PhotoImageRenderer(
                 )
             }
             coroutineContext.ensureActive()
-            destination.parentFile?.mkdirs()
-            val renderedWidth = rendered.width
-            val renderedHeight = rendered.height
-            if (!destination.outputStream().use { output ->
-                    rendered.compress(compressFormat(sourceBounds.mimeType), 95, output)
-                }
-            ) {
+            val encoded = try {
+                encodeWithFallback(rendered, plan, destination)
+            } finally {
                 if (!rendered.isRecycled) rendered.recycle()
-                return@withContext PhotoExportOutcome.Failure("Image encoder rejected output")
             }
-            if (!rendered.isRecycled) rendered.recycle()
-            check(destination.isFile && destination.length() > 0) { "Image export is empty" }
-            if (preserveMetadata) {
-                PhotoExifMetadata.copy(resolver, uri, destination, renderedWidth, renderedHeight)
+            if (preserveMetadata && encoded.copyMetadata) {
+                copyMetadata(uri, destination, encoded.width, encoded.height, encoded.removeLocation)
             }
             PhotoExportOutcome.Completed(
                 file = destination,
-                width = renderedWidth,
-                height = renderedHeight,
-                wasDownscaled = false,
-                warnings = buildList {
-                    if (sourceBounds.mimeType?.contains("heic", true) == true ||
-                        sourceBounds.mimeType?.contains("avif", true) == true
-                    ) add(PhotoExportWarning.HdrMetadataNotCopied)
-                },
-                mimeType = compressMime(sourceBounds.mimeType),
+                width = encoded.width,
+                height = encoded.height,
+                wasDownscaled = encoded.sample > 1 || encoded.width != plan.width,
+                warnings = hdrWarning,
+                mimeType = encoded.mimeType,
                 missingLookId = gradeParams.missingLookId,
+                adjustments = encoded.adjustments,
             )
         } catch (cancelled: CancellationException) {
             destination.delete()
@@ -246,6 +260,109 @@ class PhotoImageRenderer(
         } finally {
             Trace.endAsyncSection("PhotoExport", traceCookie)
         }
+    }
+
+    /**
+     * Encodes an already rendered, upright [rendered] frame of [source] (for example the object
+     * eraser result) with [output], resizing and copying capture metadata like [export]. Does not
+     * recycle [rendered].
+     */
+    suspend fun exportRendered(
+        source: Uri,
+        sourceMimeType: String?,
+        rendered: Bitmap,
+        destination: File,
+        output: PhotoOutputSettings,
+        preserveMetadata: Boolean = true,
+        capabilities: PhotoOutputCapabilities = PhotoEncoders.capabilities,
+    ): PhotoExportOutcome = withContext(ioDispatcher) {
+        try {
+            val plan = PhotoOutputPlan.resolve(
+                output, sourceMimeType, rendered.width, rendered.height, capabilities,
+                // The frame is already in memory, so only the output size is bounded.
+                maxBitmapPixels = Long.MAX_VALUE,
+            )
+            val scaled = scaleTo(rendered, plan.width, plan.height, recycleInput = false)
+            val encoded = try {
+                encodeWithFallback(scaled, plan, destination)
+            } finally {
+                if (scaled !== rendered && !scaled.isRecycled) scaled.recycle()
+            }
+            if (preserveMetadata && encoded.copyMetadata) {
+                copyMetadata(source, destination, encoded.width, encoded.height, encoded.removeLocation)
+            }
+            PhotoExportOutcome.Completed(
+                file = destination,
+                width = encoded.width,
+                height = encoded.height,
+                wasDownscaled = encoded.width != rendered.width,
+                mimeType = encoded.mimeType,
+                adjustments = encoded.adjustments,
+            )
+        } catch (cancelled: CancellationException) {
+            destination.delete()
+            throw cancelled
+        } catch (failure: Throwable) {
+            destination.delete()
+            PhotoExportOutcome.Failure(failure.message ?: "Image export failed")
+        }
+    }
+
+    private fun planFor(
+        sourceBounds: ImageBounds,
+        uprightRecipe: EditRecipe,
+        settings: PhotoOutputSettings,
+        capabilities: PhotoOutputCapabilities,
+    ): PhotoOutputPlan {
+        val edited = TiledTransformPlan(sourceBounds.width, sourceBounds.height, uprightRecipe.operations)
+        return PhotoOutputPlan.resolve(
+            settings = settings,
+            sourceMimeType = sourceBounds.mimeType,
+            editedWidth = edited.outputWidth,
+            editedHeight = edited.outputHeight,
+            capabilities = capabilities,
+            maxBitmapPixels = maxExportPixels,
+            sourceWidth = sourceBounds.width,
+            sourceHeight = sourceBounds.height,
+        )
+    }
+
+    /**
+     * Encodes [bitmap] with [plan]; when the device's HEIC/AVIF encoder fails at run time the
+     * frame is written as JPEG instead and the returned plan says so.
+     */
+    private suspend fun encodeWithFallback(bitmap: Bitmap, plan: PhotoOutputPlan, destination: File): PhotoOutputPlan {
+        val job = coroutineContext[Job]
+        val actual = plan.copy(width = bitmap.width, height = bitmap.height)
+        return try {
+            PhotoEncoders.encode(bitmap, actual, destination) { job?.ensureActive() }
+            actual
+        } catch (unavailable: PhotoEncoderUnavailableException) {
+            // JPEG holds EXIF, so metadata the requested container could not carry is kept again.
+            val wantedMetadata = actual.copyMetadata || PhotoOutputAdjustment.MetadataUnsupported in actual.adjustments
+            val fallback = actual.copy(
+                encoding = PhotoEncoding.Jpeg,
+                copyMetadata = wantedMetadata,
+                adjustments = (actual.adjustments - PhotoOutputAdjustment.MetadataUnsupported) +
+                    PhotoOutputAdjustment.FormatUnavailable,
+            )
+            PhotoEncoders.encode(bitmap, fallback, destination)
+            fallback
+        }
+    }
+
+    private fun copyMetadata(source: Uri, destination: File, width: Int, height: Int, removeLocation: Boolean) {
+        if (PhotoExifMetadata.copy(resolver, source, destination, width, height) && removeLocation) {
+            PhotoExifMetadata.removeLocation(destination)
+        }
+    }
+
+    /** Scales [bitmap] to exactly [width] x [height] with filtering; returns it unchanged when it already is. */
+    private fun scaleTo(bitmap: Bitmap, width: Int, height: Int, recycleInput: Boolean = true): Bitmap {
+        if (bitmap.width == width && bitmap.height == height) return bitmap
+        val scaled = Bitmap.createScaledBitmap(bitmap, width, height, true)
+        if (recycleInput && scaled !== bitmap && !bitmap.isRecycled) bitmap.recycle()
+        return scaled
     }
 
     /** Prefixes the EXIF orientation fix so every recipe operation sees the upright image. */
@@ -372,17 +489,5 @@ class PhotoImageRenderer(
         )
         if (result !== rotated && !rotated.isRecycled) rotated.recycle()
         return result
-    }
-
-    private fun compressFormat(mimeType: String?): Bitmap.CompressFormat = when (mimeType?.lowercase()) {
-        "image/png" -> Bitmap.CompressFormat.PNG
-        "image/webp", "image/webp-lossless" -> Bitmap.CompressFormat.WEBP_LOSSLESS
-        else -> Bitmap.CompressFormat.JPEG
-    }
-
-    private fun compressMime(mimeType: String?): String = when (mimeType?.lowercase()) {
-        "image/png" -> "image/png"
-        "image/webp", "image/webp-lossless" -> "image/webp"
-        else -> "image/jpeg"
     }
 }
