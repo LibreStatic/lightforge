@@ -22,6 +22,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
+import com.librestatic.lightforge.core.editing.image.PhotoEncoding
+import com.librestatic.lightforge.core.editing.image.PhotoOutputCapabilities
+import com.librestatic.lightforge.core.editing.image.PhotoOutputFormat
+import com.librestatic.lightforge.core.editing.image.PhotoOutputPlan
+import com.librestatic.lightforge.core.editing.image.PhotoOutputResize
+import com.librestatic.lightforge.core.editing.image.PhotoOutputSettings
 import com.librestatic.lightforge.core.ml.ModelDownloadWait
 import com.librestatic.lightforge.core.model.RawCameraCrop
 import com.librestatic.lightforge.core.model.RawDevelopmentSettings
@@ -296,6 +302,56 @@ fun PhotoCropPreview() = EditorAt(PhotoEditorInitialUi(tool = PhotoEditorTool.Cr
 @Composable
 fun PhotoToolSearchPreview() = EditorAt(PhotoEditorInitialUi(tool = PhotoEditorTool.Adjust, searchOpen = true)) { photo ->
     PhotoEditorContentState(preview = photo, originalPreview = photo)
+}
+
+/**
+ * Export tool of a 4000 x 3000 JPEG. Chips, the quality slider and the resize field update the
+ * summary through the real output plan; the size estimate is a fixed bytes-per-pixel stand-in.
+ */
+@Preview
+@Composable
+fun PhotoExportPreview() = ExportEditor(PhotoOutputSettings())
+
+/** Export tool with GIF selected on a device without HEIC/AVIF encoders: palette options and the hint show. */
+@Preview
+@Composable
+fun PhotoExportGifPreview() = ExportEditor(
+    PhotoOutputSettings(format = PhotoOutputFormat.Gif, resize = PhotoOutputResize.LongSide(1080)),
+    capabilities = PhotoOutputCapabilities.Basic,
+)
+
+@Composable
+private fun ExportEditor(
+    initialSettings: PhotoOutputSettings,
+    capabilities: PhotoOutputCapabilities = PhotoOutputCapabilities(heic = true, avif = true),
+) = DriverFrame {
+    val photo = remember { fakePhoto() }
+    var settings by remember { mutableStateOf(initialSettings) }
+    val plan = PhotoOutputPlan.resolve(settings, "image/jpeg", 4000, 3000, capabilities, maxBitmapPixels = 24_000_000L)
+    val bytesPerPixel = when (plan.encoding) {
+        PhotoEncoding.Png, PhotoEncoding.WebpLossless -> 1.6
+        PhotoEncoding.Gif -> 0.6
+        else -> 0.05 + 0.006 * settings.quality
+    }
+    CompositionLocalProvider(LocalPhotoEditorInitialUi provides PhotoEditorInitialUi(tool = PhotoEditorTool.Export)) {
+        PhotoEditorContent(
+            state = PhotoEditorContentState(
+                preview = photo,
+                originalPreview = photo,
+                isDirty = true,
+                output = settings,
+                outputFormats = capabilities.formats,
+                outputSummary = PhotoOutputSummary(4000, 3000, plan, (plan.pixels * bytesPerPixel).toLong()),
+            ),
+            onBack = {},
+            onSaveCopy = {},
+            onApply = {},
+            onUndo = {},
+            onRedo = {},
+            onOpenWith = {},
+            onOutputSettingsChange = { settings = it },
+        )
+    }
 }
 
 @Composable

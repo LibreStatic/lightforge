@@ -87,6 +87,9 @@ import com.librestatic.lightforge.core.designsystem.mediaEditorShortcuts
 import com.librestatic.lightforge.core.designsystem.MediaEditorToolChip
 import com.librestatic.lightforge.core.designsystem.MediaEditorToolChips
 import com.librestatic.lightforge.core.designsystem.MediaEditorTopBar
+import com.librestatic.lightforge.core.editing.image.PhotoOutputCapabilities
+import com.librestatic.lightforge.core.editing.image.PhotoOutputFormat
+import com.librestatic.lightforge.core.editing.image.PhotoOutputSettings
 import com.librestatic.lightforge.feature.objecteraser.ObjectEraser
 import com.librestatic.lightforge.feature.subjectclip.SubjectClipper
 import kotlin.math.abs
@@ -138,6 +141,11 @@ data class PhotoEditorContentState(
     val autoStraightenDegrees: Float? = null,
     /** The committed perspective correction, or null for none. */
     val perspective: EditOperation.Perspective? = null,
+    /** Save copy options of this editing session; reset whenever the editor opens. */
+    val output: PhotoOutputSettings = PhotoOutputSettings(),
+    /** Formats the Export tool offers; HEIC and AVIF only when the device can encode them. */
+    val outputFormats: List<PhotoOutputFormat> = PhotoOutputCapabilities.Basic.formats,
+    val outputSummary: PhotoOutputSummary? = null,
 )
 
 @Composable
@@ -156,6 +164,7 @@ fun PhotoEditorContent(
         onApply(tone ?: EditOperation.Tone())
     },
     onRawOutputFormatChange: (RawOutputFormat) -> Unit = {},
+    onOutputSettingsChange: (PhotoOutputSettings) -> Unit = {},
     /** A crop drawn on the full sensor area that leaves the camera frame (null removes the crop). */
     onApplyFullSensorCrop: (EditOperation.Crop?, Float, EditOperation.Perspective?) -> Unit = { _, _, _ -> },
     /** The crop tool opened or closed; a RAW then develops the full sensor area as the crop source. */
@@ -349,6 +358,7 @@ fun PhotoEditorContent(
                 onRawSettingsChangeFinished,
                 onApplyAutoSuggestion,
                 onRawOutputFormatChange,
+                onOutputSettingsChange,
                 experimental,
                 // An erase or cut-out in flight owns the photo: the panel waits for it.
                 inspectorModifier.blockInputWhile(state.isExperimentalProcessing),
@@ -574,6 +584,7 @@ private fun PhotoTools(
     onRawSettingsChangeFinished: () -> Unit,
     onApplyAutoSuggestion: (EditOperation.Tone?) -> Unit,
     onRawOutputFormatChange: (RawOutputFormat) -> Unit,
+    onOutputSettingsChange: (PhotoOutputSettings) -> Unit,
     experimental: ExperimentalToolActions,
     modifier: Modifier,
     sideBySide: Boolean,
@@ -647,7 +658,10 @@ private fun PhotoTools(
                     onRawSettingsChange,
                     onRawSettingsChangeFinished,
                 )
-                PhotoEditorTool.Export -> RawExportControls(state.rawOutputFormat, onRawOutputFormatChange)
+                PhotoEditorTool.Export -> {
+                    if (state.isRaw) RawExportControls(state.rawOutputFormat, onRawOutputFormatChange)
+                    PhotoOutputControls(state, onOutputSettingsChange)
+                }
             }
             Text(
                 stringResource(R.string.photo_editor_copy_policy),

@@ -46,6 +46,7 @@ internal fun photoEditorTabs(isRaw: Boolean, canOpenWith: Boolean): List<PhotoEd
             PhotoEditorTab.Adjust,
             PhotoEditorTab.Actions,
             PhotoEditorTab.Filters,
+            PhotoEditorTab.Export,
             PhotoEditorTab.More.takeIf { canOpenWith },
         )
     }
@@ -164,6 +165,7 @@ internal fun photoToolEntries(isRaw: Boolean, canOpenWith: Boolean): List<PhotoT
     add(PhotoToolEntry(R.string.photo_editor_subject_clip, PhotoToolDestination(PhotoEditorTool.SubjectClip), GalleryIcons.CenterFocusStrong))
     add(PhotoToolEntry(R.string.photo_editor_filters, PhotoToolDestination(PhotoEditorTool.Filters, looksTab = PhotoLooksTab.Filters), GalleryIcons.Palette))
     add(PhotoToolEntry(R.string.photo_editor_looks_mine, PhotoToolDestination(PhotoEditorTool.Filters, looksTab = PhotoLooksTab.Mine), GalleryIcons.Heart))
+    add(PhotoToolEntry(R.string.photo_editor_export_tab, PhotoToolDestination(PhotoEditorTool.Export), GalleryIcons.Download))
     if (canOpenWith) {
         add(PhotoToolEntry(R.string.photo_editor_open_with, PhotoToolDestination(PhotoEditorTool.More), GalleryIcons.OpenInNew))
     }

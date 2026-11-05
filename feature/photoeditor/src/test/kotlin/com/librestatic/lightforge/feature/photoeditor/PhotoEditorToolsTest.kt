@@ -33,6 +33,7 @@ class PhotoEditorToolsTest {
         R.string.photo_editor_subject_clip to "Recorte de sujeto",
         R.string.photo_editor_filters to "Filtros",
         R.string.photo_editor_looks_mine to "Mis filtros",
+        R.string.photo_editor_export_tab to "Exportar",
         R.string.photo_editor_open_with to "Abrir con",
     )
     private val entries = photoToolEntries(isRaw = false, canOpenWith = true)
@@ -102,6 +103,14 @@ class PhotoEditorToolsTest {
             raw.map { it.destination.tool }.toSet(),
         )
         assertEquals(listOf(PhotoEditorTab.Raw, PhotoEditorTab.Crop, PhotoEditorTab.Export), photoEditorTabs(true, true))
+    }
+
+    @Test
+    fun everyPhotoOffersTheExportTool() {
+        assertTrue(photoEditorTabs(false, canOpenWith = false).contains(PhotoEditorTab.Export))
+        assertTrue(photoToolEntries(false, canOpenWith = false).any { it.destination.tool == PhotoEditorTool.Export })
+        // More stays last so the host-dependent tab never shifts the others.
+        assertEquals(PhotoEditorTab.More, photoEditorTabs(false, canOpenWith = true).last())
     }
 
     @Test
