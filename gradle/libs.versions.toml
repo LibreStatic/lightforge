@@ -16,6 +16,7 @@ work = "2.11.2"
 appsearch = "1.1.0"
 media3 = "1.11.0"
 exifinterface = "1.4.2"
+heifwriter = "1.1.0"
 biometric = "1.1.0"
 hilt = "2.60.1"
 androidx-hilt = "1.4.0"
@@ -65,6 +66,7 @@ androidx-media3-common = { module = "androidx.media3:media3-common", version.ref
 androidx-media3-inspector-frame = { module = "androidx.media3:media3-inspector-frame", version.ref = "media3" }
 androidx-media3-inspector = { module = "androidx.media3:media3-inspector", version.ref = "media3" }
 androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
+androidx-heifwriter = { module = "androidx.heifwriter:heifwriter", version.ref = "heifwriter" }
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "profileinstaller" }
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }

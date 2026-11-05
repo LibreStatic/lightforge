@@ -705,6 +705,14 @@
       "version": "1.0.1"
     },
     {
+      "group": "androidx.heifwriter",
+      "licenseId": "Apache-2.0",
+      "licenseName": "Apache License 2.0",
+      "licenseTextAsset": "licenses/Apache-2.0.txt",
+      "name": "heifwriter",
+      "version": "1.1.0"
+    },
+    {
       "group": "androidx.interpolator",
       "licenseId": "Apache-2.0",
       "licenseName": "Apache License 2.0",

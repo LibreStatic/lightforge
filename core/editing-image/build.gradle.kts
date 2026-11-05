@@ -23,6 +23,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.heifwriter)
     testImplementation(libs.junit4)
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.runner)
