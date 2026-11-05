@@ -3,14 +3,15 @@ package com.librestatic.lightforge.feature.photoeditor
 import android.text.format.Formatter
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilterChip
@@ -76,28 +77,29 @@ internal fun PhotoOutputControls(
     val summary = state.outputSummary
     // Opening the panel refreshes the summary for the current edit (crop changes the size).
     LaunchedEffect(Unit) { onChange(settings) }
+    val encoding = summary?.plan?.encoding ?: PhotoEncoding.of(settings.format)
     Column(
-        Modifier.fillMaxWidth().testTag(PhotoOutputPanelTag),
-        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        Modifier.fillMaxWidth().padding(bottom = GallerySpacing.Sm).testTag(PhotoOutputPanelTag),
+        // Sections breathe; items inside a section use OutputSection's tighter spacing.
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xl),
     ) {
         PhotoOutputSummaryCard(settings, summary, onReset = { onChange(PhotoOutputSettings()) })
 
-        SectionTitle(R.string.photo_editor_output_format)
-        ChipRow {
-            state.outputFormats.forEach { format ->
-                OutputChip(
-                    selected = settings.format == format,
-                    label = formatLabel(format),
-                    onClick = { onChange(settings.copy(format = format)) },
-                    testTag = "photo-output-format-${format.name.lowercase()}",
-                )
+        OutputSection(R.string.photo_editor_output_format) {
+            ChipRow(
+                state.outputFormats.map { format ->
+                    ChipOption(
+                        label = formatLabel(format),
+                        selected = settings.format == format,
+                        testTag = "photo-output-format-${format.name.lowercase()}",
+                    ) { onChange(settings.copy(format = format)) }
+                },
+            )
+            if (PhotoOutputFormat.Heic !in state.outputFormats || PhotoOutputFormat.Avif !in state.outputFormats) {
+                Hint(stringResource(R.string.photo_editor_output_formats_unavailable))
             }
         }
-        if (PhotoOutputFormat.Heic !in state.outputFormats || PhotoOutputFormat.Avif !in state.outputFormats) {
-            Hint(stringResource(R.string.photo_editor_output_formats_unavailable))
-        }
 
-        val encoding = summary?.plan?.encoding ?: PhotoEncoding.of(settings.format)
         if (settings.format.usesQuality || (settings.format == PhotoOutputFormat.Original && encoding?.usesQuality == true)) {
             EditorAdjustmentSlider(
                 label = stringResource(R.string.photo_editor_output_quality),
@@ -110,34 +112,33 @@ internal fun PhotoOutputControls(
             )
         }
 
-        SectionTitle(R.string.photo_editor_output_size)
-        ResizeChips(settings, summary, onChange)
+        OutputSection(R.string.photo_editor_output_size) { ResizeChips(settings, summary, onChange) }
 
-        SectionTitle(R.string.photo_editor_output_metadata)
-        ChipRow {
-            PhotoOutputMetadata.entries.forEach { metadata ->
-                OutputChip(
-                    selected = settings.metadata == metadata,
-                    label = stringResource(metadata.label()),
-                    onClick = { onChange(settings.copy(metadata = metadata)) },
-                    testTag = "photo-output-metadata-${metadata.name.lowercase()}",
-                )
-            }
+        OutputSection(R.string.photo_editor_output_metadata) {
+            ChipRow(
+                PhotoOutputMetadata.entries.map { metadata ->
+                    ChipOption(
+                        label = stringResource(metadata.label()),
+                        selected = settings.metadata == metadata,
+                        testTag = "photo-output-metadata-${metadata.name.lowercase()}",
+                    ) { onChange(settings.copy(metadata = metadata)) }
+                },
+            )
         }
 
         if (encoding == PhotoEncoding.Gif) {
-            SectionTitle(R.string.photo_editor_output_gif_colors)
-            ChipRow {
-                GifOutputOptions.CommonColors.forEach { colors ->
-                    OutputChip(
-                        selected = settings.gif.colors == colors,
-                        label = colors.toString(),
-                        onClick = { onChange(settings.copy(gif = settings.gif.copy(colors = colors))) },
-                        testTag = "photo-output-gif-colors-$colors",
-                    )
-                }
+            OutputSection(R.string.photo_editor_output_gif_colors) {
+                ChipRow(
+                    GifOutputOptions.CommonColors.map { colors ->
+                        ChipOption(
+                            label = colors.toString(),
+                            selected = settings.gif.colors == colors,
+                            testTag = "photo-output-gif-colors-$colors",
+                        ) { onChange(settings.copy(gif = settings.gif.copy(colors = colors))) }
+                    },
+                )
+                DitherRow(settings.gif.dither) { onChange(settings.copy(gif = settings.gif.copy(dither = it))) }
             }
-            DitherRow(settings.gif.dither) { onChange(settings.copy(gif = settings.gif.copy(dither = it))) }
         }
         if (state.isRaw) Hint(stringResource(R.string.photo_editor_output_raw_hint))
     }
@@ -153,39 +154,44 @@ private fun ResizeChips(
     val isCustom = resize is PhotoOutputResize.LongSide && resize !in PhotoOutputResize.CommonLongSides
     var showCustom by rememberSaveable { mutableStateOf(isCustom) }
     val editedLongSide = summary?.let { max(it.editedWidth, it.editedHeight) }
-    ChipRow {
-        OutputChip(
-            selected = resize == PhotoOutputResize.Original && !showCustom,
-            label = stringResource(R.string.photo_editor_output_size_original),
-            onClick = { showCustom = false; onChange(settings.copy(resize = PhotoOutputResize.Original)) },
-            testTag = "photo-output-size-original",
+    val options = buildList {
+        add(
+            ChipOption(
+                label = stringResource(R.string.photo_editor_output_size_original),
+                selected = resize == PhotoOutputResize.Original && !showCustom,
+                testTag = "photo-output-size-original",
+            ) { showCustom = false; onChange(settings.copy(resize = PhotoOutputResize.Original)) },
         )
         PhotoOutputResize.CommonLongSides
             // Sizes at or above the edited photo would not change anything.
             .filter { editedLongSide == null || it.pixels < editedLongSide }
             .forEach { option ->
-                OutputChip(
-                    selected = resize == option && !showCustom,
-                    label = stringResource(R.string.photo_editor_output_size_long_side, option.pixels),
-                    onClick = { showCustom = false; onChange(settings.copy(resize = option)) },
-                    testTag = "photo-output-size-${option.pixels}",
+                add(
+                    ChipOption(
+                        label = stringResource(R.string.photo_editor_output_size_long_side, option.pixels),
+                        selected = resize == option && !showCustom,
+                        testTag = "photo-output-size-${option.pixels}",
+                    ) { showCustom = false; onChange(settings.copy(resize = option)) },
                 )
             }
         PhotoOutputResize.CommonScales.forEach { option ->
-            OutputChip(
-                selected = resize == option && !showCustom,
-                label = stringResource(R.string.photo_editor_output_size_percent, option.percent),
-                onClick = { showCustom = false; onChange(settings.copy(resize = option)) },
-                testTag = "photo-output-size-${option.percent}pct",
+            add(
+                ChipOption(
+                    label = stringResource(R.string.photo_editor_output_size_percent, option.percent),
+                    selected = resize == option && !showCustom,
+                    testTag = "photo-output-size-${option.percent}pct",
+                ) { showCustom = false; onChange(settings.copy(resize = option)) },
             )
         }
-        OutputChip(
-            selected = showCustom,
-            label = stringResource(R.string.photo_editor_output_size_custom),
-            onClick = { showCustom = true },
-            testTag = "photo-output-size-custom",
+        add(
+            ChipOption(
+                label = stringResource(R.string.photo_editor_output_size_custom),
+                selected = showCustom,
+                testTag = "photo-output-size-custom",
+            ) { showCustom = true },
         )
     }
+    ChipRow(options)
     if (showCustom) {
         val start = (resize as? PhotoOutputResize.LongSide)?.pixels
             ?: summary?.let { max(it.plan.width, it.plan.height) }
@@ -249,54 +255,48 @@ private fun PhotoOutputSummaryCard(
     ) {
         Column(
             Modifier.fillMaxWidth().padding(
-                start = GallerySpacing.Md,
-                end = GallerySpacing.Sm,
-                top = GallerySpacing.Md,
-                bottom = GallerySpacing.Xs,
+                start = GallerySpacing.Lg,
+                end = GallerySpacing.Xs,
+                top = GallerySpacing.Xs,
+                bottom = GallerySpacing.Md,
             ),
             verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
         ) {
-            if (summary != null) {
-                SummaryLine(
-                    R.string.photo_editor_output_edited,
-                    dimensions(summary.editedWidth, summary.editedHeight),
-                )
-                SummaryLine(
-                    R.string.photo_editor_output_result,
-                    "${encodingLabel(summary.plan.encoding)} · ${dimensions(summary.plan.width, summary.plan.height)}",
-                )
-                summary.plan.adjustments.forEach { adjustment ->
-                    Row(
-                        Modifier.testTag("photo-output-note-${adjustment.name}"),
-                        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-                    ) {
-                        Icon(GalleryIcons.Info, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(stringResource(adjustment.note()), style = MaterialTheme.typography.bodySmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    if (summary != null) {
+                        SummaryLine(R.string.photo_editor_output_edited, dimensions(summary.editedWidth, summary.editedHeight))
                     }
                 }
-            } else {
-                SummaryLine(R.string.photo_editor_output_result, formatLabel(settings.format))
-            }
-            FlowRow(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                itemVerticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    summary?.estimateBytes?.takeIf { it > 0 }?.let { bytes ->
-                        stringResource(
-                            R.string.photo_editor_output_estimated_size,
-                            Formatter.formatShortFileSize(LocalContext.current, bytes),
-                        )
-                    }.orEmpty(),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.testTag("photo-output-estimate"),
-                )
                 TextButton(
                     onClick = onReset,
                     enabled = !settings.isDefault,
-                    modifier = Modifier.heightIn(min = 48.dp).testTag("photo-output-reset"),
+                    modifier = Modifier.testTag("photo-output-reset"),
                 ) { Text(stringResource(R.string.photo_editor_output_reset)) }
+            }
+            val result = if (summary != null) {
+                "${encodingLabel(summary.plan.encoding)} · ${dimensions(summary.plan.width, summary.plan.height)}"
+            } else formatLabel(settings.format)
+            SummaryLine(R.string.photo_editor_output_result, result)
+            summary?.estimateBytes?.takeIf { it > 0 }?.let { bytes ->
+                Text(
+                    stringResource(
+                        R.string.photo_editor_output_estimated_size,
+                        Formatter.formatShortFileSize(LocalContext.current, bytes),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.testTag("photo-output-estimate"),
+                )
+            }
+            summary?.plan?.adjustments?.forEach { adjustment ->
+                Row(
+                    Modifier.padding(top = GallerySpacing.Xs).padding(end = GallerySpacing.Md)
+                        .testTag("photo-output-note-${adjustment.name}"),
+                    horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+                ) {
+                    Icon(GalleryIcons.Info, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(stringResource(adjustment.note()), style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
     }
@@ -313,8 +313,11 @@ private fun SummaryLine(@StringRes label: Int, value: String) {
 private fun dimensions(width: Int, height: Int): String = "$width × $height"
 
 @Composable
-private fun SectionTitle(@StringRes title: Int) {
-    Text(stringResource(title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = GallerySpacing.Xs))
+private fun OutputSection(@StringRes title: Int, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+        Text(stringResource(title), style = MaterialTheme.typography.titleSmall)
+        content()
+    }
 }
 
 @Composable
@@ -322,22 +325,29 @@ private fun Hint(text: String) {
     Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-@Composable
-private fun ChipRow(content: @Composable () -> Unit) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-    ) { content() }
-}
+private class ChipOption(val label: String, val selected: Boolean, val testTag: String, val onClick: () -> Unit)
 
+/** One scrolling line of standard-height chips, starting at the selected one. */
 @Composable
-private fun OutputChip(selected: Boolean, label: String, onClick: () -> Unit, testTag: String) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label, maxLines = 1) },
-        modifier = Modifier.widthIn(min = 48.dp).heightIn(min = 48.dp).testTag(testTag),
+private fun ChipRow(options: List<ChipOption>) {
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = options.indexOfFirst { it.selected }.coerceAtLeast(0),
     )
+    LazyRow(
+        state = listState,
+        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        items(options.size, key = { options[it].testTag }) { index ->
+            val option = options[index]
+            FilterChip(
+                selected = option.selected,
+                onClick = option.onClick,
+                label = { Text(option.label, maxLines = 1) },
+                modifier = Modifier.testTag(option.testTag),
+            )
+        }
+    }
 }
 
 @Composable
