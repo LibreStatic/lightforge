@@ -38,11 +38,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,6 +54,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
@@ -138,7 +137,6 @@ fun SearchContent(
     var showDetectedContent by rememberSaveable { mutableStateOf(false) }
     var confirmDeleteDetected by rememberSaveable { mutableStateOf(false) }
     val textFieldState = rememberTextFieldState(query)
-    val searchBarState = rememberSearchBarState()
     val focusManager = LocalFocusManager.current
     val currentQuery by rememberUpdatedState(query)
     // Values sent to onQueryChange that the caller has not echoed back yet. While typing fast,
@@ -203,10 +201,16 @@ fun SearchContent(
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(top = 12.dp).semantics { heading() },
         )
-        SearchBar(
-            state = searchBarState,
-            inputField = inputField,
+        // Not the collapsed Material SearchBar: it blocks the soft keyboard because it expects
+        // the expanded container to own the real field, and this field never expands.
+        val searchBarColors = SearchBarDefaults.colors()
+        Surface(
             modifier = Modifier.fillMaxWidth(),
+            shape = SearchBarDefaults.inputFieldShape,
+            color = searchBarColors.containerColor,
+            tonalElevation = SearchBarDefaults.TonalElevation,
+            shadowElevation = SearchBarDefaults.ShadowElevation,
+            content = inputField,
         )
         val presetChips: List<Pair<Int, (String) -> Unit>> = listOf(
             R.string.search_photos to onPresetSearch,
@@ -256,7 +260,9 @@ fun SearchContent(
                 Text(stringResource(R.string.search_error), color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
                 TextButton(onClick = onRetry) { Text(stringResource(R.string.search_retry)) }
             }
-            loading && !terminal && hits.isEmpty() -> SearchLoadingIndicatorRow()
+            // Nothing to show yet: centre a large indicator in the space the keyboard leaves free.
+            loading && !terminal && hits.isEmpty() ->
+                SearchLoadingIndicatorRow(Modifier.weight(1f).imePadding(), large = true)
             !terminal && hits.isEmpty() -> Unit
             hits.isEmpty() -> {
                 val collection = petCollection
@@ -282,7 +288,8 @@ fun SearchContent(
                         hero = true,
                         actionLabel = if (detectedContentEnabled) null else stringResource(R.string.search_local_analysis),
                         onAction = if (detectedContentEnabled) null else ({ showDetectedContent = true }),
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        modifier = Modifier.weight(1f).fillMaxWidth()
+                            .padding(bottom = galleryBottomContentPadding(GallerySpacing.Lg)),
                     )
                 }
             }
@@ -432,14 +439,18 @@ private fun RequestNextPageOnApproachingEnd(
 }
 
 @Composable
-private fun SearchLoadingIndicatorRow(modifier: Modifier = Modifier) {
+private fun SearchLoadingIndicatorRow(modifier: Modifier = Modifier, large: Boolean = false) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .testTag(SEARCH_LOADING_ROW_TEST_TAG),
         contentAlignment = Alignment.Center,
     ) {
-        GalleryLoadingIndicator(Modifier.testTag(SEARCH_LOADING_INDICATOR_TEST_TAG))
+        GalleryLoadingIndicator(
+            Modifier
+                .then(if (large) Modifier.size(64.dp) else Modifier)
+                .testTag(SEARCH_LOADING_INDICATOR_TEST_TAG),
+        )
     }
 }
 
