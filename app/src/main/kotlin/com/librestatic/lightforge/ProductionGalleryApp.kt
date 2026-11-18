@@ -142,7 +142,6 @@ import com.librestatic.lightforge.core.designsystem.GalleryFloatingNavigationDef
 import com.librestatic.lightforge.core.designsystem.GalleryNavigationRailWidth
 import com.librestatic.lightforge.core.designsystem.GalleryNavigationThresholds
 import com.librestatic.lightforge.core.designsystem.LocalGalleryAdaptiveLayoutInfo
-import com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.tappableElement
 import androidx.compose.foundation.layout.union
@@ -3490,12 +3489,9 @@ internal fun ProductionGalleryApp(
                         bottomControls = { activeRoute -> if (!accessibleViewerWindow) bottomControls(activeRoute) },
                         bottomChromeHeight = floatingNavChrome,
                         onBottomOverlayHeight = { shellBottomOverlay = it },
-                        content = { activeKey ->
-                            // Photos pads its own grid; the other root tabs end above the navigation.
-                            if (activeKey.route == SurfaceRoute.Root && activeKey.rootTab != RootTab.Photos) {
-                                Box(Modifier.padding(bottom = galleryBottomContentPadding())) { content(activeKey) }
-                            } else content(activeKey)
-                        },
+                        // Every root tab pads its own scrolling content, so it passes under the
+                        // floating navigation instead of ending in a hard edge above it.
+                        content = content,
                     )
                     val density = LocalDensity.current
                     GalleryAnimatedVisibility(
