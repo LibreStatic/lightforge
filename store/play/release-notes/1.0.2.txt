@@ -1,0 +1,56 @@
+<en-US>
+Lightforge Studio 1.0.2:
+• Fixed: the on-screen keyboard did not open in Search.
+• The loading indicator in Search is now centred on the screen.
+• Collections and Search results now scroll under the navigation bar instead of being cut off above it.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+Lightforge Studio 1.0.2:
+• Corregido: el teclado en pantalla no se abría en Buscar.
+• El indicador de carga de Buscar ahora aparece centrado en la pantalla.
+• Colecciones y los resultados de Buscar ahora pasan por debajo de la barra de navegación en lugar de cortarse encima de ella.
+Informá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+Lightforge Studio 1.0.2:
+• Corregido: el teclado en pantalla no se abría en Buscar.
+• El indicador de carga de Buscar ahora aparece centrado en la pantalla.
+• Colecciones y los resultados de Buscar ahora pasan por debajo de la barra de navegación en lugar de cortarse encima de ella.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+Lightforge Studio 1.0.2:
+• Corrigido: o teclado na tela não abria em Pesquisar.
+• O indicador de carregamento de Pesquisar agora aparece centralizado na tela.
+• Coleções e os resultados de Pesquisar agora passam por baixo da barra de navegação em vez de serem cortados acima dela.
+Informe problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+Lightforge Studio 1.0.2:
+• Corrigido: o teclado no ecrã não abria em Pesquisar.
+• O indicador de carregamento de Pesquisar aparece agora centrado no ecrã.
+• Coleções e os resultados de Pesquisar passam agora por baixo da barra de navegação em vez de serem cortados acima dela.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+Lightforge Studio 1.0.2 :
+• Corrigé : le clavier à l’écran ne s’ouvrait pas dans Rechercher.
+• L’indicateur de chargement de Rechercher est désormais centré à l’écran.
+• Collections et les résultats de Rechercher défilent désormais sous la barre de navigation au lieu d’être coupés au-dessus.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+Lightforge Studio 1.0.2:
+• Behoben: Die Bildschirmtastatur öffnete sich in „Suchen“ nicht.
+• Die Ladeanzeige in „Suchen“ erscheint jetzt in der Bildschirmmitte.
+• „Sammlungen“ und die Ergebnisse in „Suchen“ scrollen jetzt unter der Navigationsleiste hindurch, statt darüber abgeschnitten zu werden.
+Probleme melden: github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+Lightforge Studio 1.0.2:
+• Corretto: la tastiera su schermo non si apriva in Cerca.
+• L’indicatore di caricamento di Cerca ora appare al centro dello schermo.
+• Raccolte e i risultati di Cerca ora scorrono sotto la barra di navigazione invece di essere tagliati sopra di essa.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
