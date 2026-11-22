@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.feature.pdfstudio
 
+import java.util.Locale
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -9,18 +10,61 @@ import kotlin.math.min
  * independent of the paper it is printed on. `null` (no [PdfPrintSize]) means "Free grid" — the
  * pre-existing columns/photos-per-page behavior ([PdfGeometry.grid]).
  *
- * [widthMm]/[heightMm] are the portrait dimensions; [PdfPrintLayout.fit] tries both orientations
+ * [widthMm]/[heightMm] are the portrait dimensions of a preset, or a custom size exactly as entered.
+ * For presets [PdfPrintLayout.fit] tries both orientations
  * of the slot against the paper and picks whichever fits more slots.
  */
-enum class PdfPrintSize(val id: String, val widthMm: Double, val heightMm: Double) {
-    Wallet6x9("wallet_6x9", 60.0, 90.0),
-    Print9x13("9x13", 90.0, 130.0),
-    Print10x15("10x15", 100.0, 150.0),
-    Print13x18("13x18", 130.0, 180.0),
-    Print15x20("15x20", 150.0, 200.0);
+data class PdfPrintSize(val id: String, val widthMm: Double, val heightMm: Double) {
+    /** True for a user-entered size (id `custom:<w>x<h>`), false for one of the [presets]. */
+    val isCustom: Boolean
+        get() = id.startsWith(CUSTOM_PREFIX)
 
     companion object {
-        fun fromId(id: String?): PdfPrintSize? = id?.let { candidate -> entries.firstOrNull { it.id == candidate } }
+        val Wallet6x9 = PdfPrintSize("wallet_6x9", 60.0, 90.0)
+        val Print9x13 = PdfPrintSize("9x13", 90.0, 130.0)
+        val Print10x15 = PdfPrintSize("10x15", 100.0, 150.0)
+        val Print13x18 = PdfPrintSize("13x18", 130.0, 180.0)
+        val Print15x20 = PdfPrintSize("15x20", 150.0, 200.0)
+
+        val presets: List<PdfPrintSize> = listOf(Wallet6x9, Print9x13, Print10x15, Print13x18, Print15x20)
+
+        /** Smallest and largest custom side, in millimeters. */
+        const val MIN_CUSTOM_MM = 5.0
+        const val MAX_CUSTOM_MM = 1000.0
+
+        private const val CUSTOM_PREFIX = "custom:"
+
+        private fun roundMm(mm: Double): Double = Math.round(mm * 10.0) / 10.0
+
+        private fun formatMm(mm: Double): String =
+            if (mm == Math.rint(mm)) mm.toLong().toString() else "%.1f".format(Locale.ROOT, mm)
+
+        /**
+         * A custom size of [widthMm] x [heightMm] (rounded to 0.1 mm). It is always a custom id, even
+         * when the dimensions equal a preset: a custom size keeps the entered orientation (never
+         * auto-rotates), unlike the presets. The caller is responsible for staying within
+         * [MIN_CUSTOM_MM]..[MAX_CUSTOM_MM].
+         */
+        fun custom(widthMm: Double, heightMm: Double): PdfPrintSize {
+            val w = roundMm(widthMm)
+            val h = roundMm(heightMm)
+            return PdfPrintSize("$CUSTOM_PREFIX${formatMm(w)}x${formatMm(h)}", w, h)
+        }
+
+        /** Resolves a preset id or a `custom:<w>x<h>` id; null when unknown, malformed or out of bounds. */
+        fun fromId(id: String?): PdfPrintSize? {
+            if (id == null) return null
+            presets.firstOrNull { it.id == id }?.let { return it }
+            if (!id.startsWith(CUSTOM_PREFIX)) return null
+            val parts = id.removePrefix(CUSTOM_PREFIX).split('x')
+            if (parts.size != 2) return null
+            val w = parts[0].toDoubleOrNull() ?: return null
+            val h = parts[1].toDoubleOrNull() ?: return null
+            if (!w.isFinite() || !h.isFinite()) return null
+            val range = MIN_CUSTOM_MM..MAX_CUSTOM_MM
+            if (w !in range || h !in range) return null
+            return custom(w, h)
+        }
     }
 }
 
@@ -50,6 +94,11 @@ object PdfPrintLayout {
 
         val perPage: Int
             get() = columns * rows
+
+        /** [perPage] capped at the per-page element limit ([PdfMediaPlacement.MaxImagesPerPage]);
+         * every place that allocates print slots uses this, filling slots in row-major order. */
+        val usablePerPage: Int
+            get() = minOf(perPage, PdfMediaPlacement.MaxImagesPerPage)
     }
 
     /**
@@ -84,6 +133,9 @@ object PdfPrintLayout {
         val paperIsLandscape = pageWidthMm > pageHeightMm
         val usePortrait =
             when {
+                // A custom size is laid out exactly as entered (3 x 2 cm stays landscape); only the
+                // standard presets, defined in portrait, are rotated to fit more per sheet.
+                printSize.isCustom -> true
                 portraitCount > rotatedCount -> true
                 rotatedCount > portraitCount -> false
                 else -> {

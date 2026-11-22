@@ -25,6 +25,8 @@ object PdfCodec {
                 put("columns", p.columns)
                 put("gap", p.gap)
                 put("snap", p.snap)
+                put("snapGridX", p.snapGridXMm)
+                put("snapGridY", p.snapGridYMm)
                 put("updated", p.updated)
                 put("printSize", p.printSize ?: JSONObject.NULL)
                 put("placementMode", p.placementMode.name)
@@ -116,6 +118,8 @@ object PdfCodec {
                 columns = o.optInt("columns", 2),
                 gap = o.optDouble("gap", 4.0),
                 snap = o.optBoolean("snap", false),
+                snapGridXMm = o.optDouble("snapGridX", PdfSnapGrid.DEFAULT_MM).validGridMm(),
+                snapGridYMm = o.optDouble("snapGridY", PdfSnapGrid.DEFAULT_MM).validGridMm(),
                 updated = o.getLong("updated"),
                 // Absent in a version 1/2 payload, or explicitly JSON null: decodes to `null`
                 // (free grid), same as every project saved before print-layout settings existed.
@@ -192,3 +196,10 @@ object PdfCodec {
             .validate()
     }
 }
+
+/**
+ * A stored snap-grid side, or the 5 mm default when it is missing, NaN, infinite or below
+ * [PdfSnapGrid.MIN_MM] (a tiny side would overflow the rounding in [PdfSnapGrid.roundX]).
+ */
+internal fun Double.validGridMm(): Double =
+    if (isFinite() && this >= PdfSnapGrid.MIN_MM) this else PdfSnapGrid.DEFAULT_MM

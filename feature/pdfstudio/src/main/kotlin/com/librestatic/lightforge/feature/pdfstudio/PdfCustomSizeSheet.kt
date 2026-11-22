@@ -15,13 +15,16 @@ import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import java.text.DecimalFormatSymbols
 import java.util.Locale
-import com.librestatic.lightforge.core.designsystem.GalleryDropdownMenu
-import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 
-private val UNIT_SUFFIXES = listOf("mm", "cm", "in", "px")
+internal val UNIT_SUFFIXES = listOf("mm", "cm", "in", "px")
 
 /** Pixels are whole numbers, inches need two decimals (0.79 in must not read "1 in"). */
-private fun formatValue(mm: Double, unit: PdfUnit, dpi: Int): String {
+internal fun formatValue(
+    mm: Double,
+    unit: PdfUnit,
+    dpi: Int,
+    separator: Char = DecimalFormatSymbols.getInstance().decimalSeparator,
+): String {
     val value = mm / unit.factor(dpi)
     val decimals = when (unit) {
         PdfUnit.Pixel -> 0
@@ -30,9 +33,42 @@ private fun formatValue(mm: Double, unit: PdfUnit, dpi: Int): String {
     }
     // ASCII digits with the locale's decimal separator (210,0 in es/fr/pt/it/de); the parser
     // accepts both ',' and '.'.
-    val separator = DecimalFormatSymbols.getInstance().decimalSeparator
     return "%.${decimals}f".format(Locale.ROOT, value).replace('.', separator)
 }
+
+/** [formatValue] without trailing zeros ("3", "4,5", "1.18"), for compact labels. */
+internal fun formatValueTrimmed(
+    mm: Double,
+    unit: PdfUnit,
+    dpi: Int = 300,
+    separator: Char = DecimalFormatSymbols.getInstance().decimalSeparator,
+): String {
+    val text = formatValue(mm, unit, dpi, separator)
+    return if (separator in text) text.trimEnd('0').trimEnd(separator) else text
+}
+
+/** A print size as it reads on its chip, in [unit]: "30 × 20 mm", "3 × 2 cm", "1.18 × 0.79 in". */
+internal fun formatSizeLabel(
+    widthMm: Double,
+    heightMm: Double,
+    unit: PdfUnit,
+    separator: Char = DecimalFormatSymbols.getInstance().decimalSeparator,
+): String =
+    "${formatValueTrimmed(widthMm, unit, separator = separator)} × " +
+        "${formatValueTrimmed(heightMm, unit, separator = separator)} ${UNIT_SUFFIXES[unit.ordinal]}"
+
+/** The snap grid as the status bar reads it, in [unit]: "5 mm" when both sides match, else "3 × 2 cm". */
+internal fun formatGridLabel(
+    xMm: Double,
+    yMm: Double,
+    unit: PdfUnit,
+    separator: Char = DecimalFormatSymbols.getInstance().decimalSeparator,
+): String =
+    if (xMm == yMm) {
+        "${formatValueTrimmed(xMm, unit, separator = separator)} ${UNIT_SUFFIXES[unit.ordinal]}"
+    } else {
+        formatSizeLabel(xMm, yMm, unit, separator)
+    }
 
 private fun formatMm(mm: Double, unit: PdfUnit, dpi: Int): String =
     "${formatValue(mm, unit, dpi)} ${UNIT_SUFFIXES[unit.ordinal]}"
@@ -45,7 +81,8 @@ private fun formatMm(mm: Double, unit: PdfUnit, dpi: Int): String =
 private data class PinnedMm(val text: String, val dpi: Int, val mm: Double)
 
 /**
- * Custom page size sheet (Phase D item 3), opened from the Layout panel's Custom paper card.
+ * Custom page size sheet (Phase D item 3), opened from the Layout panel's Custom paper card and,
+ * with its own [title]/[minMm]/[maxMm] and no pixel unit ([allowPixelUnit]), for a custom print size.
  * `skipPartiallyExpanded = true` because its action row (Cancel / Use size) would otherwise be
  * hidden behind a half-open sheet. One unit menu governs both fields (mixed units aren't allowed);
  * DPI only shows for the px unit; the proportional preview always shows the *last valid* size and
@@ -60,6 +97,10 @@ internal fun PdfCustomSizeSheet(
     initialDpi: Int,
     onDismiss: () -> Unit,
     onUse: (widthMm: Double, heightMm: Double) -> Unit,
+    title: String = stringResource(R.string.pdf_custom_size_title),
+    minMm: Double = PdfCustomSize.MIN_MM,
+    maxMm: Double = PdfCustomSize.MAX_MM,
+    allowPixelUnit: Boolean = true,
 ) {
     var unit by remember { mutableStateOf(initialUnit) }
     var dpi by remember { mutableStateOf(initialDpi) }
@@ -77,7 +118,7 @@ internal fun PdfCustomSizeSheet(
 
     val widthMm = parsedMm(widthText, widthPin)
     val heightMm = parsedMm(heightText, heightPin)
-    val validation = PdfCustomSize.validate(widthMm, heightMm)
+    val validation = PdfCustomSize.validate(widthMm, heightMm, minMm, maxMm)
     LaunchedEffect(widthMm, validation.width.isValid) {
         if (widthMm != null && validation.width.isValid) lastValidWidthMm = widthMm
     }
@@ -89,9 +130,9 @@ internal fun PdfCustomSizeSheet(
     fun problemText(problem: PdfCustomSize.Problem?): String? =
         when (problem) {
             PdfCustomSize.Problem.TooSmall ->
-                stringResource(R.string.pdf_custom_size_min, formatMm(PdfCustomSize.MIN_MM, unit, dpi))
+                stringResource(R.string.pdf_custom_size_min, formatMm(minMm, unit, dpi))
             PdfCustomSize.Problem.TooLarge ->
-                stringResource(R.string.pdf_custom_size_max, formatMm(PdfCustomSize.MAX_MM, unit, dpi))
+                stringResource(R.string.pdf_custom_size_max, formatMm(maxMm, unit, dpi))
             PdfCustomSize.Problem.Invalid -> stringResource(R.string.pdf_custom_size_invalid)
             null -> null
         }
@@ -106,7 +147,7 @@ internal fun PdfCustomSizeSheet(
                 .padding(horizontal = 16.dp)
                 .heightIn(max = 560.dp),
         ) {
-            Text(stringResource(R.string.pdf_custom_size_title), style = MaterialTheme.typography.titleMedium)
+            Text(title, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(12.dp))
 
             // Proportional preview of the last VALID size; captioned when the current input
@@ -136,34 +177,30 @@ internal fun PdfCustomSizeSheet(
                 )
             Spacer(Modifier.height(12.dp))
 
-            var unitMenu by remember { mutableStateOf(false) }
-            Box {
-                OutlinedButton(onClick = { unitMenu = true }) { Text(UNIT_SUFFIXES[unit.ordinal]) }
-                GalleryDropdownMenu(expanded = unitMenu, onDismissRequest = { unitMenu = false }) {
-                    PdfUnit.entries.forEach { u ->
-                        GalleryMenuItem(
-                            text = UNIT_SUFFIXES[u.ordinal],
-                            onClick = {
-                                unitMenu = false
-                                // Re-express the current, still-valid values in the new unit;
-                                // mixed units are never shown, only one unit governs both fields.
-                                val w = widthMm
-                                val h = heightMm
-                                unit = u
-                                if (w != null) {
-                                    widthText = formatValue(w, u, dpi)
-                                    widthPin = PinnedMm(widthText, dpi, w)
-                                }
-                                if (h != null) {
-                                    heightText = formatValue(h, u, dpi)
-                                    heightPin = PinnedMm(heightText, dpi, h)
-                                }
-                            },
-                        )
+            // The same segmented unit group as the Layout panel's "Units" row, not a dropdown menu.
+            val units = PdfUnit.entries.filter { allowPixelUnit || it != PdfUnit.Pixel }
+            GalleryExpressiveChoiceGroupCompat(
+                labels = units.map { UNIT_SUFFIXES[it.ordinal] },
+                selectedIndex = units.indexOf(unit).coerceAtLeast(0),
+                onSelect = { index ->
+                    val u = units[index]
+                    // Re-express the current, still-valid values in the new unit;
+                    // mixed units are never shown, only one unit governs both fields.
+                    val w = widthMm
+                    val h = heightMm
+                    unit = u
+                    if (w != null) {
+                        widthText = formatValue(w, u, dpi)
+                        widthPin = PinnedMm(widthText, dpi, w)
                     }
-                }
-            }
-            Spacer(Modifier.height(8.dp))
+                    if (h != null) {
+                        heightText = formatValue(h, u, dpi)
+                        heightPin = PinnedMm(heightText, dpi, h)
+                    }
+                },
+                enabled = true,
+            )
+            Spacer(Modifier.height(12.dp))
 
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {

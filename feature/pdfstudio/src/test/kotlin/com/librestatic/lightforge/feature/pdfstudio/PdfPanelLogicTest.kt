@@ -214,4 +214,12 @@ class PdfPanelLogicTest {
         assertTrue(PdfPageLimit.canAdd(98, 2))
         assertFalse(PdfPageLimit.canAdd(98, 3))
     }
+
+    @Test
+    fun `custom size validation honors custom min and max`() {
+        assertTrue(PdfCustomSize.validate(30.0, 20.0, 10.0, 1000.0).isValid)
+        assertEquals(PdfCustomSize.Problem.TooSmall, PdfCustomSize.validate(9.9, 20.0, 10.0, 1000.0).width.problem)
+        assertEquals(PdfCustomSize.Problem.TooLarge, PdfCustomSize.validate(20.0, 1000.1, 10.0, 1000.0).height.problem)
+        assertTrue(PdfCustomSize.validate(10.0, 1000.0, 10.0, 1000.0).isValid)
+    }
 }

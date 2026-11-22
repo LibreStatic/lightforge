@@ -50,15 +50,17 @@ internal object PdfPaperPresets {
     }
 }
 
-/** The label resource for [PdfPrintSize] chips (New project sheet's "Print size" row, Layout
- * panel), shared so both read the same string. */
-internal fun PdfPrintSize.labelRes(): Int =
-    when (this) {
-        PdfPrintSize.Wallet6x9 -> R.string.pdf_print_size_wallet_6x9
-        PdfPrintSize.Print9x13 -> R.string.pdf_print_size_9x13
-        PdfPrintSize.Print10x15 -> R.string.pdf_print_size_10x15
-        PdfPrintSize.Print13x18 -> R.string.pdf_print_size_13x18
-        PdfPrintSize.Print15x20 -> R.string.pdf_print_size_15x20
+/** The label resource for a preset [PdfPrintSize] chip (New project sheet's "Print size" row,
+ * Layout panel), shared so both read the same string; null for a custom size, which is labeled
+ * with its dimensions instead. */
+internal fun PdfPrintSize.labelRes(): Int? =
+    when (id) {
+        PdfPrintSize.Wallet6x9.id -> R.string.pdf_print_size_wallet_6x9
+        PdfPrintSize.Print9x13.id -> R.string.pdf_print_size_9x13
+        PdfPrintSize.Print10x15.id -> R.string.pdf_print_size_10x15
+        PdfPrintSize.Print13x18.id -> R.string.pdf_print_size_13x18
+        PdfPrintSize.Print15x20.id -> R.string.pdf_print_size_15x20
+        else -> null
     }
 
 /**
@@ -138,17 +140,22 @@ internal object PdfCustomSize {
             get() = width.isValid && height.isValid
     }
 
-    private fun check(mm: Double?): Field =
+    private fun check(mm: Double?, minMm: Double, maxMm: Double): Field =
         Field(
             when {
                 mm == null || !mm.isFinite() -> Problem.Invalid
-                mm < MIN_MM -> Problem.TooSmall
-                mm > MAX_MM -> Problem.TooLarge
+                mm < minMm -> Problem.TooSmall
+                mm > maxMm -> Problem.TooLarge
                 else -> null
             }
         )
 
-    fun validate(widthMm: Double?, heightMm: Double?): Result = Result(check(widthMm), check(heightMm))
+    fun validate(
+        widthMm: Double?,
+        heightMm: Double?,
+        minMm: Double = MIN_MM,
+        maxMm: Double = MAX_MM,
+    ): Result = Result(check(widthMm, minMm, maxMm), check(heightMm, minMm, maxMm))
 }
 
 /**

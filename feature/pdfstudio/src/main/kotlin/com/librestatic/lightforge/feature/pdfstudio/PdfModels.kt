@@ -202,6 +202,9 @@ data class PdfProject(
     val columns: Int = 2,
     val gap: Double = 4.0,
     val snap: Boolean = false,
+    /** Snap-grid cell size when [snap] is on (mm, from the paper's top-left); independent X and Y. */
+    val snapGridXMm: Double = PdfSnapGrid.DEFAULT_MM,
+    val snapGridYMm: Double = PdfSnapGrid.DEFAULT_MM,
     val updated: Long = System.currentTimeMillis(),
     /**
      * Print-layout settings (feedback item B, added when [PdfCodec] bumped to version 3):
@@ -222,6 +225,10 @@ data class PdfProject(
      */
     val placementMode: PdfFit = PdfFit.Contain,
 ) {
+    /** The grid pointer drags snap to, or null when Snap is off. */
+    val activeSnapGrid: PdfSnapGrid?
+        get() = if (snap) PdfSnapGrid(snapGridXMm, snapGridYMm) else null
+
     fun usedAssets(): Set<String> =
         pages.flatMap { p -> listOfNotNull(p.source) + p.images.map { it.asset } }.toSet()
 
@@ -229,6 +236,7 @@ data class PdfProject(
         require(id.matches(Regex("[a-zA-Z0-9-]{1,80}")) && name.isNotBlank() && name.length <= 80)
         require(pages.isNotEmpty() && pages.size <= 100 && dpi in 72..600)
         require(columns in 1..6 && gap.isFinite() && gap in 0.0..30.0)
+        require(snapGridXMm.isFinite() && snapGridXMm > 0 && snapGridYMm.isFinite() && snapGridYMm > 0)
         require(printSize == null || PdfPrintSize.fromId(printSize) != null)
         require(usedAssets().size <= 128)
         require(assets.map { it.hash }.distinct().size == assets.size)

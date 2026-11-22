@@ -206,7 +206,11 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
     // Feedback item B: "Print size" is changeable here — Free grid keeps the photos-per-page
     // tiles below; any [PdfPrintSize] replaces them with the computed slot count.
     Text(stringResource(R.string.pdf_print_size_label), style = MaterialTheme.typography.labelLarge)
-    PdfPrintSizeSelector(selected = currentPrintSize, enabled = !s.editorLocked) { size ->
+    PdfPrintSizeSelector(
+        selected = currentPrintSize,
+        enabled = !s.editorLocked,
+        unit = PdfRulerMath.displayUnit(p.unit),
+    ) { size ->
         vm.applyPrintLayoutSettings(size, p.placementMode, page.width, page.height, page.margin, p.gap)
     }
     val printSizeFit =
@@ -249,7 +253,21 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         }
     }
 
-    Toggle(stringResource(R.string.pdf_snap), p.snap) { enabled -> vm.update { it.copy(snap = enabled) } }
+    // The grid sides are limited to the CURRENT page's size (1 mm up to its width / height); a
+    // project-wide grid can therefore exceed a smaller page elsewhere, which only means one cell.
+    PdfSnapSection(
+        snap = p.snap,
+        gridXMm = p.snapGridXMm,
+        gridYMm = p.snapGridYMm,
+        unit = p.unit,
+        dpi = p.dpi,
+        pageWidthMm = page.width,
+        pageHeightMm = page.height,
+        enabled = !s.editorLocked,
+        onSnap = { enabled -> vm.update { it.copy(snap = enabled) } },
+        onGridX = { mm -> vm.update { it.copy(snapGridXMm = mm) } },
+        onGridY = { mm -> vm.update { it.copy(snapGridYMm = mm) } },
+    )
 
     Spacer(Modifier.height(8.dp))
     Text(stringResource(R.string.pdf_units), style = MaterialTheme.typography.labelLarge)
@@ -603,5 +621,51 @@ internal fun GalleryExpressiveChoiceGroupCompat(
         selectedIndex = selectedIndex,
         onSelect = onSelect,
         enabled = labels.map { enabled },
+    )
+}
+
+/**
+ * The Snap switch plus, while it is on, independent grid width and height fields in the project
+ * unit (min 1 mm, max the page's own width / height). Extracted from the Layout panel so it can be
+ * rendered on its own.
+ */
+@Composable
+internal fun PdfSnapSection(
+    snap: Boolean,
+    gridXMm: Double,
+    gridYMm: Double,
+    unit: PdfUnit,
+    dpi: Int,
+    pageWidthMm: Double,
+    pageHeightMm: Double,
+    enabled: Boolean,
+    onSnap: (Boolean) -> Unit,
+    onGridX: (Double) -> Unit,
+    onGridY: (Double) -> Unit,
+) {
+    Toggle(stringResource(R.string.pdf_snap), snap, onSnap)
+    if (!snap) return
+    val factor = unit.factor(dpi)
+    val unitLabel = UNIT_LABELS[unit.ordinal]
+    val minMm = PdfSnapGrid.MIN_MM
+    PdfStepperField(
+        stringResource(R.string.pdf_snap_grid_width),
+        gridXMm / factor,
+        unitLabel,
+        step = PdfStepperMath.layoutStep(unit),
+        min = minMm / factor,
+        max = maxOf(pageWidthMm, minMm) / factor,
+        enabled = enabled,
+        onValue = { n -> onGridX((n * factor).coerceIn(minMm, maxOf(pageWidthMm, minMm))) },
+    )
+    PdfStepperField(
+        stringResource(R.string.pdf_snap_grid_height),
+        gridYMm / factor,
+        unitLabel,
+        step = PdfStepperMath.layoutStep(unit),
+        min = minMm / factor,
+        max = maxOf(pageHeightMm, minMm) / factor,
+        enabled = enabled,
+        onValue = { n -> onGridY((n * factor).coerceIn(minMm, maxOf(pageHeightMm, minMm))) },
     )
 }

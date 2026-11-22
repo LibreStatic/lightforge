@@ -68,7 +68,9 @@
     <string name="pdf_units">Units</string>
     <string name="pdf_untitled">Untitled project</string>
     <string name="pdf_width">Width</string>
-    <string name="pdf_snap">Snap to 5 mm grid</string>
+    <string name="pdf_snap">Snap to grid</string>
+    <string name="pdf_snap_grid_width">Grid width</string>
+    <string name="pdf_snap_grid_height">Grid height</string>
     <string name="pdf_fit_view">Fit page</string>
     <string name="pdf_image_label">Image %1$d</string>
     <string name="pdf_resize_label">Resize image %1$d</string>
@@ -220,6 +222,9 @@
     <string name="pdf_print_size_10x15">10 × 15 cm</string>
     <string name="pdf_print_size_13x18">13 × 18 cm</string>
     <string name="pdf_print_size_15x20">15 × 20 cm</string>
+    <string name="pdf_print_size_custom">Custom…</string>
+    <string name="pdf_print_size_custom_value">%1$s × %2$s %3$s</string>
+    <string name="pdf_print_size_custom_title">Custom print size</string>
     <string name="pdf_placement_mode_label">Placement</string>
     <string name="pdf_placement_fill_label">Fill (crop to fit)</string>
     <string name="pdf_placement_fill_desc">Fills the frame edge to edge; the photo may be cropped</string>

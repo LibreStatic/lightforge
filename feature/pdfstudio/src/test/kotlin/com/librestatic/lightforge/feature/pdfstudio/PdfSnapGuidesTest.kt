@@ -66,7 +66,7 @@ class PdfSnapGuidesTest {
         val candidates = PdfSnapGuides.candidates(page, emptyList())
         // 83 rounds to 85 on a 5 mm grid; 85 is then within 2mm of nothing here, so it should
         // land exactly on the grid value, not the raw candidate.
-        val result = PdfSnapGuides.resolveDrag(83.0, 20.0, 10.0, 10.0, candidates, gridMm = 5.0)
+        val result = PdfSnapGuides.resolveDrag(83.0, 20.0, 10.0, 10.0, candidates, grid = PdfSnapGrid(5.0, 5.0))
         assertEquals(85.0, result.x, .0001)
     }
 
@@ -76,7 +76,7 @@ class PdfSnapGuidesTest {
         val candidates = PdfSnapGuides.candidates(page, emptyList())
         // width=10 keeps the center/right edges (109/114) well outside the threshold, so only
         // the left edge (104, 1mm from the page-center guide at 105) can match.
-        val result = PdfSnapGuides.resolveDrag(104.0, 20.0, 10.0, 30.0, candidates, gridMm = null)
+        val result = PdfSnapGuides.resolveDrag(104.0, 20.0, 10.0, 30.0, candidates, grid = null)
         assertEquals(105.0, result.x, .0001)
         assertNotNull(result.vertical)
     }
@@ -84,7 +84,7 @@ class PdfSnapGuidesTest {
     @Test
     fun resolveDragMatchesManualGridThenGuideComposition() {
         // The exact composition the canvas's onDragEnd used to do manually, to prove
-        // resolveDrag(..., gridMm = 5.0) is equivalent (live drag and commit can never disagree
+        // resolveDrag(..., grid = PdfSnapGrid(5.0, 5.0)) is equivalent (live drag and commit can never disagree
         // since both now call the same function).
         val page = PdfPage(width = 210.0, height = 297.0)
         val candidateX = 83.3
@@ -93,7 +93,7 @@ class PdfSnapGuidesTest {
         val manualGridY = kotlin.math.round(candidateY / 5) * 5
         val candidates = PdfSnapGuides.candidates(page, emptyList())
         val manual = PdfSnapGuides.snap(manualGridX, manualGridY, 10.0, 10.0, candidates)
-        val viaHelper = PdfSnapGuides.resolveDrag(candidateX, candidateY, 10.0, 10.0, candidates, gridMm = 5.0)
+        val viaHelper = PdfSnapGuides.resolveDrag(candidateX, candidateY, 10.0, 10.0, candidates, grid = PdfSnapGrid(5.0, 5.0))
         assertEquals(manual.x, viaHelper.x, .0001)
         assertEquals(manual.y, viaHelper.y, .0001)
     }
@@ -140,5 +140,40 @@ class PdfSnapGuidesTest {
             PdfSnapGuides.candidatesFor(page, listOf(other), emptyList()),
             PdfSnapGuides.candidates(page, listOf(other)),
         )
+    }
+
+    @Test
+    fun anisotropicGridRoundsXAndYIndependently() {
+        val page = PdfPage(width = 210.0, height = 297.0)
+        // Far from page guides (center/margins) so only the 30 x 20 mm grid acts.
+        val result =
+            PdfSnapGuides.resolveDrag(
+                44.0, 52.0, 10.0, 10.0, PdfSnapGuides.candidates(page, emptyList()),
+                grid = PdfSnapGrid(30.0, 20.0), thresholdMm = 0.0,
+            )
+        assertEquals(30.0, result.x, .0001)
+        assertEquals(60.0, result.y, .0001)
+        val grid = PdfSnapGrid(30.0, 20.0)
+        assertEquals(60.0, grid.roundX(46.0), .0001)
+        assertEquals(40.0, grid.roundY(49.0), .0001)
+    }
+
+    @Test
+    fun gridLinePositionsAreInteriorMultiples() {
+        val grid = PdfSnapGrid(30.0, 20.0)
+        assertEquals(listOf(30.0, 60.0, 90.0, 120.0, 150.0, 180.0), grid.linePositions(grid.xMm, 210.0))
+        assertEquals(listOf(20.0, 40.0), grid.linePositions(grid.yMm, 60.0))
+        assertEquals(emptyList<Double>(), grid.linePositions(grid.xMm, 30.0))
+    }
+
+    @Test
+    fun projectActiveSnapGridFollowsSnapFlagAndRejectsBadSides() {
+        val off = PdfProject(name = "p", snapGridXMm = 30.0, snapGridYMm = 20.0)
+        assertNull(off.activeSnapGrid)
+        assertEquals(PdfSnapGrid(30.0, 20.0), off.copy(snap = true).activeSnapGrid)
+        assertEquals(PdfSnapGrid.DEFAULT_MM, PdfProject(name = "p").snapGridXMm, 0.0)
+        assertTrue(runCatching { off.copy(snapGridXMm = 0.0).validate() }.isFailure)
+        assertTrue(runCatching { off.copy(snapGridYMm = Double.NaN).validate() }.isFailure)
+        assertTrue(runCatching { off.validate() }.isSuccess)
     }
 }

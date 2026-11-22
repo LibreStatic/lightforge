@@ -500,15 +500,34 @@ class PdfProjectRepository(
                                 orientation,
                             )
                         known[hash] = a
+                        val printSize = PdfPrintSize.fromId(p.printSize)
+                        // An auto-placed photo in a print-layout project moves on to a new page,
+                        // with the same paper and margin, once every usable slot of the current
+                        // page is taken (a 25-photo import of a 84-slot custom size gives 24 + 1).
+                        val current = pages[imageTarget]
+                        val currentSlots =
+                            if (placement == null && current.source == null)
+                                printSize?.let { PdfPrintLayout.fit(current.width, current.height, current.margin, p.gap, it) }
+                            else null
+                        // Full when every usable slot is taken, or when images and texts together
+                        // already reach the shared per-page element limit.
+                        val printPageFull =
+                            currentSlots != null &&
+                                ((currentSlots.usablePerPage > 0 && current.images.size >= currentSlots.usablePerPage) ||
+                                    !PdfMediaPlacement.hasRoomForOneMore(current.images.size + current.texts.size))
                         val target =
                             if (
-                                pages[imageTarget].source == null &&
-                                    (!galleryLayout || pages[imageTarget].images.size < 24)
+                                current.source == null &&
+                                    !printPageFull &&
+                                    (!galleryLayout || current.images.size < 24)
                             )
                                 imageTarget
                             else {
                                 require(pages.size < 100)
-                                pages.add(PdfPage())
+                                pages.add(
+                                    if (printPageFull) PdfPage(width = current.width, height = current.height, margin = current.margin)
+                                    else PdfPage()
+                                )
                                 imageTarget = pages.lastIndex
                                 imageTarget
                             }
@@ -519,16 +538,14 @@ class PdfProjectRepository(
                         // slot with the project's placement mode, same as
                         // PdfStudioViewModel.insertOwnAsset — but only for the auto-placed case
                         // ([placement] null, i.e. not a Media panel drag & drop to an explicit
-                        // point) and only while the target page still has a free slot; otherwise
-                        // this falls back to the ordinary fitSize()/autoSlotTopLeft() placement
-                        // below unchanged (this streaming importer's page-overflow selection above
-                        // isn't print-slot aware, so a page already full of print slots keeps
-                        // using the free-form placement rather than risk a wrong page/geometry).
-                        val printSize = PdfPrintSize.fromId(p.printSize)
+                        // point) and only while the target page still has a free slot (the page
+                        // selection above already moves to a new page once the slots are full);
+                        // otherwise this falls back to the ordinary fitSize()/autoSlotTopLeft()
+                        // placement below unchanged.
                         val slotFit =
                             printSize?.let { PdfPrintLayout.fit(page.width, page.height, page.margin, p.gap, it) }
                         val image =
-                            if (placement == null && slotFit != null && page.images.size < slotFit.perPage) {
+                            if (placement == null && slotFit != null && page.images.size < slotFit.usablePerPage) {
                                 val r = PdfPrintLayout.slotRects(page.width, page.height, page.margin, p.gap, slotFit)[page.images.size]
                                 PdfImage(asset = hash, x = r.x, y = r.y, width = r.width, height = r.height, fit = p.placementMode)
                             } else {
@@ -585,7 +602,7 @@ class PdfProjectRepository(
                             val sourcePages = pages.filter { it.source != null }
                             val freeImages = pages.filter { it.source == null }.flatMap { it.images }
                             val slotPages =
-                                freeImages.chunked(slotFit.perPage).map { chunk ->
+                                freeImages.chunked(slotFit.usablePerPage).map { chunk ->
                                     val images =
                                         chunk.mapIndexed { n, image ->
                                             val r = rects[n]
@@ -960,6 +977,8 @@ class PdfProjectRepository(
                     columns = o.optInt("columns", 2),
                     gap = o.optDouble("gap", 4.0),
                     snap = o.optBoolean("snap", false),
+                    snapGridXMm = o.optDouble("snapGridX", PdfSnapGrid.DEFAULT_MM).validGridMm(),
+                    snapGridYMm = o.optDouble("snapGridY", PdfSnapGrid.DEFAULT_MM).validGridMm(),
                 )
                 .validate()
         p.assets.forEach { a ->
