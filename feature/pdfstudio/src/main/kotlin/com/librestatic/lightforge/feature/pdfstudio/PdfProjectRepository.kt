@@ -509,9 +509,12 @@ class PdfProjectRepository(
                             if (placement == null && current.source == null)
                                 printSize?.let { PdfPrintLayout.fit(current.width, current.height, current.margin, p.gap, it) }
                             else null
+                        // Full when every usable slot is taken, or when images and texts together
+                        // already reach the shared per-page element limit.
                         val printPageFull =
-                            currentSlots != null && currentSlots.usablePerPage > 0 &&
-                                current.images.size >= currentSlots.usablePerPage
+                            currentSlots != null &&
+                                ((currentSlots.usablePerPage > 0 && current.images.size >= currentSlots.usablePerPage) ||
+                                    !PdfMediaPlacement.hasRoomForOneMore(current.images.size + current.texts.size))
                         val target =
                             if (
                                 current.source == null &&
