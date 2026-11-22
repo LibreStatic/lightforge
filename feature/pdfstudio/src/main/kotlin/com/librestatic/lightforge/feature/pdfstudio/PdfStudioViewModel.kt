@@ -732,7 +732,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         val printSize = PdfPrintSize.fromId(project.printSize)
         if (printSize != null) {
             val slotFit = PdfPrintLayout.fit(page.width, page.height, page.margin, project.gap, printSize)
-            if (page.images.size >= slotFit.perPage) {
+            if (page.images.size >= slotFit.usablePerPage) {
                 mutable.update { it.copy(message = PdfFailure.PageFull.message) }
                 return
             }
@@ -807,7 +807,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             val images = p.pages.flatMap { it.images }
             val newPages =
                 images
-                    .chunked(slotFit.perPage)
+                    .chunked(slotFit.usablePerPage)
                     .map { chunk ->
                         val placed =
                             chunk.mapIndexed { n, img ->

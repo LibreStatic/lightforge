@@ -230,7 +230,7 @@ internal fun PdfPrintSizeCountLine(fit: PdfPrintLayout.SlotFit): Boolean {
         return false
     }
     Text(
-        pluralStringResource(R.plurals.pdf_photos_per_page, fit.perPage, fit.perPage),
+        pluralStringResource(R.plurals.pdf_photos_per_page, fit.usablePerPage, fit.usablePerPage),
         style = MaterialTheme.typography.bodyMedium,
     )
     return true

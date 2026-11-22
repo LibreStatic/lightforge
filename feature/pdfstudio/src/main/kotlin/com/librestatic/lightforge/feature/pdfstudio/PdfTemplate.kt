@@ -170,7 +170,7 @@ enum class PdfTemplate(
                 "Print size ${size.id} does not fit ${template.width}x${template.height}mm with ${template.margin}mm margins"
             }
             val rects = PdfPrintLayout.slotRects(template.width, template.height, template.margin, gap, slotFit)
-            return assetIds.chunked(slotFit.perPage).map { chunk ->
+            return assetIds.chunked(slotFit.usablePerPage).map { chunk ->
                 val images =
                     chunk.mapIndexed { n, asset ->
                         val r = rects[n]

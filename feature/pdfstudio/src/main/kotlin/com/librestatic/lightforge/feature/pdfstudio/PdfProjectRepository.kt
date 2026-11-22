@@ -528,7 +528,7 @@ class PdfProjectRepository(
                         val slotFit =
                             printSize?.let { PdfPrintLayout.fit(page.width, page.height, page.margin, p.gap, it) }
                         val image =
-                            if (placement == null && slotFit != null && page.images.size < slotFit.perPage) {
+                            if (placement == null && slotFit != null && page.images.size < slotFit.usablePerPage) {
                                 val r = PdfPrintLayout.slotRects(page.width, page.height, page.margin, p.gap, slotFit)[page.images.size]
                                 PdfImage(asset = hash, x = r.x, y = r.y, width = r.width, height = r.height, fit = p.placementMode)
                             } else {
@@ -585,7 +585,7 @@ class PdfProjectRepository(
                             val sourcePages = pages.filter { it.source != null }
                             val freeImages = pages.filter { it.source == null }.flatMap { it.images }
                             val slotPages =
-                                freeImages.chunked(slotFit.perPage).map { chunk ->
+                                freeImages.chunked(slotFit.usablePerPage).map { chunk ->
                                     val images =
                                         chunk.mapIndexed { n, image ->
                                             val r = rects[n]

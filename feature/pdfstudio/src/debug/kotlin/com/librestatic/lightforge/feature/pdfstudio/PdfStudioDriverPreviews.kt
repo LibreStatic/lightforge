@@ -3,6 +3,9 @@ package com.librestatic.lightforge.feature.pdfstudio
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.width
@@ -251,15 +254,28 @@ fun PdfSnapSectionPreview() = DriverFrame {
 @Composable
 fun PdfSnapGridOverlayPreview() = DriverFrame {
     val page = PdfPage(width = 210.0, height = 297.0)
+    val density = LocalDensity.current
+    val width = 300.dp
+    val height = width * (page.height / page.width).toFloat()
+    val band = 48.dp
+    val zoom = 1.5f
+    // The paper box carries the same offset/size/transform PdfCanvas gives it; the grid overlay
+    // must land exactly on it at zoom != 1 with a badge band.
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Box(Modifier.width(300.dp).aspectRatio(210f / 297f).background(PdfPaperTokens.Paper))
+        Box(
+            Modifier.offset(y = -(band / 2))
+                .size(width, height)
+                .graphicsLayer { scaleX = zoom; scaleY = zoom }
+                .background(PdfPaperTokens.Paper)
+        )
         PdfSnapGridOverlay(
             grid = PdfSnapGrid(30.0, 20.0),
             page = page,
-            density = LocalDensity.current,
-            width = 300.dp,
-            badgeBandHeight = 0.dp,
-            zoom = 1f,
+            density = density,
+            width = width,
+            height = height,
+            badgeBandHeight = band,
+            zoom = zoom,
             panX = 0f,
             panY = 0f,
         )

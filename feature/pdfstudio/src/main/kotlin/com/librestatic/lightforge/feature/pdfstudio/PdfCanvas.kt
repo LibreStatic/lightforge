@@ -807,10 +807,10 @@ internal fun PdfCanvas(
                 }
             }
             current.project?.activeSnapGrid?.let { grid ->
-                PdfSnapGridOverlay(grid, page, density, width, badgeBandHeight, current.zoom, current.panX, current.panY)
+                PdfSnapGridOverlay(grid, page, density, width, height, badgeBandHeight, current.zoom, current.panX, current.panY)
             }
             if (activeSnap != null)
-                PdfSnapOverlay(current, density, width, page, badgeBandHeight, activeSnap)
+                PdfSnapOverlay(current, density, width, height, page, badgeBandHeight, activeSnap)
             // The reserved band itself: badges (with the drag measurement chip floating just
             // above them while dragging) normally, or the contextual toolbar in their place while
             // an image or text is selected — never over the paper, and never changing the page's
@@ -1056,6 +1056,9 @@ private fun PdfImageElement(
     var dragOffsetMm by dragOffsetMm
     val inGroupSelectionState = rememberUpdatedState(inGroupSelection)
     val groupDragState = rememberUpdatedState(groupDrag)
+    // Read through state: the pointerInput blocks below are not keyed on the grid, so a grid edit
+    // must still reach an already-installed gesture handler.
+    val snapGridState = rememberUpdatedState(snapGrid)
     run {
         val imageLabel = stringResource(R.string.pdf_image_label, n + 1)
                         val resizeLabel = stringResource(R.string.pdf_resize_label, n + 1)
@@ -1280,7 +1283,7 @@ private fun PdfImageElement(
                                                             group,
                                                             move.x / pxPerMm,
                                                             move.y / pxPerMm,
-                                                            grid = snapGrid,
+                                                            grid = snapGridState.value,
                                                             thresholdMm = snapThresholdMm,
                                                         )
                                                     group.delta.value = null
@@ -1305,7 +1308,7 @@ private fun PdfImageElement(
                                                             i.width,
                                                             i.height,
                                                             PdfSnapGuides.candidatesFor(page, others, page.texts),
-                                                            grid = snapGrid,
+                                                            grid = snapGridState.value,
                                                             thresholdMm = snapThresholdMm,
                                                         )
                                                     activeSnap = null
@@ -1331,7 +1334,7 @@ private fun PdfImageElement(
                                                         group,
                                                         delta.x / pxPerMm,
                                                         delta.y / pxPerMm,
-                                                        grid = snapGrid,
+                                                        grid = snapGridState.value,
                                                         thresholdMm = snapThresholdMm,
                                                     )
                                                 activeSnap = snap
@@ -1357,7 +1360,7 @@ private fun PdfImageElement(
                                                         i.width,
                                                         i.height,
                                                         PdfSnapGuides.candidatesFor(page, others, page.texts),
-                                                        grid = snapGrid,
+                                                        grid = snapGridState.value,
                                                         thresholdMm = snapThresholdMm,
                                                     )
                                                 dragOffsetMm =
@@ -1505,41 +1508,58 @@ internal fun PdfSnapGridOverlay(
     page: PdfPage,
     density: androidx.compose.ui.unit.Density,
     width: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp,
     badgeBandHeight: androidx.compose.ui.unit.Dp,
     zoom: Float,
     panX: Float,
     panY: Float,
 ) {
     val color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+    // Exactly the paper box's own offset/size/graphicsLayer (see [pageBoxTransform]) and clipped to
+    // it, so the lines scale about the paper's centre and never leave the sheet.
     Canvas(
-        Modifier.fillMaxSize().graphicsLayer {
-            scaleX = zoom
-            scaleY = zoom
-            translationX = panX * density.density
-            translationY = panY * density.density
-        }
+        Modifier.pageBoxTransform(width, height, badgeBandHeight, zoom, panX, panY, density)
+            .clipToBounds()
     ) {
-        val pageBoxWidth = width.toPx()
-        val pageBoxHeight = pageBoxWidth * (page.height / page.width).toFloat()
-        val left = (this.size.width - pageBoxWidth) / 2f
-        val top = (this.size.height - pageBoxHeight) / 2f - badgeBandHeight.toPx() / 2f
+        val pageBoxWidth = this.size.width
+        val pageBoxHeight = this.size.height
         val pxPerMm = pageBoxWidth / page.width.toFloat()
         val minCellPx = MIN_CELL_DP.dp.toPx()
         val stroke = 1.dp.toPx() / zoom
         if (grid.xMm * pxPerMm * zoom >= minCellPx) {
             grid.linePositions(grid.xMm, page.width).forEach { mm ->
-                val x = left + mm.toFloat() * pxPerMm
-                drawLine(color, androidx.compose.ui.geometry.Offset(x, top), androidx.compose.ui.geometry.Offset(x, top + pageBoxHeight), stroke)
+                val x = mm.toFloat() * pxPerMm
+                drawLine(color, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, pageBoxHeight), stroke)
             }
         }
         if (grid.yMm * pxPerMm * zoom >= minCellPx) {
             grid.linePositions(grid.yMm, page.height).forEach { mm ->
-                val y = top + mm.toFloat() * pxPerMm
-                drawLine(color, androidx.compose.ui.geometry.Offset(left, y), androidx.compose.ui.geometry.Offset(left + pageBoxWidth, y), stroke)
+                val y = mm.toFloat() * pxPerMm
+                drawLine(color, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(pageBoxWidth, y), stroke)
             }
         }
     }
 }
+
+/** The paper box's offset, size and zoom/pan transform, shared with the overlays drawn over it so
+ * they transform about the same origin (the box's own centre), not the workspace centre. */
+private fun Modifier.pageBoxTransform(
+    width: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp,
+    badgeBandHeight: androidx.compose.ui.unit.Dp,
+    zoom: Float,
+    panX: Float,
+    panY: Float,
+    density: androidx.compose.ui.unit.Density,
+): Modifier =
+    offset(y = -(badgeBandHeight / 2))
+        .size(width, height)
+        .graphicsLayer {
+            scaleX = zoom
+            scaleY = zoom
+            translationX = panX * density.density
+            translationY = panY * density.density
+        }
 
 private const val MIN_CELL_DP = 4
 
@@ -1552,23 +1572,20 @@ private fun PdfSnapOverlay(
     current: PdfStudioState,
     density: androidx.compose.ui.unit.Density,
     width: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp,
     page: PdfPage,
     badgeBandHeight: androidx.compose.ui.unit.Dp,
     activeSnap: PdfSnapGuides.SnapResult?,
 ) {
+    // Same offset/size/transform as the paper box ([pageBoxTransform]), so the guides stay on the
+    // paper at any zoom (the old workspace-centred layer drifted by badgeBand/2 * (1 - zoom)).
     Canvas(
-        Modifier.fillMaxSize().graphicsLayer {
-            scaleX = current.zoom
-            scaleY = current.zoom
-            translationX = current.panX * density.density
-            translationY = current.panY * density.density
-        }
+        Modifier.pageBoxTransform(width, height, badgeBandHeight, current.zoom, current.panX, current.panY, density)
     ) {
-        val pageBoxWidth = width.toPx()
-        val pageBoxHeight = pageBoxWidth * (page.height / page.width).toFloat()
-        val left = (this.size.width - pageBoxWidth) / 2f
-        // Matches the page box's own offset(y = -badgeBandHeight / 2).
-        val top = (this.size.height - pageBoxHeight) / 2f - badgeBandHeight.toPx() / 2f
+        val pageBoxWidth = this.size.width
+        val pageBoxHeight = this.size.height
+        val left = 0f
+        val top = 0f
         activeSnap?.vertical?.let { g ->
             val x = left + (g.position / page.width).toFloat() * pageBoxWidth
             drawLine(
@@ -1742,6 +1759,9 @@ private fun PdfTextElement(
     var dragOffsetMm by dragOffsetMm
     val inGroupSelectionState = rememberUpdatedState(inGroupSelection)
     val groupDragState = rememberUpdatedState(groupDrag)
+    // Read through state: the pointerInput blocks below are not keyed on the grid, so a grid edit
+    // must still reach an already-installed gesture handler.
+    val snapGridState = rememberUpdatedState(snapGrid)
     val isSelected = selectedTextId == t.id
     val isEditing = editingTextId == t.id
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -1889,7 +1909,7 @@ private fun PdfTextElement(
                                         group,
                                         move.x / pxPerMm,
                                         move.y / pxPerMm,
-                                        grid = snapGrid,
+                                        grid = snapGridState.value,
                                         thresholdMm = snapThresholdMm,
                                     )
                                 group.delta.value = null
@@ -1907,7 +1927,7 @@ private fun PdfTextElement(
                                         t.width,
                                         t.height,
                                         PdfSnapGuides.candidatesFor(page, page.images, otherTexts),
-                                        grid = snapGrid,
+                                        grid = snapGridState.value,
                                         thresholdMm = snapThresholdMm,
                                     )
                                 activeSnap = null
@@ -1933,7 +1953,7 @@ private fun PdfTextElement(
                                     group,
                                     delta.x / pxPerMm,
                                     delta.y / pxPerMm,
-                                    grid = snapGrid,
+                                    grid = snapGridState.value,
                                     thresholdMm = snapThresholdMm,
                                 )
                             activeSnap = snap
@@ -1958,7 +1978,7 @@ private fun PdfTextElement(
                                     t.width,
                                     t.height,
                                     PdfSnapGuides.candidatesFor(page, page.images, otherTexts),
-                                    grid = snapGrid,
+                                    grid = snapGridState.value,
                                     thresholdMm = snapThresholdMm,
                                 )
                             dragOffsetMm =

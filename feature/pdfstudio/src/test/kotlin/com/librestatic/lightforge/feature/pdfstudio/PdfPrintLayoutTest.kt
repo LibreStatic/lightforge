@@ -218,7 +218,34 @@ class PdfPrintLayoutTest {
             assertFalse(it.isCustom)
         }
         assertEquals("wallet_6x9", PdfPrintSize.Wallet6x9.id)
-        assertEquals(PdfPrintSize.Print10x15, PdfPrintSize.custom(100.0, 150.0))
-        assertEquals(PdfPrintSize.Print10x15, PdfPrintSize.fromId("custom:100x150"))
+        // A custom size is always custom, even with preset dimensions (it keeps its orientation).
+        assertTrue(PdfPrintSize.custom(100.0, 150.0).isCustom)
+        assertEquals("custom:100x150", PdfPrintSize.custom(100.0, 150.0).id)
+        assertTrue(PdfPrintSize.fromId("custom:100x150")!!.isCustom)
+    }
+
+    @Test
+    fun `usablePerPage caps slots at the per-page element limit`() {
+        val fit = PdfPrintLayout.fit(210.0, 297.0, 5.0, 0.0, PdfPrintSize.custom(30.0, 20.0))
+        assertEquals(84, fit.perPage)
+        assertEquals(PdfMediaPlacement.MaxImagesPerPage, fit.usablePerPage)
+        val big = PdfPrintLayout.fit(210.0, 297.0, 5.0, 0.0, PdfPrintSize.Print10x15)
+        assertEquals(big.perPage, big.usablePerPage)
+    }
+
+    @Test
+    fun `chunking by usablePerPage never exceeds the element limit`() {
+        val fit = PdfPrintLayout.fit(210.0, 297.0, 5.0, 0.0, PdfPrintSize.custom(30.0, 20.0))
+        val chunks = (1..60).toList().chunked(fit.usablePerPage)
+        assertEquals(listOf(24, 24, 12), chunks.map { it.size })
+        assertTrue(chunks.all { it.size <= PdfMediaPlacement.MaxImagesPerPage })
+        assertEquals(fit.perPage, PdfPrintLayout.slotRects(210.0, 297.0, 5.0, 0.0, fit).size)
+    }
+
+    @Test
+    fun `custom with preset dimensions does not auto-rotate while the preset may`() {
+        val custom = PdfPrintSize.custom(130.0, 180.0)
+        assertNotEquals(PdfPrintSize.Print13x18, custom)
+        assertFalse(PdfPrintLayout.fit(210.0, 297.0, 5.0, 0.0, custom).rotated)
     }
 }

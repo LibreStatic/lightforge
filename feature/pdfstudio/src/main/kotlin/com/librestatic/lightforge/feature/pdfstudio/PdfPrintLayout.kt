@@ -40,15 +40,15 @@ data class PdfPrintSize(val id: String, val widthMm: Double, val heightMm: Doubl
             if (mm == Math.rint(mm)) mm.toLong().toString() else "%.1f".format(Locale.ROOT, mm)
 
         /**
-         * A size of [widthMm] x [heightMm] (rounded to 0.1 mm). Returns the matching preset when the
-         * dimensions equal one exactly, so the same physical size never has two ids. The caller is
-         * responsible for staying within [MIN_CUSTOM_MM]..[MAX_CUSTOM_MM].
+         * A custom size of [widthMm] x [heightMm] (rounded to 0.1 mm). It is always a custom id, even
+         * when the dimensions equal a preset: a custom size keeps the entered orientation (never
+         * auto-rotates), unlike the presets. The caller is responsible for staying within
+         * [MIN_CUSTOM_MM]..[MAX_CUSTOM_MM].
          */
         fun custom(widthMm: Double, heightMm: Double): PdfPrintSize {
             val w = roundMm(widthMm)
             val h = roundMm(heightMm)
-            return presets.firstOrNull { it.widthMm == w && it.heightMm == h }
-                ?: PdfPrintSize("$CUSTOM_PREFIX${formatMm(w)}x${formatMm(h)}", w, h)
+            return PdfPrintSize("$CUSTOM_PREFIX${formatMm(w)}x${formatMm(h)}", w, h)
         }
 
         /** Resolves a preset id or a `custom:<w>x<h>` id; null when unknown, malformed or out of bounds. */
@@ -94,6 +94,11 @@ object PdfPrintLayout {
 
         val perPage: Int
             get() = columns * rows
+
+        /** [perPage] capped at the per-page element limit ([PdfMediaPlacement.MaxImagesPerPage]);
+         * every place that allocates print slots uses this, filling slots in row-major order. */
+        val usablePerPage: Int
+            get() = minOf(perPage, PdfMediaPlacement.MaxImagesPerPage)
     }
 
     /**

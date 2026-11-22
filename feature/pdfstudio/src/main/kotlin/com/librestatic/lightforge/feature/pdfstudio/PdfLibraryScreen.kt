@@ -653,7 +653,9 @@ internal fun PdfNewProjectSheetContent(
     var gap by rememberSaveable(template) { mutableDoubleStateOf(selectedProjectTemplate.gap) }
     // Feedback item B: "Print size" (null = Free grid). A non-null value routes creation through
     // PdfPrintLayout instead of the free-grid columns/photosPerPage tiles below.
-    var printSize by rememberSaveable(template) { mutableStateOf(selectedProjectTemplate.printSize) }
+    // Saved as the id string (a PdfPrintSize data class is not Parcelable/Bundle-saveable).
+    var printSizeId by rememberSaveable(template) { mutableStateOf(selectedProjectTemplate.printSize?.id) }
+    val printSize = PdfPrintSize.fromId(printSizeId)
     // Feedback item A: the default placement mode for every auto-placed photo.
     var placementMode by rememberSaveable(template) { mutableStateOf(selectedProjectTemplate.fit) }
     val columns = selectedTemplate?.let { PdfLayoutTemplates.columnsFor(it, landscape) } ?: selectedProjectTemplate.columns
@@ -667,7 +669,7 @@ internal fun PdfNewProjectSheetContent(
         selectedTemplate = PdfLayoutTemplates.matchFor(t.columns, t.landscape, t.photosPerPage)
         margin = t.margin
         gap = t.gap
-        printSize = t.printSize
+        printSizeId = t.printSize?.id
         placementMode = t.fit
     }
 
@@ -750,7 +752,7 @@ internal fun PdfNewProjectSheetContent(
                 // count COMPUTED (never hardcoded). "Free grid" (null) keeps the pre-existing
                 // columns/photos-per-page tiles.
                 Text(stringResource(R.string.pdf_print_size_label), style = MaterialTheme.typography.labelLarge)
-                PdfPrintSizeSelector(selected = printSize, enabled = true, unit = PdfUnit.Millimeter) { printSize = it }
+                PdfPrintSizeSelector(selected = printSize, enabled = true, unit = PdfUnit.Millimeter) { printSizeId = it?.id }
                 val fit = slotFit
                 val slotFitValid = if (fit != null) PdfPrintSizeCountLine(fit) else true
                 if (printSize == null) {
