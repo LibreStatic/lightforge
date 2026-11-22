@@ -165,4 +165,60 @@ class PdfPrintLayoutTest {
         assertEquals(0.0, r.x, 0.001)
         assertEquals(0.0, r.y, 0.001)
     }
+
+    @Test
+    fun `custom 30x20 mm on A4 keeps the entered landscape orientation, 6 by 14`() {
+        val fit = PdfPrintLayout.fit(a4.first, a4.second, 5.0, 0.0, PdfPrintSize.custom(30.0, 20.0))
+        assertFalse(fit.rotated)
+        assertEquals(30.0, fit.slotWidthMm, 0.001)
+        assertEquals(20.0, fit.slotHeightMm, 0.001)
+        assertEquals(6, fit.columns)
+        assertEquals(14, fit.rows)
+        assertEquals(84, fit.perPage)
+    }
+
+    @Test
+    fun `custom size is never rotated even when only the rotated slot would fit`() {
+        // 250 x 150 mm is wider than A4's 200 mm printable width; rotated it would fit, but a
+        // custom size is laid out as entered, so the layout reports that nothing fits.
+        val fit = PdfPrintLayout.fit(a4.first, a4.second, 5.0, 0.0, PdfPrintSize.custom(250.0, 150.0))
+        assertFalse(fit.rotated)
+        assertEquals(0, fit.perPage)
+    }
+
+    @Test
+    fun `custom ids round-trip through fromId`() {
+        val size = PdfPrintSize.custom(30.0, 20.0)
+        assertEquals("custom:30x20", size.id)
+        assertTrue(size.isCustom)
+        assertEquals(size, PdfPrintSize.fromId(size.id))
+        val fractional = PdfPrintSize.custom(35.0, 45.54)
+        assertEquals("custom:35x45.5", fractional.id)
+        assertEquals(45.5, fractional.heightMm, 0.0)
+        assertEquals(fractional, PdfPrintSize.fromId(fractional.id))
+    }
+
+    @Test
+    fun `malformed or out-of-bounds custom ids resolve to null`() {
+        listOf(
+            "custom:", "custom:axb", "custom:30", "custom:30x20x10", "custom:4.9x20", "custom:2000x20",
+            "custom:20x4.9", "custom:NaNx20", "custom:Infinityx20", "custom:-30x20", "custom", "nonsense",
+        ).forEach { assertNull(it, PdfPrintSize.fromId(it)) }
+        assertNull(PdfPrintSize.fromId(null))
+        assertNotNull(PdfPrintSize.fromId("custom:10x1000"))
+        assertNotNull(PdfPrintSize.fromId("custom:5x20"))
+        assertNotNull(PdfPrintSize.fromId("custom:20x5"))
+    }
+
+    @Test
+    fun `preset ids still resolve to the same presets and are not custom`() {
+        assertEquals(5, PdfPrintSize.presets.size)
+        PdfPrintSize.presets.forEach {
+            assertSame(it, PdfPrintSize.fromId(it.id))
+            assertFalse(it.isCustom)
+        }
+        assertEquals("wallet_6x9", PdfPrintSize.Wallet6x9.id)
+        assertEquals(PdfPrintSize.Print10x15, PdfPrintSize.custom(100.0, 150.0))
+        assertEquals(PdfPrintSize.Print10x15, PdfPrintSize.fromId("custom:100x150"))
+    }
 }

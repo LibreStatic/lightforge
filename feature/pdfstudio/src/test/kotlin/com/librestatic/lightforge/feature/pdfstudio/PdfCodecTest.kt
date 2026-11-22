@@ -121,4 +121,33 @@ class PdfCodecTest {
         encoded.put("format", "com.other.thing")
         assertTrue(runCatching { PdfCodec.decode(encoded.toString()) }.isFailure)
     }
+
+    @Test
+    fun customPrintSizeRoundTrips() {
+        val p = project().copy(printSize = PdfPrintSize.custom(30.0, 20.0).id)
+        val decoded = PdfCodec.decode(PdfCodec.encode(p))
+        assertEquals(p, decoded)
+        assertEquals("custom:30x20", decoded.printSize)
+        assertEquals(PdfPrintSize.custom(30.0, 20.0), PdfPrintSize.fromId(decoded.printSize))
+    }
+
+    @Test
+    fun snapGridRoundTripsAndOldPayloadsDefaultToFiveMm() {
+        val p = project().copy(snap = true, snapGridXMm = 30.0, snapGridYMm = 20.0)
+        val decoded = PdfCodec.decode(PdfCodec.encode(p))
+        assertEquals(p, decoded)
+        assertEquals(30.0, decoded.snapGridXMm, 0.0)
+        assertEquals(20.0, decoded.snapGridYMm, 0.0)
+        assertTrue(JSONObject(PdfCodec.encode(p)).getInt("version") == 3)
+
+        val old = JSONObject(PdfCodec.encode(p)).apply { remove("snapGridX"); remove("snapGridY") }
+        val oldDecoded = PdfCodec.decode(old.toString())
+        assertEquals(5.0, oldDecoded.snapGridXMm, 0.0)
+        assertEquals(5.0, oldDecoded.snapGridYMm, 0.0)
+
+        val bad = JSONObject(PdfCodec.encode(p)).apply { put("snapGridX", -3.0); put("snapGridY", 0.0) }
+        val badDecoded = PdfCodec.decode(bad.toString())
+        assertEquals(5.0, badDecoded.snapGridXMm, 0.0)
+        assertEquals(5.0, badDecoded.snapGridYMm, 0.0)
+    }
 }

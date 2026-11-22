@@ -1291,15 +1291,17 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         viewport(s.zoom * factor, s.panX, s.panY)
     }
 
-    fun moveImage(dx: Double, dy: Double) {
+    /** Moves the selected image by a delta. [snap] rounds the result to the project's snap grid when
+     * Snap is on; the keyboard nudge never snaps (a 1 mm nudge would otherwise never leave a 30 mm cell). */
+    fun moveImage(dx: Double, dy: Double, snap: Boolean = false) {
         val p = mutable.value.project ?: return
         val page = p.pages[mutable.value.page]
         imageEdit { image ->
             var x = image.x + dx
             var y = image.y + dy
-            if (p.snap) {
-                x = kotlin.math.round(x / 5) * 5
-                y = kotlin.math.round(y / 5) * 5
+            p.activeSnapGrid?.takeIf { snap }?.let { grid ->
+                x = grid.roundX(x)
+                y = grid.roundY(y)
             }
             // Manual move: margins are a guide (snap can still pull to them), not a wall.
             PdfGeometry.constrainToPage(image.copy(x = x, y = y), page)
@@ -1319,16 +1321,16 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     /** As [moveImage], but moves the selected TEXT box (Phase G1b) — a no-op if no text is
      * selected. Shared by the canvas's arrow-key nudge (via [moveSelected]) and the text drag
      * gesture's per-frame update. */
-    fun moveTextBy(dx: Double, dy: Double) {
+    fun moveTextBy(dx: Double, dy: Double, snap: Boolean = false) {
         val id = mutable.value.selectedTextId ?: return
         val project = mutable.value.project ?: return
         val page = project.pages.getOrNull(mutable.value.page) ?: return
         textEdit(id) { t ->
             var x = t.x + dx
             var y = t.y + dy
-            if (project.snap) {
-                x = kotlin.math.round(x / 5) * 5
-                y = kotlin.math.round(y / 5) * 5
+            project.activeSnapGrid?.takeIf { snap }?.let { grid ->
+                x = grid.roundX(x)
+                y = grid.roundY(y)
             }
             PdfGeometry.constrainTextToPage(t.copy(x = x, y = y), page)
         }

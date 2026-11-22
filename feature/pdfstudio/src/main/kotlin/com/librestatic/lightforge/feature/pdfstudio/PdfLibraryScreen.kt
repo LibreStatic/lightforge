@@ -750,7 +750,7 @@ internal fun PdfNewProjectSheetContent(
                 // count COMPUTED (never hardcoded). "Free grid" (null) keeps the pre-existing
                 // columns/photos-per-page tiles.
                 Text(stringResource(R.string.pdf_print_size_label), style = MaterialTheme.typography.labelLarge)
-                PdfPrintSizeSelector(selected = printSize, enabled = true) { printSize = it }
+                PdfPrintSizeSelector(selected = printSize, enabled = true, unit = PdfUnit.Millimeter) { printSize = it }
                 val fit = slotFit
                 val slotFitValid = if (fit != null) PdfPrintSizeCountLine(fit) else true
                 if (printSize == null) {

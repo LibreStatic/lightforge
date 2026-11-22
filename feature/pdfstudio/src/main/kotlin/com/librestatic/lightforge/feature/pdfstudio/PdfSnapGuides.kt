@@ -8,7 +8,7 @@ import kotlin.math.abs
  * unit tests; [PdfCanvas] only draws the [GuideLine]s this returns and formats [SnapResult.deltaX]
  * / [SnapResult.deltaY] for the measurement chip.
  *
- * This is separate from the project's persisted 5 mm grid ([PdfProject.snap], applied in
+ * This is separate from the project's persisted snap grid ([PdfProject.snap], applied in
  * [PdfStudioViewModel.moveImage]): guides snap within [snap]'s threshold regardless of that
  * setting, matching the plan's "guides snap within threshold regardless."
  */
@@ -105,7 +105,7 @@ object PdfSnapGuides {
     /**
      * Single pure resolution step for a drag-to-move gesture, shared by the canvas's live guide
      * overlay/measurement chip and its onDragEnd commit so the two can never disagree: the
-     * project's 5 mm grid (when [gridMm] is non-null, i.e. the project's Snap setting is on)
+     * project's snap grid (when [grid] is non-null, i.e. the project's Snap setting is on)
      * rounds the candidate position first, then guides snap within [thresholdMm] regardless of
      * that setting.
      */
@@ -115,13 +115,45 @@ object PdfSnapGuides {
         width: Double,
         height: Double,
         candidates: List<GuideLine>,
-        gridMm: Double? = null,
+        grid: PdfSnapGrid? = null,
         thresholdMm: Double = 2.0,
     ): SnapResult {
-        val gridX =
-            if (gridMm != null) kotlin.math.round(candidateX / gridMm) * gridMm else candidateX
-        val gridY =
-            if (gridMm != null) kotlin.math.round(candidateY / gridMm) * gridMm else candidateY
+        val gridX = if (grid != null) grid.roundX(candidateX) else candidateX
+        val gridY = if (grid != null) grid.roundY(candidateY) else candidateY
         return snap(gridX, gridY, width, height, candidates, thresholdMm)
+    }
+}
+
+/**
+ * The project's snap grid in millimeters, measured from the paper's top-left corner: positions
+ * round to a multiple of [xMm] horizontally and [yMm] vertically (independent sizes, e.g. 30 x 20).
+ */
+data class PdfSnapGrid(val xMm: Double, val yMm: Double) {
+    init {
+        require(xMm.isFinite() && xMm > 0 && yMm.isFinite() && yMm > 0)
+    }
+
+    fun roundX(x: Double): Double = kotlin.math.round(x / xMm) * xMm
+
+    fun roundY(y: Double): Double = kotlin.math.round(y / yMm) * yMm
+
+    /** Interior grid line positions (mm from the paper's top-left) every [stepMm] along an axis of
+     * [extentMm]; the paper's own edges are not repeated. */
+    fun linePositions(stepMm: Double, extentMm: Double): List<Double> {
+        if (!(stepMm > 0) || !extentMm.isFinite()) return emptyList()
+        val out = ArrayList<Double>()
+        var k = 1
+        while (k * stepMm < extentMm - 1e-6) {
+            out.add(k * stepMm)
+            k++
+        }
+        return out
+    }
+
+    companion object {
+        const val DEFAULT_MM = 5.0
+
+        /** Smallest grid side the UI offers. */
+        const val MIN_MM = 1.0
     }
 }

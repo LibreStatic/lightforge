@@ -1,7 +1,13 @@
 package com.librestatic.lightforge.feature.pdfstudio
 
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
@@ -186,6 +192,96 @@ fun PdfExportQueueEmptyPreview() = DriverFrame {
         GalleryTopAppBar(title = stringResource(R.string.pdf_queue), onBack = {})
         PdfExportQueueEmpty(Modifier.weight(1f))
     }
+}
+
+/** Print-size selector, project in mm, with two recent customs and 30 x 20 selected. Driver: `PdfPrintSizeSelectorCustomPreview`. */
+@Preview
+@Composable
+fun PdfPrintSizeSelectorCustomPreview() = DriverFrame { PrintSizeSelectorDemo(PdfUnit.Millimeter) }
+
+/** The same selector for a project in cm. Driver: `PdfPrintSizeSelectorCmPreview`. */
+@Preview
+@Composable
+fun PdfPrintSizeSelectorCmPreview() = DriverFrame { PrintSizeSelectorDemo(PdfUnit.Centimeter) }
+
+@Composable
+private fun PrintSizeSelectorDemo(unit: PdfUnit) {
+    var size by remember { mutableStateOf<PdfPrintSize?>(PdfPrintSize.custom(30.0, 20.0)) }
+    var recents by remember {
+        mutableStateOf(listOf(PdfPrintSize.custom(30.0, 20.0), PdfPrintSize.custom(45.0, 35.5)))
+    }
+    Column(Modifier.padding(16.dp)) {
+        PdfPrintSizeSelectorContent(
+            selected = size,
+            enabled = true,
+            unit = unit,
+            recents = recents,
+            onRecord = { recents = PdfRecentPrintSizes.record(recents, it) },
+            onSelect = { size = it },
+        )
+    }
+}
+
+/** Layout panel's Snap section with the grid fields (3 x 2 cm). Driver: `PdfSnapSectionPreview`. */
+@Preview
+@Composable
+fun PdfSnapSectionPreview() = DriverFrame {
+    var on by remember { mutableStateOf(true) }
+    var gx by remember { mutableStateOf(30.0) }
+    var gy by remember { mutableStateOf(20.0) }
+    Column(Modifier.padding(16.dp)) {
+        PdfSnapSection(
+            snap = on,
+            gridXMm = gx,
+            gridYMm = gy,
+            unit = PdfUnit.Centimeter,
+            dpi = 300,
+            pageWidthMm = 210.0,
+            pageHeightMm = 297.0,
+            enabled = true,
+            onSnap = { on = it },
+            onGridX = { gx = it },
+            onGridY = { gy = it },
+        )
+    }
+}
+
+/** The faint snap grid (30 x 20 mm) over a white A4 page. Driver: `PdfSnapGridOverlayPreview`. */
+@Preview
+@Composable
+fun PdfSnapGridOverlayPreview() = DriverFrame {
+    val page = PdfPage(width = 210.0, height = 297.0)
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Box(Modifier.width(300.dp).aspectRatio(210f / 297f).background(PdfPaperTokens.Paper))
+        PdfSnapGridOverlay(
+            grid = PdfSnapGrid(30.0, 20.0),
+            page = page,
+            density = LocalDensity.current,
+            width = 300.dp,
+            badgeBandHeight = 0.dp,
+            zoom = 1f,
+            panX = 0f,
+            panY = 0f,
+        )
+    }
+}
+
+/** Custom print size sheet, opened in print mode (cm, no px). Driver: `PdfPrintSizeSheetPreview`. */
+@Preview
+@Composable
+fun PdfPrintSizeSheetPreview() = DriverFrame {
+    PdfCustomSizeSheet(
+        initialWidthMm = 30.0,
+        initialHeightMm = 20.0,
+        initialUnit = PdfUnit.Centimeter,
+        initialDpi = 300,
+        onDismiss = {},
+        onUse = { _, _ -> },
+        title = stringResource(R.string.pdf_print_size_custom_title),
+        minMm = PdfPrintSize.MIN_CUSTOM_MM,
+        maxMm = PdfPrintSize.MAX_CUSTOM_MM,
+        allowPixelUnit = false,
+    )
 }
 
 @Composable

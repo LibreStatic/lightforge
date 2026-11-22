@@ -68,7 +68,9 @@
     <string name="pdf_units">Unités</string>
     <string name="pdf_untitled">Projet sans titre</string>
     <string name="pdf_width">Largeur</string>
-    <string name="pdf_snap">Aligner sur une grille de 5 mm</string>
+    <string name="pdf_snap">Aligner sur la grille</string>
+    <string name="pdf_snap_grid_width">Largeur de la grille</string>
+    <string name="pdf_snap_grid_height">Hauteur de la grille</string>
     <string name="pdf_fit_view">Ajuster la page</string>
     <string name="pdf_image_label">Image %1$d</string>
     <string name="pdf_resize_label">Redimensionner l’image %1$d</string>
@@ -224,6 +226,9 @@
     <string name="pdf_print_size_10x15">10 × 15 cm</string>
     <string name="pdf_print_size_13x18">13 × 18 cm</string>
     <string name="pdf_print_size_15x20">15 × 20 cm</string>
+    <string name="pdf_print_size_custom">Personnalisé…</string>
+    <string name="pdf_print_size_custom_value">%1$s × %2$s %3$s</string>
+    <string name="pdf_print_size_custom_title">Format d\'impression personnalisé</string>
     <string name="pdf_placement_mode_label">Placement</string>
     <string name="pdf_placement_fill_label">Remplir (recadrer pour ajuster)</string>
     <string name="pdf_placement_fill_desc">Remplit le cadre entièrement ; la photo peut être recadrée</string>

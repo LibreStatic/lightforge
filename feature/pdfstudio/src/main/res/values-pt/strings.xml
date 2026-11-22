@@ -68,7 +68,9 @@
     <string name="pdf_units">Unidades</string>
     <string name="pdf_untitled">Projeto sem título</string>
     <string name="pdf_width">Largura</string>
-    <string name="pdf_snap">Ajustar à grade de 5 mm</string>
+    <string name="pdf_snap">Ajustar à grade</string>
+    <string name="pdf_snap_grid_width">Largura da grade</string>
+    <string name="pdf_snap_grid_height">Altura da grade</string>
     <string name="pdf_fit_view">Ajustar página</string>
     <string name="pdf_image_label">Imagem %1$d</string>
     <string name="pdf_resize_label">Redimensionar imagem %1$d</string>
@@ -224,6 +226,9 @@
     <string name="pdf_print_size_10x15">10 × 15 cm</string>
     <string name="pdf_print_size_13x18">13 × 18 cm</string>
     <string name="pdf_print_size_15x20">15 × 20 cm</string>
+    <string name="pdf_print_size_custom">Personalizado…</string>
+    <string name="pdf_print_size_custom_value">%1$s × %2$s %3$s</string>
+    <string name="pdf_print_size_custom_title">Tamanho de impressão personalizado</string>
     <string name="pdf_placement_mode_label">Posicionamento</string>
     <string name="pdf_placement_fill_label">Preencher (cortar para ajustar)</string>
     <string name="pdf_placement_fill_desc">Preenche o quadro de ponta a ponta; a foto pode ser cortada</string>

@@ -9,8 +9,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -25,13 +30,42 @@ import com.librestatic.lightforge.core.designsystem.GalleryIcons
  * discoverability). Shared by the New project sheet and the Layout panel so both read one
  * implementation.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PdfPrintSizeSelector(
     selected: PdfPrintSize?,
     enabled: Boolean,
+    unit: PdfUnit,
     onSelect: (PdfPrintSize?) -> Unit,
 ) {
+    val context = LocalContext.current
+    val store = remember { PdfRecentPrintSizesStore(context) }
+    var recents by remember { mutableStateOf(store.read()) }
+    PdfPrintSizeSelectorContent(
+        selected = selected,
+        enabled = enabled,
+        unit = unit,
+        recents = recents,
+        onRecord = { recents = store.record(it) },
+        onSelect = onSelect,
+    )
+}
+
+/**
+ * The selector's stateless body. Chip order: Free grid, presets, recent custom sizes, the current
+ * custom size when it is not among them, then "Custom…" (never selected; it opens the size sheet).
+ * Custom sizes read in [unit] (the project unit; px projects pass mm).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun PdfPrintSizeSelectorContent(
+    selected: PdfPrintSize?,
+    enabled: Boolean,
+    unit: PdfUnit,
+    recents: List<PdfPrintSize>,
+    onRecord: (PdfPrintSize) -> Unit,
+    onSelect: (PdfPrintSize?) -> Unit,
+) {
+    var showCustom by remember { mutableStateOf(false) }
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -40,11 +74,49 @@ internal fun PdfPrintSizeSelector(
         PdfPrintSizeChip(stringResource(R.string.pdf_print_size_free_grid), selected == null, enabled) {
             onSelect(null)
         }
-        PdfPrintSize.entries.forEach { size ->
-            PdfPrintSizeChip(stringResource(size.labelRes()), selected == size, enabled) { onSelect(size) }
+        PdfPrintSize.presets.forEach { size ->
+            val label = size.labelRes()?.let { stringResource(it) } ?: size.id
+            PdfPrintSizeChip(label, selected == size, enabled) { onSelect(size) }
         }
+        val customChips = recents + listOfNotNull(selected?.takeIf { it.isCustom && recents.none { r -> r.id == it.id } })
+        customChips.forEach { size ->
+            val label =
+                stringResource(
+                    R.string.pdf_print_size_custom_value,
+                    formatValueTrimmed(size.widthMm, unit),
+                    formatValueTrimmed(size.heightMm, unit),
+                    UNIT_SUFFIXES[unit.ordinal],
+                )
+            PdfPrintSizeChip(label, selected == size, enabled) {
+                onRecord(size)
+                onSelect(size)
+            }
+        }
+        PdfPrintSizeChip(stringResource(R.string.pdf_print_size_custom), false, enabled) { showCustom = true }
+    }
+    if (showCustom) {
+        PdfCustomSizeSheet(
+            initialWidthMm = selected?.widthMm ?: DEFAULT_CUSTOM_WIDTH_MM,
+            initialHeightMm = selected?.heightMm ?: DEFAULT_CUSTOM_HEIGHT_MM,
+            initialUnit = unit,
+            initialDpi = 300,
+            onDismiss = { showCustom = false },
+            onUse = { w, h ->
+                showCustom = false
+                val size = PdfPrintSize.custom(w, h)
+                onRecord(size)
+                onSelect(size)
+            },
+            title = stringResource(R.string.pdf_print_size_custom_title),
+            minMm = PdfPrintSize.MIN_CUSTOM_MM,
+            maxMm = PdfPrintSize.MAX_CUSTOM_MM,
+            allowPixelUnit = false,
+        )
     }
 }
+
+private const val DEFAULT_CUSTOM_WIDTH_MM = 30.0
+private const val DEFAULT_CUSTOM_HEIGHT_MM = 20.0
 
 @Composable
 private fun PdfPrintSizeChip(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {

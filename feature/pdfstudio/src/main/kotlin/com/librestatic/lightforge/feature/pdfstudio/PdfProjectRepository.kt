@@ -960,6 +960,8 @@ class PdfProjectRepository(
                     columns = o.optInt("columns", 2),
                     gap = o.optDouble("gap", 4.0),
                     snap = o.optBoolean("snap", false),
+                    snapGridXMm = o.optDouble("snapGridX", PdfSnapGrid.DEFAULT_MM).validGridMm(),
+                    snapGridYMm = o.optDouble("snapGridY", PdfSnapGrid.DEFAULT_MM).validGridMm(),
                 )
                 .validate()
         p.assets.forEach { a ->

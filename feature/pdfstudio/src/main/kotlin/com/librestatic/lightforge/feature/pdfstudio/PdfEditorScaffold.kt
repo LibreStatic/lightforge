@@ -1457,7 +1457,10 @@ internal fun PdfStatusBar(
                 )
                 PdfStatusDot()
                 Text(
-                    if (project.snap) stringResource(R.string.pdf_status_snap, "5 mm")
+                    if (project.snap) stringResource(
+                        R.string.pdf_status_snap,
+                        formatGridLabel(project.snapGridXMm, project.snapGridYMm, PdfRulerMath.displayUnit(project.unit)),
+                    )
                     else stringResource(R.string.pdf_status_snap_off),
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,

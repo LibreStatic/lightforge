@@ -68,7 +68,9 @@
     <string name="pdf_units">Einheiten</string>
     <string name="pdf_untitled">Unbenanntes Projekt</string>
     <string name="pdf_width">Breite</string>
-    <string name="pdf_snap">Am 5-mm-Raster ausrichten</string>
+    <string name="pdf_snap">Am Raster ausrichten</string>
+    <string name="pdf_snap_grid_width">Rasterbreite</string>
+    <string name="pdf_snap_grid_height">Rasterhöhe</string>
     <string name="pdf_fit_view">Seite einpassen</string>
     <string name="pdf_image_label">Bild %1$d</string>
     <string name="pdf_resize_label">Bild %1$d skalieren</string>
@@ -220,6 +222,9 @@
     <string name="pdf_print_size_10x15">10 × 15 cm</string>
     <string name="pdf_print_size_13x18">13 × 18 cm</string>
     <string name="pdf_print_size_15x20">15 × 20 cm</string>
+    <string name="pdf_print_size_custom">Benutzerdefiniert…</string>
+    <string name="pdf_print_size_custom_value">%1$s × %2$s %3$s</string>
+    <string name="pdf_print_size_custom_title">Benutzerdefinierte Druckgröße</string>
     <string name="pdf_placement_mode_label">Platzierung</string>
     <string name="pdf_placement_fill_label">Füllen (zuschneiden)</string>
     <string name="pdf_placement_fill_desc">Füllt den Rahmen randlos aus; das Foto kann beschnitten werden</string>
