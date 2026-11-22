@@ -197,5 +197,9 @@ object PdfCodec {
     }
 }
 
-/** A stored snap-grid side, or the 5 mm default when it is missing, NaN, infinite or not positive. */
-internal fun Double.validGridMm(): Double = if (isFinite() && this > 0) this else PdfSnapGrid.DEFAULT_MM
+/**
+ * A stored snap-grid side, or the 5 mm default when it is missing, NaN, infinite or below
+ * [PdfSnapGrid.MIN_MM] (a tiny side would overflow the rounding in [PdfSnapGrid.roundX]).
+ */
+internal fun Double.validGridMm(): Double =
+    if (isFinite() && this >= PdfSnapGrid.MIN_MM) this else PdfSnapGrid.DEFAULT_MM

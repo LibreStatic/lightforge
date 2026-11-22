@@ -149,5 +149,11 @@ class PdfCodecTest {
         val badDecoded = PdfCodec.decode(bad.toString())
         assertEquals(5.0, badDecoded.snapGridXMm, 0.0)
         assertEquals(5.0, badDecoded.snapGridYMm, 0.0)
+
+        // Sides below the 1 mm minimum (here a subnormal that overflows rounding) fall back too.
+        val tiny = JSONObject(PdfCodec.encode(p)).apply { put("snapGridX", 1e-320); put("snapGridY", 0.5) }
+        val tinyDecoded = PdfCodec.decode(tiny.toString())
+        assertEquals(5.0, tinyDecoded.snapGridXMm, 0.0)
+        assertEquals(5.0, tinyDecoded.snapGridYMm, 0.0)
     }
 }
